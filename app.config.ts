@@ -43,7 +43,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-barcode-scanner",
     "expo-notifications",
     "expo-secure-store",
-    "@sentry/react-native",
+    ...(process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+      ? (["@sentry/react-native"] as const)
+      : []),
   ],
   extra: {
     supabaseUrl: process.env.SUPABASE_URL,
