@@ -40,7 +40,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     "expo-camera",
-    "expo-barcode-scanner",
     "expo-notifications",
     "expo-secure-store",
     ...(process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
