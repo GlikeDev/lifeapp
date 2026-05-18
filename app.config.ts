@@ -1,49 +1,50 @@
-import type { ExpoConfig, ConfigContext } from 'expo/config';
+import type { ExpoConfig, ConfigContext } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'SaveSmart',
-  slug: 'savesmart',
-  version: '1.0.0',
-  orientation: 'portrait',
-  icon: './assets/icon.png',
-  userInterfaceStyle: 'dark',
+  name: "SaveSmart",
+  slug: "savesmart",
+  version: "1.0.0",
+  orientation: "portrait",
+  icon: "./assets/icon.png",
+  userInterfaceStyle: "dark",
   newArchEnabled: true,
   splash: {
-    image: './assets/splash-icon.png',
-    resizeMode: 'contain',
-    backgroundColor: '#0D0E1A',
+    image: "./assets/splash-icon.png",
+    resizeMode: "contain",
+    backgroundColor: "#0D0E1A",
   },
   ios: {
     supportsTablet: false,
-    bundleIdentifier: 'com.savesmart.app',
+    bundleIdentifier: "com.savesmart.app",
     infoPlist: {
-      NSCameraUsageDescription: 'Для сканирования чеков и штрих-кодов',
-      NSPhotoLibraryUsageDescription: 'Для загрузки изображений чеков',
+      NSCameraUsageDescription: "Для сканирования чеков и штрих-кодов",
+      NSPhotoLibraryUsageDescription: "Для загрузки изображений чеков",
     },
   },
   android: {
-    package: 'com.savesmart.app',
+    package: "com.savesmart.app",
     adaptiveIcon: {
-      foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#0D0E1A',
+      foregroundImage: "./assets/adaptive-icon.png",
+      backgroundColor: "#0D0E1A",
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
+    googleServicesFile: "./google-services.json",
     permissions: [
-      'android.permission.CAMERA',
-      'android.permission.READ_EXTERNAL_STORAGE',
+      "android.permission.CAMERA",
+      "android.permission.READ_EXTERNAL_STORAGE",
     ],
   },
   web: {
-    favicon: './assets/favicon.png',
+    favicon: "./assets/favicon.png",
   },
   plugins: [
-    'expo-camera',
-    'expo-barcode-scanner',
-    'expo-notifications',
-    'expo-secure-store',
-    '@sentry/react-native',
+    "expo-camera",
+    "expo-barcode-scanner",
+    "expo-notifications",
+    "expo-secure-store",
+    "@sentry/react-native",
   ],
   extra: {
     supabaseUrl: process.env.SUPABASE_URL,
@@ -55,7 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     revenueCatKeyIos: process.env.REVENUECAT_PUBLIC_KEY_IOS,
     revenueCatKeyAndroid: process.env.REVENUECAT_PUBLIC_KEY_ANDROID,
     eas: {
-      projectId: 'YOUR_EAS_PROJECT_ID',
+      projectId: "c2039139-a796-4c0d-9190-bb3479c8f2ae",
     },
   },
 });
