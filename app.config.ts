@@ -30,7 +30,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
-    googleServicesFile: "./google-services.json",
     permissions: [
       "android.permission.CAMERA",
       "android.permission.READ_EXTERNAL_STORAGE",
@@ -56,7 +55,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     revenueCatKeyIos: process.env.REVENUECAT_PUBLIC_KEY_IOS,
     revenueCatKeyAndroid: process.env.REVENUECAT_PUBLIC_KEY_ANDROID,
     eas: {
-      projectId: "c2039139-a796-4c0d-9190-bb3479c8f2ae",
+      projectId: "6ec6e16d-1eee-4504-8665-b04598bb59ab",
     },
   },
 });
