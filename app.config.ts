@@ -39,7 +39,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: "./assets/favicon.png",
   },
   plugins: [
-    "@shopify/react-native-skia",
     "expo-camera",
     "expo-barcode-scanner",
     "expo-notifications",
