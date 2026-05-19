@@ -47,6 +47,7 @@ export function LoginScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          indicatorStyle="white"
         >
           <TouchableOpacity style={styles.back} onPress={() => nav.goBack()}>
             <Text style={styles.backText}>← Назад</Text>
@@ -64,6 +65,11 @@ export function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              autoCorrect={false}
+              spellCheck={false}
+              returnKeyType="next"
+              textContentType="emailAddress"
+              selectionColor={Colors.accentTeal}
               placeholder="you@example.com"
               placeholderTextColor={Colors.textMuted}
             />
@@ -74,6 +80,10 @@ export function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              returnKeyType="done"
+              textContentType="password"
+              selectionColor={Colors.accentTeal}
+              onSubmitEditing={handleLogin}
               placeholder="••••••••"
               placeholderTextColor={Colors.textMuted}
             />

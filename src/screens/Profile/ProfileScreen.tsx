@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, ProgressBar } from '../../components/common';
-import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useBudgetStore } from '../../store/useBudgetStore';
@@ -147,7 +147,7 @@ export function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} indicatorStyle="white" showsVerticalScrollIndicator={false}>
 
         {/* Avatar + Name */}
         <View style={styles.avatarArea}>
@@ -276,7 +276,7 @@ function SettingRow({ label, right }: { label: string; right: React.ReactNode })
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.lg, paddingBottom: 40 },
+  content: { padding: Spacing.lg, paddingBottom: Layout.tabBarClearance },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   avatarArea: { alignItems: 'center', marginBottom: Spacing.xl },

@@ -1,177 +1,211 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
+  View, Text, TouchableOpacity, StyleSheet,
+  Dimensions, ActivityIndicator, Alert, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import type { AuthStackParamList } from '../../types';
 import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
+import { supabase } from '../../lib/supabase';
 
-const { width, height } = Dimensions.get('window');
+WebBrowser.maybeCompleteAuthSession();
 
+const { height } = Dimensions.get('window');
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 
 export function WelcomeScreen() {
   const nav = useNavigation<Nav>();
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [loadingApple, setLoadingApple] = useState(false);
+
+  async function handleGoogleSignIn() {
+    setLoadingGoogle(true);
+    try {
+      const redirectUrl = Linking.createURL('auth/callback');
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: redirectUrl, skipBrowserRedirect: true },
+      });
+      if (error || !data.url) throw error ?? new Error('No URL');
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+      if (result.type === 'success') {
+        const url = result.url;
+        const params = new URLSearchParams(url.split('#')[1] ?? url.split('?')[1] ?? '');
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        if (accessToken && refreshToken) {
+          await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        }
+      }
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.message ?? 'Не удалось войти через Google');
+    } finally {
+      setLoadingGoogle(false);
+    }
+  }
+
+  async function handleAppleSignIn() {
+    setLoadingApple(true);
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) throw new Error('No identity token');
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+        nonce: credential.authorizationCode ?? undefined,
+      });
+      if (error) throw error;
+    } catch (e: any) {
+      if (e?.code !== 'ERR_REQUEST_CANCELED') {
+        Alert.alert('Ошибка', e?.message ?? 'Не удалось войти через Apple');
+      }
+    } finally {
+      setLoadingApple(false);
+    }
+  }
 
   return (
     <View style={styles.container}>
-      {/* Background blobs */}
-      <View style={[styles.blob, styles.blobGreen]} />
-      <View style={[styles.blob, styles.blobYellow]} />
+      <View style={[styles.blob, styles.blob1]} />
+      <View style={[styles.blob, styles.blob2]} />
+      <View style={[styles.blob, styles.blob3]} />
 
       <SafeAreaView style={styles.safe}>
         <View style={styles.content}>
+
           {/* Logo */}
           <View style={styles.logoArea}>
+            <LinearGradient
+              colors={[Colors.accentTeal, Colors.accentPurple]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.logoIcon}
+            >
+              <Text style={styles.logoIconText}>S</Text>
+            </LinearGradient>
             <Text style={styles.logo}>SaveSmart</Text>
-            <View style={styles.logoDivider} />
             <Text style={styles.tagline}>Умный бюджет · Продукты · Нутриция</Text>
           </View>
 
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <StatCard value="6" label="экранов" />
-            <StatCard value="3" label="модуля" />
-            <StatCard value="AI" label="в основе" color={Colors.accentPurple} />
+          {/* Features */}
+          <View style={styles.features}>
+            {[
+              { icon: '📊', text: 'Контроль бюджета и расходов' },
+              { icon: '🤖', text: 'AI-инсайты и умные советы' },
+              { icon: '🥗', text: 'Нутриция и здоровое питание' },
+            ].map(f => (
+              <View key={f.text} style={styles.featureRow}>
+                <Text style={styles.featureIcon}>{f.icon}</Text>
+                <Text style={styles.featureText}>{f.text}</Text>
+              </View>
+            ))}
           </View>
 
           {/* Actions */}
           <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.btnPrimary}
-              onPress={() => nav.navigate('Register')}
-            >
-              <Text style={styles.btnPrimaryText}>Начать бесплатно</Text>
+
+            {/* Google */}
+            <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleSignIn} activeOpacity={0.8} disabled={loadingGoogle}>
+              {loadingGoogle ? <ActivityIndicator color={Colors.textPrimary} size="small" /> : (
+                <>
+                  <GoogleIcon />
+                  <Text style={styles.socialBtnText}>Продолжить с Google</Text>
+                </>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.btnSecondary}
-              onPress={() => nav.navigate('Login')}
-            >
-              <Text style={styles.btnSecondaryText}>Уже есть аккаунт</Text>
+            {/* Apple — iOS only, uses official Apple button per HIG guidelines */}
+            {Platform.OS === 'ios' && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                cornerRadius={Radius.full}
+                style={styles.appleAuthBtn}
+                onPress={handleAppleSignIn}
+              />
+            )}
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>или</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity style={styles.btnPrimary} onPress={() => nav.navigate('Register')} activeOpacity={0.8}>
+              <Text style={styles.btnPrimaryText}>Зарегистрироваться по email</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.btnGhost} onPress={() => nav.navigate('Login')} activeOpacity={0.7}>
+              <Text style={styles.btnGhostText}>Уже есть аккаунт — войти</Text>
             </TouchableOpacity>
           </View>
+
+          <Text style={styles.legal}>
+            Регистрируясь, вы соглашаетесь с условиями использования и политикой конфиденциальности
+          </Text>
         </View>
       </SafeAreaView>
     </View>
   );
 }
 
-function StatCard({ value, label, color = Colors.accentTeal }: { value: string; label: string; color?: string }) {
+function GoogleIcon() {
   return (
-    <View style={styles.statCard}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    <Text style={{ fontSize: 18, lineHeight: 22 }}>🌐</Text>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   safe: { flex: 1 },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.xl,
-    justifyContent: 'space-between',
-    paddingBottom: Spacing.xxxl,
-    paddingTop: height * 0.12,
-  },
+  content: { flex: 1, paddingHorizontal: Spacing.xl, justifyContent: 'space-between', paddingBottom: Spacing.xl, paddingTop: height * 0.06 },
 
-  blob: {
-    position: 'absolute',
-    borderRadius: 999,
-    opacity: 0.7,
-  },
-  blobGreen: {
-    width: 220,
-    height: 220,
-    backgroundColor: '#39FF14',
-    top: -60,
-    left: -60,
-  },
-  blobYellow: {
-    width: 160,
-    height: 160,
-    backgroundColor: '#D4A017',
-    top: 40,
-    right: -40,
-    opacity: 0.5,
-  },
+  blob: { position: 'absolute', borderRadius: 999 },
+  blob1: { width: 280, height: 280, backgroundColor: Colors.accentPurple + '18', top: -80, left: -80 },
+  blob2: { width: 200, height: 200, backgroundColor: Colors.accentTeal + '12', top: 60, right: -60 },
+  blob3: { width: 160, height: 160, backgroundColor: Colors.accentPurple + '10', bottom: 100, right: -40 },
 
-  logoArea: { alignItems: 'center', marginTop: height * 0.08 },
-  logo: {
-    fontSize: 48,
-    fontWeight: Typography.weightBold,
-    color: Colors.textPrimary,
-    letterSpacing: -1,
-  },
-  logoDivider: {
-    width: 120,
-    height: 2,
-    backgroundColor: Colors.accentPurple,
-    marginVertical: Spacing.md,
-  },
-  tagline: {
-    fontSize: Typography.sizeSM,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
+  logoArea: { alignItems: 'center', gap: Spacing.md },
+  logoIcon: { width: 72, height: 72, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  logoIconText: { fontSize: 36, fontWeight: Typography.weightBold, color: Colors.bg },
+  logo: { fontSize: 36, fontWeight: Typography.weightBold, color: Colors.textPrimary, letterSpacing: -1 },
+  tagline: { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center' },
 
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    justifyContent: 'center',
-  },
-  statCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    minWidth: 90,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  statValue: {
-    fontSize: Typography.sizeXL,
-    fontWeight: Typography.weightBold,
-    color: Colors.accentTeal,
-  },
-  statLabel: {
-    fontSize: Typography.sizeXS,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  },
+  features: { gap: Spacing.md },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  featureIcon: { fontSize: 20 },
+  featureText: { fontSize: Typography.sizeSM, color: Colors.textSecondary, fontWeight: Typography.weightSemiBold },
 
-  actions: { gap: Spacing.md },
-  btnPrimary: {
-    backgroundColor: Colors.accentTeal,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
+  actions: { gap: Spacing.sm },
+
+  socialBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.md,
+    backgroundColor: Colors.surface, borderRadius: Radius.full,
+    paddingVertical: Spacing.md, borderWidth: 1, borderColor: Colors.border,
   },
-  btnPrimaryText: {
-    color: Colors.bg,
-    fontSize: Typography.sizeMD,
-    fontWeight: Typography.weightBold,
-  },
-  btnSecondary: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  btnSecondaryText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizeMD,
-    fontWeight: Typography.weightSemiBold,
-  },
+  appleAuthBtn: { height: 50, width: '100%' },
+  socialBtnText: { fontSize: Typography.sizeMD, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold },
+
+  divider: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginVertical: Spacing.xs },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
+  dividerText: { fontSize: Typography.sizeSM, color: Colors.textMuted },
+
+  btnPrimary: { backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
+  btnPrimaryText: { color: Colors.bg, fontSize: Typography.sizeMD, fontWeight: Typography.weightBold },
+
+  btnGhost: { paddingVertical: Spacing.sm, alignItems: 'center' },
+  btnGhostText: { color: Colors.textSecondary, fontSize: Typography.sizeSM },
+
+  legal: { fontSize: Typography.sizeXS, color: Colors.textMuted, textAlign: 'center', lineHeight: 16 },
 });

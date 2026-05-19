@@ -49,7 +49,7 @@ export function RegisterScreen() {
     }
     // Trigger fires handle_new_user() → creates profile
     // Then go to onboarding
-    nav.navigate('OnboardingProfile');
+    nav.navigate('Onboarding');
   }
 
   return (
@@ -61,6 +61,7 @@ export function RegisterScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          indicatorStyle="white"
         >
           <TouchableOpacity style={styles.back} onPress={() => nav.goBack()}>
             <Text style={styles.backText}>← Назад</Text>
@@ -85,6 +86,9 @@ export function RegisterScreen() {
               placeholder="Марго"
               placeholderTextColor={Colors.textMuted}
               autoCapitalize="words"
+              returnKeyType="next"
+              textContentType="name"
+              selectionColor={Colors.accentTeal}
             />
 
             <Text style={styles.label}>Email</Text>
@@ -95,6 +99,11 @@ export function RegisterScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              autoCorrect={false}
+              spellCheck={false}
+              returnKeyType="next"
+              textContentType="emailAddress"
+              selectionColor={Colors.accentTeal}
               placeholder="you@example.com"
               placeholderTextColor={Colors.textMuted}
             />
@@ -105,6 +114,10 @@ export function RegisterScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              returnKeyType="done"
+              textContentType="newPassword"
+              selectionColor={Colors.accentTeal}
+              onSubmitEditing={handleRegister}
               placeholder="Минимум 6 символов"
               placeholderTextColor={Colors.textMuted}
             />

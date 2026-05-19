@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,16 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, ProgressBar } from '../../components/common';
-import { CalorieRing } from '../../components/charts/CalorieRing';
-import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle } from 'react-native-svg';
+import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,48 +30,268 @@ interface MacroData {
 
 interface VitaminEntry {
   name: string;
-  current: number;  // 0–1 progress
+  icon: string;
+  current: number;
   status: NutrientStatus;
 }
 
-// ─── Targets (WHO/standard norms) ────────────────────────────────────────────
-const TARGETS: MacroData = {
-  calories: 2100,
-  protein: 90,
-  fat: 70,
-  carbs: 250,
-};
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const TARGETS: MacroData = { calories: 2100, protein: 90, fat: 70, carbs: 250 };
+
+const RING_SIZE = 240;
+const STROKE = 12;
+const GAP = 8;
+const R1 = 108;
+const R2 = R1 - STROKE - GAP;
+const R3 = R2 - STROKE - GAP;
+const CX = RING_SIZE / 2;
+
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 function statusColor(s: NutrientStatus): string {
-  if (s === 'deficit') return Colors.danger;
-  if (s === 'warning') return Colors.warning;
-  return Colors.success;
+  return s === 'deficit' ? Colors.danger : s === 'warning' ? Colors.warning : Colors.success;
 }
 
 function statusLabel(s: NutrientStatus): string {
-  if (s === 'deficit') return 'Дефицит';
-  if (s === 'warning') return 'Внимание';
-  return 'Норма';
+  return s === 'deficit' ? 'Дефицит' : s === 'warning' ? 'Внимание' : 'Норма';
 }
 
 function progressToStatus(p: number): NutrientStatus {
-  if (p < 0.4) return 'deficit';
-  if (p < 0.7) return 'warning';
-  return 'normal';
+  return p < 0.4 ? 'deficit' : p < 0.7 ? 'warning' : 'normal';
+}
+
+function buildVitamins(cal: number, prot: number, fat: number, carbs: number): VitaminEntry[] {
+  const calP  = Math.min(cal   / TARGETS.calories, 1);
+  const protP = Math.min(prot  / TARGETS.protein,  1);
+  const fatP  = Math.min(fat   / TARGETS.fat,       1);
+  const carbP = Math.min(carbs / TARGETS.carbs,     1);
+  return [
+    { name: 'Витамин D',   icon: '☀️', current: fatP  * 0.70, status: progressToStatus(fatP  * 0.70) },
+    { name: 'Железо',      icon: '🩸', current: protP * 0.80, status: progressToStatus(protP * 0.80) },
+    { name: 'Витамин B12', icon: '💊', current: protP * 0.75, status: progressToStatus(protP * 0.75) },
+    { name: 'Витамин C',   icon: '🍊', current: carbP * 0.90, status: progressToStatus(carbP * 0.90) },
+    { name: 'Магний',      icon: '⚡', current: calP  * 0.85, status: progressToStatus(calP  * 0.85) },
+    { name: 'Кальций',     icon: '🦴', current: fatP  * 0.80, status: progressToStatus(fatP  * 0.80) },
+  ];
+}
+
+function calcScore(vitamins: VitaminEntry[]): number {
+  if (!vitamins.length) return 0;
+  return Math.round(vitamins.reduce((sum, v) => sum + v.current, 0) / vitamins.length * 100);
+}
+
+function buildAiText(deficits: VitaminEntry[]): string | null {
+  if (!deficits.length) return null;
+  const foods: Record<string, string> = {
+    'Витамин D':   'лосось, яйца, молоко',
+    'Железо':      'шпинат, говядина, бобовые',
+    'Витамин B12': 'лосось, творог, яйца',
+    'Витамин C':   'болгарский перец, апельсин, киви',
+    'Магний':      'орехи, гречка, тёмный шоколад',
+    'Кальций':     'молоко, сыр, брокколи',
+  };
+  const names = deficits.map(d => d.name).join(', ');
+  const food = [...new Set(deficits.map(d => foods[d.name] ?? 'разнообразные продукты'))].join(' · ');
+  return `Обнаружен дефицит: ${names}.\n\nРекомендую добавить: ${food}\n\n+€6–10/нед закроет дефицит.`;
+}
+
+// ─── Activity Rings (Apple Watch style) ──────────────────────────────────────
+
+function ActivityRings({ proteinPct, fatPct, carbsPct, calories, target }: {
+  proteinPct: number; fatPct: number; carbsPct: number; calories: number; target: number;
+}) {
+  const aC = useRef(new Animated.Value(0)).current;
+  const aF = useRef(new Animated.Value(0)).current;
+  const aP = useRef(new Animated.Value(0)).current;
+
+  const c1 = 2 * Math.PI * R1;
+  const c2 = 2 * Math.PI * R2;
+  const c3 = 2 * Math.PI * R3;
+
+  useEffect(() => {
+    aC.setValue(0); aF.setValue(0); aP.setValue(0);
+    Animated.parallel([
+      Animated.timing(aC, { toValue: carbsPct,   duration: 1100, delay: 0,   useNativeDriver: false }),
+      Animated.timing(aF, { toValue: fatPct,     duration: 1100, delay: 200, useNativeDriver: false }),
+      Animated.timing(aP, { toValue: proteinPct, duration: 1100, delay: 400, useNativeDriver: false }),
+    ]).start();
+  }, [carbsPct, fatPct, proteinPct]);
+
+  const offC = aC.interpolate({ inputRange: [0, 1], outputRange: [c1, 0] });
+  const offF = aF.interpolate({ inputRange: [0, 1], outputRange: [c2, 0] });
+  const offP = aP.interpolate({ inputRange: [0, 1], outputRange: [c3, 0] });
+
+  const ratio     = target > 0 ? calories / target : 0;
+  const calColor  = ratio > 0.95 ? Colors.danger : ratio > 0.75 ? Colors.warning : Colors.accentTeal;
+  const remaining = Math.max(0, target - calories);
+
+  return (
+    <View style={{ width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={RING_SIZE} height={RING_SIZE} style={StyleSheet.absoluteFill}>
+        {/* Track */}
+        <Circle cx={CX} cy={CX} r={R1} stroke={Colors.border} strokeWidth={STROKE} fill="none" opacity={0.5} />
+        <Circle cx={CX} cy={CX} r={R2} stroke={Colors.border} strokeWidth={STROKE} fill="none" opacity={0.5} />
+        <Circle cx={CX} cy={CX} r={R3} stroke={Colors.border} strokeWidth={STROKE} fill="none" opacity={0.5} />
+        {/* Carbs outer ring */}
+        <AnimatedCircle cx={CX} cy={CX} r={R1} stroke={Colors.accentPurple} strokeWidth={STROKE} fill="none"
+          strokeDasharray={`${c1} ${c1}`} strokeDashoffset={offC}
+          strokeLinecap="round" rotation="-90" origin={`${CX}, ${CX}`}
+        />
+        {/* Fat middle ring */}
+        <AnimatedCircle cx={CX} cy={CX} r={R2} stroke={Colors.pink} strokeWidth={STROKE} fill="none"
+          strokeDasharray={`${c2} ${c2}`} strokeDashoffset={offF}
+          strokeLinecap="round" rotation="-90" origin={`${CX}, ${CX}`}
+        />
+        {/* Protein inner ring */}
+        <AnimatedCircle cx={CX} cy={CX} r={R3} stroke={Colors.accentTeal} strokeWidth={STROKE} fill="none"
+          strokeDasharray={`${c3} ${c3}`} strokeDashoffset={offP}
+          strokeLinecap="round" rotation="-90" origin={`${CX}, ${CX}`}
+        />
+      </Svg>
+      <View style={{ alignItems: 'center' }}>
+        <Text style={s.calLabel}>КАЛОРИИ</Text>
+        <Text style={[s.calValue, { color: calColor }]}>
+          {calories > 0 ? calories.toLocaleString('ru-RU') : '—'}
+        </Text>
+        <Text style={s.calTarget}>из {target.toLocaleString('ru-RU')}</Text>
+        {remaining > 0 && calories > 0 && (
+          <View style={[s.remainBadge, { borderColor: calColor + '50', backgroundColor: calColor + '18' }]}>
+            <Text style={[s.remainText, { color: calColor }]}>−{remaining.toLocaleString('ru-RU')} осталось</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ─── Legend Item ──────────────────────────────────────────────────────────────
+
+function LegendItem({ color, label, value, target, unit }: {
+  color: string; label: string; value: number; target: number; unit: string;
+}) {
+  return (
+    <View style={s.legendItem}>
+      <View style={[s.legendDot, { backgroundColor: color }]} />
+      <View>
+        <Text style={s.legendLabel}>{label}</Text>
+        <Text style={[s.legendValue, { color }]}>
+          {value}
+          <Text style={s.legendTarget}> / {target}{unit}</Text>
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Macro Card ───────────────────────────────────────────────────────────────
+
+function MacroCard({ label, value, target, unit, color, icon }: {
+  label: string; value: number; target: number; unit: string; color: string; icon: string;
+}) {
+  const pct = target > 0 ? Math.min(value / target, 1) : 0;
+  return (
+    <View style={[s.macroCard, { borderColor: color + '40' }]}>
+      <LinearGradient
+        colors={[color + '22', 'transparent']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Text style={s.macroIcon}>{icon}</Text>
+      <Text style={[s.macroValue, { color }]}>
+        {value}<Text style={s.macroUnit}>{unit}</Text>
+      </Text>
+      <Text style={s.macroLabel}>{label}</Text>
+      <Text style={s.macroMeta}>/ {target}{unit}</Text>
+      <View style={s.macroTrack}>
+        <View style={{ height: 3, borderRadius: 2, backgroundColor: color, width: `${Math.round(pct * 100)}%` as any }} />
+      </View>
+    </View>
+  );
+}
+
+// ─── Mini Ring ────────────────────────────────────────────────────────────────
+
+function MiniRing({ progress, color, size = 52 }: { progress: number; color: string; size?: number }) {
+  const stroke = 5;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, { toValue: progress, duration: 900, delay: 400, useNativeDriver: false }).start();
+  }, [progress]);
+
+  const offset = anim.interpolate({ inputRange: [0, 1], outputRange: [circ, 0] });
+
+  return (
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size}>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={Colors.border} strokeWidth={stroke} fill="none" />
+        <AnimatedCircle
+          cx={size / 2} cy={size / 2} r={r}
+          stroke={color} strokeWidth={stroke} fill="none"
+          strokeDasharray={`${circ} ${circ}`} strokeDashoffset={offset}
+          strokeLinecap="round" rotation="-90" origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+        <Text style={{ fontSize: 10, fontWeight: '700', color }}>{Math.round(progress * 100)}%</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Vitamin Card ─────────────────────────────────────────────────────────────
+
+function VitaminCard({ name, icon, current, status }: VitaminEntry) {
+  const color = statusColor(status);
+  return (
+    <View style={[s.vitCard, { borderColor: color + '35' }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flex: 1, marginRight: Spacing.sm }}>
+          <Text style={{ fontSize: 20, marginBottom: 4 }}>{icon}</Text>
+          <Text style={s.vitName}>{name}</Text>
+          <View style={[s.vitBadge, { backgroundColor: color + '20' }]}>
+            <Text style={[s.vitBadgeText, { color }]}>{statusLabel(status)}</Text>
+          </View>
+        </View>
+        <MiniRing progress={current} color={color} size={52} />
+      </View>
+    </View>
+  );
+}
+
+// ─── AI Card ─────────────────────────────────────────────────────────────────
+
+function AiCard({ text }: { text: string }) {
+  return (
+    <View style={s.aiCard}>
+      <LinearGradient
+        colors={[Colors.accentPurple + '35', Colors.accentTeal + '20']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
+        <Text style={s.aiStar}>✦</Text>
+        <Text style={s.aiTitle}>AI Рекомендации</Text>
+      </View>
+      <Text style={s.aiText}>{text}</Text>
+    </View>
+  );
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function NutritionScreen() {
   const { user } = useAuthStore();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [macros, setMacros] = useState<MacroData>({ calories: 0, protein: 0, fat: 0, carbs: 0 });
-  const [vitamins, setVitamins] = useState<VitaminEntry[]>([]);
+  const [macros, setMacros]       = useState<MacroData>({ calories: 0, protein: 0, fat: 0, carbs: 0 });
+  const [vitamins, setVitamins]   = useState<VitaminEntry[]>(() => buildVitamins(0, 0, 0, 0));
 
-  // Нутриционный профиль строится из продуктов в холодильнике (за последние 30 дней)
   async function loadNutrition() {
     if (!user) return;
 
@@ -77,21 +300,14 @@ export function NutritionScreen() {
       .select('product_id, quantity')
       .eq('user_id', user.id);
 
-    if (!fridgeItems || fridgeItems.length === 0) {
+    if (!fridgeItems?.length) {
       setMacros({ calories: 0, protein: 0, fat: 0, carbs: 0 });
       setVitamins(buildVitamins(0, 0, 0, 0));
       return;
     }
 
-    const productIds = fridgeItems
-      .map((i) => i.product_id)
-      .filter(Boolean) as string[];
-
-    if (productIds.length === 0) {
-      setMacros({ calories: 0, protein: 0, fat: 0, carbs: 0 });
-      setVitamins(buildVitamins(0, 0, 0, 0));
-      return;
-    }
+    const productIds = fridgeItems.map(i => i.product_id).filter(Boolean) as string[];
+    if (!productIds.length) return;
 
     const { data: products } = await supabase
       .from('products')
@@ -100,46 +316,21 @@ export function NutritionScreen() {
 
     if (!products) return;
 
-    // Оцениваем дневное потребление: сумма нутриентов / 30 дней
-    let totalCal = 0, totalProt = 0, totalFat = 0, totalCarbs = 0;
-    const productMap = new Map(products.map((p) => [p.id, p]));
+    let cal = 0, prot = 0, fat = 0, carbs = 0;
+    const pm = new Map(products.map(p => [p.id, p]));
 
     for (const item of fridgeItems) {
-      if (!item.product_id) continue;
-      const p = productMap.get(item.product_id);
+      const p = item.product_id ? pm.get(item.product_id) : null;
       if (!p) continue;
-      // Считаем 100г за единицу товара как дневную порцию/30
-      const grams = (item.quantity * 100) / 30;
-      totalCal   += ((p.calories_per_100g ?? 0) * grams) / 100;
-      totalProt  += ((p.protein_per_100g  ?? 0) * grams) / 100;
-      totalFat   += ((p.fat_per_100g      ?? 0) * grams) / 100;
-      totalCarbs += ((p.carbs_per_100g    ?? 0) * grams) / 100;
+      const g = (item.quantity * 100) / 30;
+      cal   += ((p.calories_per_100g ?? 0) * g) / 100;
+      prot  += ((p.protein_per_100g  ?? 0) * g) / 100;
+      fat   += ((p.fat_per_100g      ?? 0) * g) / 100;
+      carbs += ((p.carbs_per_100g    ?? 0) * g) / 100;
     }
 
-    setMacros({
-      calories: Math.round(totalCal),
-      protein:  Math.round(totalProt),
-      fat:      Math.round(totalFat),
-      carbs:    Math.round(totalCarbs),
-    });
-    setVitamins(buildVitamins(totalCal, totalProt, totalFat, totalCarbs));
-  }
-
-  // Витамины оцениваются эвристически по разнообразию КБЖУ
-  function buildVitamins(cal: number, prot: number, fat: number, carbs: number): VitaminEntry[] {
-    const calP  = Math.min(cal  / TARGETS.calories, 1);
-    const protP = Math.min(prot / TARGETS.protein, 1);
-    const fatP  = Math.min(fat  / TARGETS.fat, 1);
-    const carbP = Math.min(carbs / TARGETS.carbs, 1);
-
-    return [
-      { name: 'Витамин D',  current: fatP  * 0.7, status: progressToStatus(fatP  * 0.7) },
-      { name: 'Железо',     current: protP * 0.8, status: progressToStatus(protP * 0.8) },
-      { name: 'Витамин B12',current: protP * 0.75,status: progressToStatus(protP * 0.75) },
-      { name: 'Витамин C',  current: carbP * 0.9, status: progressToStatus(carbP * 0.9) },
-      { name: 'Магний',     current: calP  * 0.85,status: progressToStatus(calP  * 0.85) },
-      { name: 'Кальций',    current: fatP  * 0.8, status: progressToStatus(fatP  * 0.8) },
-    ];
+    setMacros({ calories: Math.round(cal), protein: Math.round(prot), fat: Math.round(fat), carbs: Math.round(carbs) });
+    setVitamins(buildVitamins(cal, prot, fat, carbs));
   }
 
   useEffect(() => {
@@ -152,177 +343,169 @@ export function NutritionScreen() {
     setRefreshing(false);
   }
 
-  const deficits = vitamins.filter((v) => v.status === 'deficit');
-  const hasData = macros.calories > 0;
-
-  // AI recommendation — static until Claude API connected
-  function buildAiAdvice(): string | null {
-    if (deficits.length === 0) return null;
-    const names = deficits.map((d) => d.name).join(', ');
-    const foods: Record<string, string> = {
-      'Витамин D':  'лосось + яйца',
-      'Железо':     'шпинат + говядина',
-      'Витамин B12':'лосось + творог',
-      'Витамин C':  'перец + апельсин',
-      'Магний':     'орехи + гречка',
-      'Кальций':    'молоко + сыр',
-    };
-    const suggestions = [...new Set(
-      deficits.map((d) => foods[d.name] ?? 'разнообразные продукты')
-    )].join(' + ');
-    return `Дефицит ${names}.\nДобавь: ${suggestions}\n+€6–10/нед закроет дефицит`;
-  }
-
-  const aiAdvice = buildAiAdvice();
-  const today = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  const hasData    = macros.calories > 0;
+  const deficits   = vitamins.filter(v => v.status === 'deficit');
+  const aiText     = hasData ? buildAiText(deficits) : null;
+  const proteinPct = Math.min(macros.protein / TARGETS.protein, 1);
+  const fatPct     = Math.min(macros.fat     / TARGETS.fat,     1);
+  const carbsPct   = Math.min(macros.carbs   / TARGETS.carbs,   1);
+  const today      = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.center}><ActivityIndicator color={Colors.accentTeal} size="large" /></View>
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <View style={s.center}>
+          <ActivityIndicator color={Colors.accentTeal} size="large" />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
+        style={s.scroll}
+        contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
+        indicatorStyle="white"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accentTeal} />}
       >
-        <Text style={styles.title}>Нутриция — сегодня</Text>
-        <Text style={styles.subtitle}>{today}</Text>
-
-        {!hasData ? (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>🥗</Text>
-            <Text style={styles.emptyTitle}>Нет данных</Text>
-            <Text style={styles.emptySub}>
-              Добавьте продукты в холодильник через Smart Shop — нутриционный профиль построится автоматически
-            </Text>
-          </Card>
-        ) : (
-          <>
-            {/* Calorie Ring */}
-            <View style={styles.ringArea}>
-              <CalorieRing current={macros.calories} target={TARGETS.calories} size={180} />
+        {/* Header */}
+        <View style={s.header}>
+          <View>
+            <Text style={s.title}>Нутриция</Text>
+            <Text style={s.subtitle}>{today}</Text>
+          </View>
+          {hasData && (
+            <View style={s.scoreBadge}>
+              <Text style={s.scoreLabel}>Здоровье</Text>
+              <Text style={s.scoreValue}>{calcScore(vitamins)}%</Text>
             </View>
+          )}
+        </View>
 
-            {/* Macros row */}
-            <View style={styles.macrosRow}>
-              <MacroCard label="Белки"  value={macros.protein} target={TARGETS.protein} unit="г" color={Colors.accentTeal} />
-              <MacroCard label="Жиры"   value={macros.fat}     target={TARGETS.fat}     unit="г" color={Colors.pink} />
-              <MacroCard label="Углев." value={macros.carbs}   target={TARGETS.carbs}   unit="г" color={Colors.accentPurple} />
-            </View>
-          </>
-        )}
+        {/* Activity Rings Hero */}
+        <View style={s.heroCard}>
+          <LinearGradient
+            colors={['#1D1E38', '#131427']}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={{ alignItems: 'center', paddingTop: Spacing.xxl, paddingBottom: Spacing.lg }}>
+            <ActivityRings
+              proteinPct={proteinPct}
+              fatPct={fatPct}
+              carbsPct={carbsPct}
+              calories={macros.calories}
+              target={TARGETS.calories}
+            />
+          </View>
+          <View style={s.legendRow}>
+            <LegendItem color={Colors.accentPurple} label="Углеводы" value={macros.carbs}   target={TARGETS.carbs}   unit="г" />
+            <LegendItem color={Colors.pink}         label="Жиры"     value={macros.fat}     target={TARGETS.fat}     unit="г" />
+            <LegendItem color={Colors.accentTeal}   label="Белки"    value={macros.protein} target={TARGETS.protein} unit="г" />
+          </View>
+        </View>
+
+        {/* Macro Cards */}
+        <View style={s.macroRow}>
+          <MacroCard label="Белки"   value={macros.protein} target={TARGETS.protein} unit="г" color={Colors.accentTeal}   icon="🥩" />
+          <MacroCard label="Жиры"    value={macros.fat}     target={TARGETS.fat}     unit="г" color={Colors.pink}         icon="🥑" />
+          <MacroCard label="Углев."  value={macros.carbs}   target={TARGETS.carbs}   unit="г" color={Colors.accentPurple} icon="🌾" />
+        </View>
 
         {/* Vitamins & Minerals */}
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Витамины и минералы</Text>
-          {hasData ? (
-            vitamins.map((v) => (
-              <View key={v.name} style={styles.vitaminRow}>
-                <Text style={styles.vitaminName}>{v.name}</Text>
-                <ProgressBar
-                  progress={v.current}
-                  color={statusColor(v.status)}
-                  height={6}
-                  style={styles.vitaminBar}
-                />
-                <View style={[styles.statusBadge, { backgroundColor: statusColor(v.status) + '22' }]}>
-                  <Text style={[styles.statusText, { color: statusColor(v.status) }]}>
-                    {statusLabel(v.status)}
-                  </Text>
-                </View>
-              </View>
-            ))
-          ) : (
-            vitamins.map((v) => (
-              <View key={v.name} style={styles.vitaminRow}>
-                <Text style={styles.vitaminName}>{v.name}</Text>
-                <ProgressBar progress={0} color={Colors.border} height={6} style={styles.vitaminBar} />
-                <View style={[styles.statusBadge, { backgroundColor: Colors.border }]}>
-                  <Text style={[styles.statusText, { color: Colors.textMuted }]}>—</Text>
-                </View>
-              </View>
-            ))
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>Микронутриенты</Text>
+          {hasData && deficits.length > 0 && (
+            <View style={s.deficitBadge}>
+              <Text style={s.deficitText}>{deficits.length} дефицит{deficits.length > 1 ? 'а' : ''}</Text>
+            </View>
           )}
-        </Card>
+        </View>
+
+        <View style={s.vitaminGrid}>
+          {vitamins.map(v => <VitaminCard key={v.name} {...v} />)}
+        </View>
 
         {/* AI Recommendation */}
-        {aiAdvice && (
-          <Card style={styles.aiCard}>
-            <Text style={styles.aiLabel}>AI Рекомендация</Text>
-            <Text style={styles.aiText}>{aiAdvice}</Text>
-          </Card>
-        )}
+        {aiText && <AiCard text={aiText} />}
 
+        {/* Empty state info */}
         {!hasData && (
-          <Card style={styles.aiCard}>
-            <Text style={styles.aiLabel}>Как это работает</Text>
-            <Text style={styles.aiText}>
-              Нутриционный профиль строится автоматически на основе продуктов из вашего холодильника.
-              {'\n\n'}Данные о составе берутся из OpenFoodFacts API (3M+ продуктов). Дефицит рассчитывается за 30 дней.
+          <View style={s.howCard}>
+            <LinearGradient
+              colors={[Colors.surfaceElevated, Colors.surface]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Text style={s.howTitle}>💡 Как работает нутрициология</Text>
+            <Text style={s.howText}>
+              Нутриционный профиль строится автоматически на основе продуктов из холодильника.{'\n\n'}
+              Данные о составе берутся из OpenFoodFacts (3M+ продуктов). Дефицит рассчитывается за 30 дней.
             </Text>
-          </Card>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MacroCard({
-  label, value, target, unit, color,
-}: {
-  label: string; value: number; target: number; unit: string; color: string;
-}) {
-  const progress = target > 0 ? Math.min(value / target, 1) : 0;
-  return (
-    <Card style={styles.macroCard}>
-      <Text style={[styles.macroValue, { color }]}>{value}<Text style={styles.macroUnit}>{unit}</Text></Text>
-      <Text style={styles.macroLabel}>{label}</Text>
-      <Text style={styles.macroTarget}>из {target}{unit}</Text>
-      <ProgressBar progress={progress} color={color} height={4} style={{ marginTop: Spacing.xs }} />
-    </Card>
-  );
-}
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: Colors.bg },
   scroll:  { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: 40 },
+  content: { padding: Spacing.lg, paddingBottom: Layout.tabBarClearance },
   center:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  title:    { fontSize: Typography.sizeXL, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  subtitle: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginTop: 2, marginBottom: Spacing.lg },
+  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: Spacing.lg },
+  title:      { fontSize: Typography.sizeXL, fontWeight: Typography.weightBold, color: Colors.textPrimary },
+  subtitle:   { fontSize: Typography.sizeSM, color: Colors.textMuted, marginTop: 2 },
+  scoreBadge: { alignItems: 'center', backgroundColor: Colors.surface, borderRadius: Radius.lg, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderWidth: 1, borderColor: Colors.success + '40' },
+  scoreLabel: { fontSize: Typography.sizeXS, color: Colors.textMuted },
+  scoreValue: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.success },
 
-  ringArea: { alignItems: 'center', marginBottom: Spacing.lg },
+  heroCard:   { borderRadius: Radius.xl, overflow: 'hidden', marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  legendRow:  { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  legendDot:  { width: 10, height: 10, borderRadius: 5 },
+  legendLabel:  { fontSize: Typography.sizeXS, color: Colors.textMuted },
+  legendValue:  { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
+  legendTarget: { color: Colors.textMuted },
 
-  macrosRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  macroCard: { flex: 1, padding: Spacing.md },
+  calLabel:    { fontSize: 10, color: Colors.textMuted, letterSpacing: 1.5, textTransform: 'uppercase' },
+  calValue:    { fontSize: 34, fontWeight: Typography.weightBold, lineHeight: 38 },
+  calTarget:   { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
+  remainBadge: { marginTop: 8, borderRadius: Radius.full, borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: 3 },
+  remainText:  { fontSize: 10, fontWeight: Typography.weightSemiBold },
+
+  macroRow:   { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
+  macroCard:  { flex: 1, borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, overflow: 'hidden', backgroundColor: Colors.surface },
+  macroIcon:  { fontSize: 20, marginBottom: Spacing.xs },
   macroValue: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold },
-  macroUnit: { fontSize: Typography.sizeSM },
+  macroUnit:  { fontSize: Typography.sizeXS, color: Colors.textSecondary },
   macroLabel: { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginTop: 2 },
-  macroTarget: { fontSize: Typography.sizeXS, color: Colors.textMuted },
+  macroMeta:  { fontSize: Typography.sizeXS, color: Colors.textMuted },
+  macroTrack: { height: 3, borderRadius: 2, backgroundColor: Colors.border, marginTop: Spacing.sm, overflow: 'hidden' },
 
-  section: { marginBottom: Spacing.md },
-  sectionTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary, marginBottom: Spacing.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  sectionTitle:  { fontSize: Typography.sizeMD, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary },
+  deficitBadge:  { backgroundColor: Colors.danger + '20', borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
+  deficitText:   { fontSize: Typography.sizeXS, color: Colors.danger, fontWeight: Typography.weightSemiBold },
 
-  vitaminRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
-  vitaminName: { width: 110, fontSize: Typography.sizeSM, color: Colors.textSecondary },
-  vitaminBar: { flex: 1, marginHorizontal: Spacing.sm },
-  statusBadge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 2, minWidth: 72, alignItems: 'center' },
-  statusText: { fontSize: Typography.sizeXS, fontWeight: Typography.weightSemiBold },
+  vitaminGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: Spacing.lg },
+  vitCard:     { width: '49%', borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, backgroundColor: Colors.surface, marginBottom: Spacing.sm },
+  vitName:     { fontSize: Typography.sizeSM, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold, marginBottom: Spacing.xs },
+  vitBadge:    { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 2, alignSelf: 'flex-start', marginTop: Spacing.xs },
+  vitBadgeText: { fontSize: 9, fontWeight: Typography.weightBold },
 
-  aiCard: { marginBottom: Spacing.md, borderColor: Colors.accentPurple + '55' },
-  aiLabel: { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, color: Colors.accentPurple, marginBottom: Spacing.xs },
-  aiText: { fontSize: Typography.sizeSM, color: Colors.textSecondary, lineHeight: 20 },
+  aiCard:  { borderRadius: Radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.accentPurple + '50', padding: Spacing.lg, marginBottom: Spacing.md },
+  aiStar:  { fontSize: 16, color: Colors.accentPurple, marginRight: Spacing.sm },
+  aiTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary },
+  aiText:  { fontSize: Typography.sizeSM, color: Colors.textSecondary, lineHeight: 20 },
 
-  emptyCard: { alignItems: 'center', padding: Spacing.xl, marginBottom: Spacing.md },
-  emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
-  emptyTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  emptySub: { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs, lineHeight: 20 },
+  howCard:  { borderRadius: Radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border, padding: Spacing.lg, marginBottom: Spacing.md },
+  howTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary, marginBottom: Spacing.sm },
+  howText:  { fontSize: Typography.sizeSM, color: Colors.textSecondary, lineHeight: 20 },
 });

@@ -17,9 +17,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: "com.savesmart.app",
+    buildNumber: "1",
+    usesAppleSignIn: true,
     infoPlist: {
       NSCameraUsageDescription: "Для сканирования чеков и штрих-кодов",
       NSPhotoLibraryUsageDescription: "Для загрузки изображений чеков",
+      NSFaceIDUsageDescription: "Для быстрого и безопасного входа в приложение",
+      UIBackgroundModes: ["remote-notification"],
+      ITSAppUsesNonExemptEncryption: false,
+    },
+    entitlements: {
+      "com.apple.developer.applesignin": ["Default"],
     },
   },
   android: {
@@ -38,10 +46,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     favicon: "./assets/favicon.png",
   },
+  scheme: "savesmart",
   plugins: [
     "expo-camera",
     "expo-notifications",
     "expo-secure-store",
+    "expo-apple-authentication",
+    "expo-web-browser",
     ...(process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
       ? (["@sentry/react-native"] as const)
       : []),
