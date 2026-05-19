@@ -1,32 +1,31 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Animated, TextInput, Alert, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Keyboard, Modal,
+  Animated, ActivityIndicator, Modal,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
+import { useTranslation } from '../../i18n';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useBudgetStore } from '../../store/useBudgetStore';
 import { supabase } from '../../lib/supabase';
-import { formatCurrency, monthsLeft } from '../../utils/format';
-import type { Goal, FridgeItem, Achievement, AchievementTier, MoreStackParamList } from '../../types';
+import type { Achievement, AchievementTier, MoreStackParamList } from '../../types';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
 
 // ─── XP / Level helpers ───────────────────────────────────────────────────────
 
 const XP_TABLE = [0, 200, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400, 6500];
-const LEVEL_NAMES: Record<number, string> = {
-  1:'Новичок', 2:'Начинающий', 3:'Следит', 4:'Растёт', 5:'Экономный',
-  6:'Опытный', 7:'Профи', 8:'Мастер', 9:'Ас', 10:'Эксперт',
+const LEVEL_KEYS: Record<number, string> = {
+  1:'more.level.1', 2:'more.level.2', 3:'more.level.3', 4:'more.level.4', 5:'more.level.5',
+  6:'more.level.6', 7:'more.level.7', 8:'more.level.8', 9:'more.level.9', 10:'more.level.10',
 };
-function levelName(l: number) { return LEVEL_NAMES[l] ?? `Ур. ${l}`; }
+function levelNameKey(l: number) { return LEVEL_KEYS[l] ?? 'more.level.n'; }
+function levelNameVars(l: number) { return LEVEL_KEYS[l] ? undefined : { n: l }; }
 function xpProgress(xp: number, lvl: number) {
   const from = XP_TABLE[lvl - 1] ?? 0;
   const to = XP_TABLE[lvl] ?? from + 300;
@@ -39,25 +38,6 @@ const TIER_COLOR: Record<AchievementTier, string> = {
   bronze: Colors.tierBronze, silver: Colors.tierSilver,
   gold: Colors.tierGold, platinum: Colors.tierPlatinum, legend: Colors.tierLegend,
 };
-
-// ─── Fridge helpers ───────────────────────────────────────────────────────────
-
-function daysUntil(d: string) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  return Math.round((new Date(d).getTime() - today.getTime()) / 86400000);
-}
-function zoneColor(days: number) {
-  if (days < 0) return Colors.danger;
-  if (days <= 1) return Colors.danger;
-  if (days <= 3) return Colors.warning;
-  return Colors.success;
-}
-function zoneLabel(days: number) {
-  if (days < 0) return 'Истёк';
-  if (days === 0) return 'Сегодня';
-  if (days === 1) return '1 день';
-  return `${days} дн.`;
-}
 
 // ─── SVG icons ────────────────────────────────────────────────────────────────
 
@@ -116,7 +96,7 @@ function IcoUser({ c = Colors.accentPurple, n = 18 }: { c?: string; n?: number }
 // ─── Arc ring component ───────────────────────────────────────────────────────
 
 function ArcRing({
-  progress, size, color, trackColor = Colors.border, strokeWidth = 5, children,
+  progress, size, color, trackColor = Glass.border, strokeWidth = 5, children,
 }: {
   progress: number; size: number; color: string;
   trackColor?: string; strokeWidth?: number; children?: React.ReactNode;
@@ -140,40 +120,12 @@ function ArcRing({
   );
 }
 
-// ─── Mock AI recipes ──────────────────────────────────────────────────────────
-
-const MOCK_RECIPES = [
-  { title: 'Яичница с сыром', emoji: '🍳', time: '5 мин', ingredients: ['яйца', 'сыр', 'масло'] },
-  { title: 'Молочная каша', emoji: '🥣', time: '10 мин', ingredients: ['молоко', 'крупа', 'сахар'] },
-  { title: 'Омлет с овощами', emoji: '🫔', time: '8 мин', ingredients: ['яйца', 'молоко', 'помидор'] },
-  { title: 'Творожная запеканка', emoji: '🧁', time: '30 мин', ingredients: ['творог', 'яйца', 'сахар'] },
-];
-
-// ─── Goal EMOJIS ──────────────────────────────────────────────────────────────
-
-const GOAL_EMOJIS = ['🏖️','🏠','🚗','💍','✈️','📱','🎓','🏋️','💰','🎯'];
-
-// ─── Goal palette ─────────────────────────────────────────────────────────────
-
-const GOAL_PALETTES = [
-  ['#1B3A2F','#0E2420'] as [string, string],
-  ['#2A1F3E','#1A1228'] as [string, string],
-  ['#1A2B3C','#0F1B26'] as [string, string],
-  ['#3A281F','#261A0E'] as [string, string],
-  ['#2F1B3A','#1E1026'] as [string, string],
-];
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function MoreMenuScreen() {
   const nav = useNavigation<Nav>();
   const { user } = useAuthStore();
-  const { goals, addGoal, setGoals } = useBudgetStore();
-  const insets = useSafeAreaInsets();
-
-  // Fridge state
-  const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>([]);
-  const [fridgeLoading, setFridgeLoading] = useState(true);
+  const { t } = useTranslation();
 
   // Achievements state
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -182,45 +134,14 @@ export function MoreMenuScreen() {
   const [achLoading, setAchLoading] = useState(true);
   const [selectedAch, setSelectedAch] = useState<Achievement | null>(null);
 
-  // Add Goal sheet
-  const [showAddGoal, setShowAddGoal] = useState(false);
-  const [goalTitle, setGoalTitle] = useState('');
-  const [goalEmoji, setGoalEmoji] = useState('🎯');
-  const [goalTarget, setGoalTarget] = useState('');
-  const [goalMonthly, setGoalMonthly] = useState('');
-  const [goalSaving, setGoalSaving] = useState(false);
-
-  // Add Fridge sheet
-  const [showAddFridge, setShowAddFridge] = useState(false);
-  const [fridgeName, setFridgeName] = useState('');
-  const [fridgeQty, setFridgeQty] = useState('1');
-  const [fridgeUnit, setFridgeUnit] = useState('шт');
-  const [fridgeDays, setFridgeDays] = useState('7');
-  const [fridgeSaving, setFridgeSaving] = useState(false);
-
-  // AI recipe sheet
-  const [showRecipe, setShowRecipe] = useState(false);
-  const [recipe] = useState(MOCK_RECIPES[Math.floor(Math.random() * MOCK_RECIPES.length)]);
-
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const achScaleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 380, useNativeDriver: true }).start();
-    loadFridge();
     loadAchievements();
   }, [user]);
-
-  async function loadFridge() {
-    if (!user) return;
-    setFridgeLoading(true);
-    const { data } = await supabase
-      .from('fridge_items').select('*').eq('user_id', user.id)
-      .order('expires_at', { ascending: true });
-    if (data) setFridgeItems(data as FridgeItem[]);
-    setFridgeLoading(false);
-  }
 
   async function loadAchievements() {
     if (!user) return;
@@ -241,74 +162,6 @@ export function MoreMenuScreen() {
     setAchLoading(false);
   }
 
-  async function handleAddGoal() {
-    const num = parseFloat(goalTarget.replace(',', '.'));
-    if (!goalTitle.trim() || isNaN(num) || num <= 0) {
-      Alert.alert('Заполните название и сумму'); return;
-    }
-    if (!user) return;
-    setGoalSaving(true);
-    const { data, error } = await supabase.from('goals').insert({
-      user_id: user.id, title: goalTitle.trim(), emoji: goalEmoji,
-      target_amount: num, current_amount: 0,
-      monthly_contribution: parseFloat(goalMonthly.replace(',', '.')) || 0,
-    }).select().single();
-    if (error) { Alert.alert('Ошибка', error.message); setGoalSaving(false); return; }
-    addGoal(data as Goal);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setGoalSaving(false);
-    setShowAddGoal(false);
-    setGoalTitle(''); setGoalTarget(''); setGoalMonthly(''); setGoalEmoji('🎯');
-  }
-
-  async function handleAddFridge() {
-    if (!fridgeName.trim()) { Alert.alert('Введите название'); return; }
-    const d = parseInt(fridgeDays);
-    if (isNaN(d) || d < 1) { Alert.alert('Укажите срок годности'); return; }
-    if (!user) return;
-    const expires = new Date(); expires.setDate(expires.getDate() + d);
-    setFridgeSaving(true);
-    const { data, error } = await supabase.from('fridge_items').insert({
-      user_id: user.id, name: fridgeName.trim(),
-      quantity: parseFloat(fridgeQty) || 1, unit: fridgeUnit,
-      expires_at: expires.toISOString().slice(0, 10),
-    }).select().single();
-    if (error) { Alert.alert('Ошибка', error.message); setFridgeSaving(false); return; }
-    setFridgeItems(prev =>
-      [...prev, data as FridgeItem].sort((a, b) => new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime())
-    );
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setFridgeSaving(false);
-    setShowAddFridge(false);
-    setFridgeName(''); setFridgeQty('1'); setFridgeDays('7'); setFridgeUnit('шт');
-  }
-
-  async function handleDeleteFridge(id: string) {
-    await supabase.from('fridge_items').delete().eq('id', id);
-    setFridgeItems(prev => prev.filter(i => i.id !== id));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }
-
-  async function handleUsedFridge(id: string) {
-    await supabase.from('fridge_items').delete().eq('id', id);
-    setFridgeItems(prev => prev.filter(i => i.id !== id));
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }
-
-  async function handleDeleteGoal(id: string) {
-    Alert.alert('Удалить цель?', 'Это действие необратимо.', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Удалить', style: 'destructive',
-        onPress: async () => {
-          await supabase.from('goals').delete().eq('id', id);
-          setGoals(goals.filter(g => g.id !== id));
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        },
-      },
-    ]);
-  }
-
   function tapAchievement(ach: Achievement) {
     setSelectedAch(ach);
     achScaleAnim.setValue(0);
@@ -321,22 +174,6 @@ export function MoreMenuScreen() {
   const xpTo = XP_TABLE[level] ?? XP_TABLE[XP_TABLE.length - 1];
   const xpProg = xpProgress(xp, level);
   const initials = (user?.full_name ?? 'U').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const currency = user?.currency ?? 'EUR';
-
-  const expiringSoon = fridgeItems.filter(i => daysUntil(i.expires_at) <= 3);
-  const expired = fridgeItems.filter(i => daysUntil(i.expires_at) < 0);
-  const urgent = fridgeItems.filter(i => { const d = daysUntil(i.expires_at); return d >= 0 && d <= 1; });
-  const warning = fridgeItems.filter(i => { const d = daysUntil(i.expires_at); return d >= 2 && d <= 3; });
-  const fresh = fridgeItems.filter(i => daysUntil(i.expires_at) > 3);
-
-  const earnedCount = achievements.filter(a => earnedIds.has(a.id)).length;
-
-  const topGoal = goals[0];
-  const whatIfGoal = goals.find(g => g.monthly_contribution > 0);
-
-  const FRIDGE_UNITS = ['шт', 'г', 'кг', 'мл', 'л', 'пач.'];
-  const FRIDGE_PRESETS = ['1', '3', '7', '14', '30'];
-
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <ScrollView contentContainerStyle={s.scroll} indicatorStyle="white" showsVerticalScrollIndicator={false}>
@@ -355,12 +192,12 @@ export function MoreMenuScreen() {
               </ArcRing>
 
               <View style={s.heroInfo}>
-                <Text style={s.heroName} numberOfLines={1}>{user?.full_name ?? 'Пользователь'}</Text>
+                <Text style={s.heroName} numberOfLines={1}>{user?.full_name ?? t('more.profile.user')}</Text>
                 <View style={s.levelRow}>
                   <View style={s.levelPill}>
-                    <Text style={s.levelPillTxt}>Ур. {level}</Text>
+                    <Text style={s.levelPillTxt}>{t('more.level.n', { n: level })}</Text>
                   </View>
-                  <Text style={s.levelName}>{levelName(level)}</Text>
+                  <Text style={s.levelName}>{t(levelNameKey(level), levelNameVars(level))}</Text>
                 </View>
                 <View style={s.xpBarRow}>
                   <View style={s.xpBarBg}>
@@ -374,146 +211,12 @@ export function MoreMenuScreen() {
           </TouchableOpacity>
 
           {/* ═══════════════════════════════════════════════════════════
-                GOALS SECTION
-          ═══════════════════════════════════════════════════════════ */}
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Мои цели</Text>
-            <TouchableOpacity style={s.sectionAddBtn} onPress={() => setShowAddGoal(true)}>
-              <IcoPlus c={Colors.success} n={14} />
-              <Text style={[s.sectionAddTxt, { color: Colors.success }]}>Цель</Text>
-            </TouchableOpacity>
-          </View>
-
-          {goals.length === 0 ? (
-            <TouchableOpacity style={s.emptyCard} onPress={() => setShowAddGoal(true)} activeOpacity={0.8}>
-              <Text style={s.emptyEmoji}>🎯</Text>
-              <Text style={s.emptyTitle}>Нет активных целей</Text>
-              <Text style={s.emptySub}>Поставьте первую финансовую цель</Text>
-            </TouchableOpacity>
-          ) : (
-            goals.map((goal, idx) => {
-              const progress = goal.target_amount > 0 ? goal.current_amount / goal.target_amount : 0;
-              const months = monthsLeft(goal.current_amount, goal.target_amount, goal.monthly_contribution);
-              const palette = GOAL_PALETTES[idx % GOAL_PALETTES.length];
-              const pct = Math.round(progress * 100);
-              return (
-                <LinearGradient key={goal.id} colors={palette} style={s.goalCard} start={{x:0,y:0}} end={{x:1,y:1}}>
-                  {/* Arc + emoji */}
-                  <ArcRing progress={progress} size={62} color={Colors.success} strokeWidth={4}>
-                    <Text style={{ fontSize: 22 }}>{goal.emoji}</Text>
-                  </ArcRing>
-
-                  {/* Info */}
-                  <View style={s.goalInfo}>
-                    <Text style={s.goalTitle} numberOfLines={1}>{goal.title}</Text>
-                    <Text style={s.goalAmts}>
-                      {formatCurrency(goal.current_amount, currency)}
-                      <Text style={s.goalAmtMuted}> / {formatCurrency(goal.target_amount, currency)}</Text>
-                    </Text>
-                    <Text style={s.goalSub}>
-                      {months > 0
-                        ? `+${formatCurrency(goal.monthly_contribution, currency)}/мес · ${months} мес.`
-                        : goal.current_amount >= goal.target_amount ? '🎉 Цель достигнута!' : 'Пополняйте'}
-                    </Text>
-                  </View>
-
-                  {/* Percent + delete */}
-                  <View style={s.goalRight}>
-                    <View style={s.goalPctBadge}>
-                      <Text style={s.goalPctTxt}>{pct}%</Text>
-                    </View>
-                    <TouchableOpacity style={s.goalTrash} onPress={() => handleDeleteGoal(goal.id)}>
-                      <IcoTrash c={Colors.danger} n={14} />
-                    </TouchableOpacity>
-                  </View>
-                </LinearGradient>
-              );
-            })
-          )}
-
-          {/* What-if mini card */}
-          {whatIfGoal && whatIfGoal.monthly_contribution > 0 && (() => {
-            const remaining = whatIfGoal.target_amount - whatIfGoal.current_amount;
-            const baseMonths = Math.ceil(remaining / whatIfGoal.monthly_contribution);
-            const coffeeSave = Math.ceil(remaining / (whatIfGoal.monthly_contribution + 47));
-            const diff = baseMonths - coffeeSave;
-            return (
-              <View style={s.whatifCard}>
-                <Text style={s.whatifTitle}>☕ Откажись от кофе навынос</Text>
-                <Text style={s.whatifBody}>
-                  +47 {currency}/мес → цель <Text style={{ color: Colors.success, fontWeight: Typography.weightBold }}>на {diff} мес. ближе</Text>
-                </Text>
-              </View>
-            );
-          })()}
-
-          {/* ═══════════════════════════════════════════════════════════
-                FRIDGE SECTION
-          ═══════════════════════════════════════════════════════════ */}
-          <View style={[s.sectionHeader, { marginTop: Spacing.xl }]}>
-            <Text style={s.sectionTitle}>Холодильник</Text>
-            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-              {expiringSoon.length > 0 && (
-                <TouchableOpacity style={s.recipeBtn} onPress={() => setShowRecipe(true)}>
-                  <IcoChef c={Colors.warning} n={14} />
-                  <Text style={s.recipeBtnTxt}>Рецепт</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={s.sectionAddBtn} onPress={() => setShowAddFridge(true)}>
-                <IcoPlus c={Colors.accentTeal} n={14} />
-                <Text style={[s.sectionAddTxt, { color: Colors.accentTeal }]}>Продукт</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Zone summary */}
-          {fridgeItems.length > 0 && (
-            <View style={s.zoneRow}>
-              <ZoneBubble count={expired.length} label="Истекло" color={Colors.danger} />
-              <ZoneBubble count={urgent.length} label="Критично" color='#FF8C42' />
-              <ZoneBubble count={warning.length} label="Скоро" color={Colors.warning} />
-              <ZoneBubble count={fresh.length} label="Свежее" color={Colors.success} />
-            </View>
-          )}
-
-          {fridgeLoading ? (
-            <ActivityIndicator color={Colors.accentTeal} style={{ marginVertical: Spacing.xl }} />
-          ) : fridgeItems.length === 0 ? (
-            <TouchableOpacity style={s.emptyCard} onPress={() => setShowAddFridge(true)} activeOpacity={0.8}>
-              <Text style={s.emptyEmoji}>🧊</Text>
-              <Text style={s.emptyTitle}>Холодильник пуст</Text>
-              <Text style={s.emptySub}>Добавьте продукты и следите за сроками</Text>
-            </TouchableOpacity>
-          ) : (
-            fridgeItems.map(item => {
-              const days = daysUntil(item.expires_at);
-              const color = zoneColor(days);
-              return (
-                <View key={item.id} style={[s.fridgeRow, { borderLeftColor: color }]}>
-                  <View style={[s.fridgeDot, { backgroundColor: color }]} />
-                  <View style={s.fridgeInfo}>
-                    <Text style={s.fridgeName}>{item.name}</Text>
-                    <Text style={s.fridgeQty}>{item.quantity} {item.unit}</Text>
-                  </View>
-                  <Text style={[s.fridgeDays, { color }]}>{zoneLabel(days)}</Text>
-                  <TouchableOpacity style={s.fridgeUsedBtn} onPress={() => handleUsedFridge(item.id)}>
-                    <IcoCheck c={Colors.success} n={14} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.fridgeTrashBtn} onPress={() => handleDeleteFridge(item.id)}>
-                    <IcoTrash c={Colors.danger} n={14} />
-                  </TouchableOpacity>
-                </View>
-              );
-            })
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════
                 ACHIEVEMENTS SECTION
           ═══════════════════════════════════════════════════════════ */}
           <View style={[s.sectionHeader, { marginTop: Spacing.xl }]}>
-            <Text style={s.sectionTitle}>Достижения</Text>
+            <Text style={s.sectionTitle}>{t('more.ach.title')}</Text>
             <TouchableOpacity style={s.sectionAddBtn} onPress={() => nav.navigate('Achievements')}>
-              <Text style={[s.sectionAddTxt, { color: Colors.accentPurple }]}>Все →</Text>
+              <Text style={[s.sectionAddTxt, { color: Colors.accentPurple }]}>{t('more.ach.all')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -523,13 +226,13 @@ export function MoreMenuScreen() {
               <Text style={s.xpLevelNum}>{level}</Text>
             </ArcRing>
             <View style={s.xpCardInfo}>
-              <Text style={s.xpCardLevel}>{levelName(level)}</Text>
+              <Text style={s.xpCardLevel}>{t(levelNameKey(level), levelNameVars(level))}</Text>
               <Text style={s.xpCardXp}>{xp} / {xpTo} XP</Text>
-              <Text style={s.xpCardEarned}>{earnedIds.size} из {achTotal} ачивок</Text>
+              <Text style={s.xpCardEarned}>{t('more.ach.earnedOf', { count: earnedIds.size, total: achTotal })}</Text>
             </View>
             <View style={s.xpCardStars}>
               {[...Array(5)].map((_, i) => (
-                <IcoStar key={i} c={i < Math.min(5, Math.floor(level / 2)) ? Colors.warning : Colors.border} n={14} />
+                <IcoStar key={i} c={i < Math.min(5, Math.floor(level / 2)) ? Colors.warning : Glass.border} n={14} />
               ))}
             </View>
           </LinearGradient>
@@ -546,10 +249,10 @@ export function MoreMenuScreen() {
                   <TouchableOpacity key={ach.id} style={s.achCell} onPress={() => tapAchievement({ ...ach, earned_at: isEarned ? 'yes' : undefined })} activeOpacity={0.75}>
                     <View style={[
                       s.achBadge,
-                      { backgroundColor: isEarned ? color + '22' : Colors.surfaceElevated, borderColor: isEarned ? color + '55' : Colors.border },
+                      { backgroundColor: isEarned ? color + '22' : Colors.surfaceElevated, borderColor: isEarned ? color + '55' : Glass.border },
                     ]}>
                       <Text style={[s.achBadgeStar, { color: isEarned ? color : Colors.textMuted }]}>★</Text>
-                      <View style={[s.achTierDot, { backgroundColor: isEarned ? color : Colors.border }]} />
+                      <View style={[s.achTierDot, { backgroundColor: isEarned ? color : Glass.border }]} />
                     </View>
                     <Text style={[s.achName, !isEarned && s.achNameLocked]} numberOfLines={2}>
                       {isEarned ? ach.title : '???'}
@@ -568,22 +271,22 @@ export function MoreMenuScreen() {
 
           {/* Finance section: Subscriptions + Debts */}
           <View style={[s.sectionHeader, { marginTop: Spacing.xl }]}>
-            <Text style={s.sectionTitle}>Финансы</Text>
+            <Text style={s.sectionTitle}>{t('more.finance.title')}</Text>
           </View>
           <View style={s.financeRow}>
             <TouchableOpacity style={s.financeCard} onPress={() => nav.navigate('Subscriptions')} activeOpacity={0.82}>
               <LinearGradient colors={['#1A2B3C','#0F1B26']} style={s.financeCardGrad} start={{x:0,y:0}} end={{x:1,y:1}}>
                 <Text style={s.financeEmoji}>💳</Text>
-                <Text style={s.financeCardTitle}>Подписки</Text>
-                <Text style={s.financeCardSub}>Отслеживай ежемесячные платежи</Text>
+                <Text style={s.financeCardTitle}>{t('more.finance.subs')}</Text>
+                <Text style={s.financeCardSub}>{t('more.finance.subsSub')}</Text>
                 <IcoRight c={Colors.textMuted} n={14} />
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity style={s.financeCard} onPress={() => nav.navigate('Debts')} activeOpacity={0.82}>
               <LinearGradient colors={['#1F2A1A','#141E0F']} style={s.financeCardGrad} start={{x:0,y:0}} end={{x:1,y:1}}>
                 <Text style={s.financeEmoji}>🤝</Text>
-                <Text style={s.financeCardTitle}>Долги</Text>
-                <Text style={s.financeCardSub}>Кто кому и сколько должен</Text>
+                <Text style={s.financeCardTitle}>{t('more.finance.debts')}</Text>
+                <Text style={s.financeCardSub}>{t('more.finance.debtsSub')}</Text>
                 <IcoRight c={Colors.textMuted} n={14} />
               </LinearGradient>
             </TouchableOpacity>
@@ -592,120 +295,12 @@ export function MoreMenuScreen() {
           {/* Profile row */}
           <TouchableOpacity style={s.profileRow} onPress={() => nav.navigate('Profile')} activeOpacity={0.8}>
             <View style={s.profileIconWrap}><IcoUser c={Colors.textSecondary} n={18} /></View>
-            <Text style={s.profileTxt}>Профиль и настройки</Text>
+            <Text style={s.profileTxt}>{t('more.profile')}</Text>
             <IcoRight c={Colors.textMuted} n={16} />
           </TouchableOpacity>
 
         </Animated.View>
       </ScrollView>
-
-      {/* ═══════════════════════════════════════════════════════════
-            ADD GOAL BOTTOM SHEET
-      ═══════════════════════════════════════════════════════════ */}
-      <Modal visible={showAddGoal} transparent animationType="slide" onRequestClose={() => setShowAddGoal(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setShowAddGoal(false); }} />
-          <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
-            <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Новая цель</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
-              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                {GOAL_EMOJIS.map(e => (
-                  <TouchableOpacity key={e} style={[s.emojiBtn, goalEmoji === e && s.emojiBtnOn]} onPress={() => setGoalEmoji(e)}>
-                    <Text style={{ fontSize: 22 }}>{e}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-            <Text style={s.sheetLabel}>Название цели</Text>
-            <TextInput style={s.sheetInput} value={goalTitle} onChangeText={setGoalTitle} placeholder="Отпуск в Греции..." placeholderTextColor={Colors.textMuted} />
-            <Text style={s.sheetLabel}>Сумма цели</Text>
-            <TextInput style={s.sheetInput} value={goalTarget} onChangeText={setGoalTarget} keyboardType="decimal-pad" placeholder="2 000" placeholderTextColor={Colors.textMuted} />
-            <Text style={s.sheetLabel}>Откладываю в месяц</Text>
-            <TextInput style={s.sheetInput} value={goalMonthly} onChangeText={setGoalMonthly} keyboardType="decimal-pad" placeholder="150" placeholderTextColor={Colors.textMuted} />
-            <View style={s.sheetBtns}>
-              <TouchableOpacity style={s.sheetCancel} onPress={() => setShowAddGoal(false)}>
-                <Text style={s.sheetCancelTxt}>Отмена</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.sheetSave, { backgroundColor: Colors.success }]} onPress={handleAddGoal} disabled={goalSaving}>
-                {goalSaving ? <ActivityIndicator color={Colors.bg} /> : <Text style={s.sheetSaveTxt}>Сохранить</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ═══════════════════════════════════════════════════════════
-            ADD FRIDGE BOTTOM SHEET
-      ═══════════════════════════════════════════════════════════ */}
-      <Modal visible={showAddFridge} transparent animationType="slide" onRequestClose={() => setShowAddFridge(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setShowAddFridge(false); }} />
-          <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
-            <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>Добавить продукт</Text>
-            <Text style={s.sheetLabel}>Название</Text>
-            <TextInput style={s.sheetInput} value={fridgeName} onChangeText={setFridgeName} placeholder="Молоко 1л..." placeholderTextColor={Colors.textMuted} autoFocus />
-            <Text style={s.sheetLabel}>Количество</Text>
-            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-              <TextInput style={[s.sheetInput, { flex: 1 }]} value={fridgeQty} onChangeText={setFridgeQty} keyboardType="decimal-pad" />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 2 }}>
-                <View style={{ flexDirection: 'row', gap: Spacing.xs, alignItems: 'center' }}>
-                  {FRIDGE_UNITS.map(u => (
-                    <TouchableOpacity key={u} style={[s.chip, fridgeUnit === u && s.chipOn]} onPress={() => setFridgeUnit(u)}>
-                      <Text style={[s.chipTxt, fridgeUnit === u && s.chipTxtOn]}>{u}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-            <Text style={s.sheetLabel}>Срок годности (дней)</Text>
-            <View style={{ flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.sm }}>
-              {FRIDGE_PRESETS.map(p => (
-                <TouchableOpacity key={p} style={[s.chip, fridgeDays === p && s.chipOn]} onPress={() => setFridgeDays(p)}>
-                  <Text style={[s.chipTxt, fridgeDays === p && s.chipTxtOn]}>{p}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TextInput style={s.sheetInput} value={fridgeDays} onChangeText={setFridgeDays} keyboardType="number-pad" placeholder="или введите дни" placeholderTextColor={Colors.textMuted} />
-            <View style={s.sheetBtns}>
-              <TouchableOpacity style={s.sheetCancel} onPress={() => setShowAddFridge(false)}>
-                <Text style={s.sheetCancelTxt}>Отмена</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.sheetSave, { backgroundColor: Colors.accentTeal }]} onPress={handleAddFridge} disabled={fridgeSaving}>
-                {fridgeSaving ? <ActivityIndicator color={Colors.bg} /> : <Text style={s.sheetSaveTxt}>Добавить</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ═══════════════════════════════════════════════════════════
-            AI RECIPE SHEET
-      ═══════════════════════════════════════════════════════════ */}
-      <Modal visible={showRecipe} transparent animationType="slide" onRequestClose={() => setShowRecipe(false)}>
-        <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => setShowRecipe(false)} />
-        <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Что приготовить?</Text>
-          <View style={s.recipeCard}>
-            <Text style={{ fontSize: 48, textAlign: 'center', marginBottom: Spacing.md }}>{recipe.emoji}</Text>
-            <Text style={s.recipeName}>{recipe.title}</Text>
-            <View style={s.recipeMetaRow}>
-              <View style={s.recipeMeta}><Text style={s.recipeMetaTxt}>⏱ {recipe.time}</Text></View>
-              <View style={s.recipeMeta}><Text style={s.recipeMetaTxt}>🧊 Из холодильника</Text></View>
-            </View>
-            <Text style={s.recipeIngTitle}>Понадобится:</Text>
-            {recipe.ingredients.map((ing, i) => (
-              <Text key={i} style={s.recipeIng}>· {ing}</Text>
-            ))}
-            <Text style={s.recipeDisclaimer}>Рецепт подобран на основе продуктов с истекающим сроком</Text>
-          </View>
-          <TouchableOpacity style={[s.sheetSave, { backgroundColor: Colors.accentTeal, marginTop: Spacing.md }]} onPress={() => setShowRecipe(false)}>
-            <Text style={s.sheetSaveTxt}>Понятно</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
 
       {/* ═══════════════════════════════════════════════════════════
             ACHIEVEMENT DETAIL MODAL
@@ -724,11 +319,11 @@ export function MoreMenuScreen() {
                         <Text style={[s.achModalStar, { color }]}>★</Text>
                         <Text style={[s.achModalXp, { color }]}>{selectedAch.xp_reward} XP</Text>
                       </View>
-                      <Text style={s.achModalTitle}>{isEarned ? selectedAch.title : '??? Не разблокировано'}</Text>
-                      <Text style={s.achModalDesc}>{isEarned ? selectedAch.description : 'Выполните условия чтобы разблокировать ачивку'}</Text>
+                      <Text style={s.achModalTitle}>{isEarned ? selectedAch.title : t('more.ach.lockedTitle')}</Text>
+                      <Text style={s.achModalDesc}>{isEarned ? selectedAch.description : t('more.ach.lockedDesc')}</Text>
                       {!isEarned && (
                         <View style={s.achModalProgress}>
-                          <Text style={s.achModalProgressLbl}>Прогресс</Text>
+                          <Text style={s.achModalProgressLbl}>{t('more.ach.progress')}</Text>
                           <View style={s.achModalProgressBar}>
                             <View style={[s.achModalProgressFill, { width: '35%', backgroundColor: color }]} />
                           </View>
@@ -737,7 +332,7 @@ export function MoreMenuScreen() {
                       )}
                       <TouchableOpacity style={[s.achModalBtn, { backgroundColor: isEarned ? Colors.accentTeal : Colors.surface }]} onPress={() => setSelectedAch(null)}>
                         <Text style={[s.achModalBtnTxt, { color: isEarned ? Colors.bg : Colors.textSecondary }]}>
-                          {isEarned ? 'Отлично! 🎉' : 'Закрыть'}
+                          {isEarned ? t('more.ach.earnedBtn') : t('more.ach.lockedBtn')}
                         </Text>
                       </TouchableOpacity>
                     </>
@@ -752,22 +347,6 @@ export function MoreMenuScreen() {
   );
 }
 
-// ─── Zone bubble ──────────────────────────────────────────────────────────────
-
-function ZoneBubble({ count, label, color }: { count: number; label: string; color: string }) {
-  return (
-    <View style={[zb.wrap, { borderColor: count > 0 ? color + '44' : Colors.border }]}>
-      <Text style={[zb.count, { color: count > 0 ? color : Colors.textMuted }]}>{count}</Text>
-      <Text style={zb.label}>{label}</Text>
-    </View>
-  );
-}
-const zb = StyleSheet.create({
-  wrap:  { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center', borderWidth: 1 },
-  count: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold },
-  label: { fontSize: 9, color: Colors.textMuted, marginTop: 2 },
-});
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
@@ -775,7 +354,7 @@ const s = StyleSheet.create({
   scroll: { padding: Spacing.xl, paddingBottom: Layout.tabBarClearance + Spacing.xl },
 
   // Profile hero
-  heroCard:      { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, borderRadius: Radius.xl, marginBottom: Spacing.xl, borderWidth: 1, borderColor: Colors.border },
+  heroCard:      { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, borderRadius: Radius.xl, marginBottom: Spacing.xl, borderWidth: 1, borderColor: Glass.border },
   avatarCircle:  { width: 46, height: 46, borderRadius: 23, backgroundColor: Colors.accentPurple + '28', alignItems: 'center', justifyContent: 'center' },
   avatarInitials:{ fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, color: Colors.accentPurple },
   heroInfo:      { flex: 1, gap: Spacing.xs },
@@ -785,58 +364,18 @@ const s = StyleSheet.create({
   levelPillTxt:  { fontSize: Typography.sizeXS, color: Colors.accentPurple, fontWeight: Typography.weightBold },
   levelName:     { fontSize: Typography.sizeXS, color: Colors.textSecondary },
   xpBarRow:      { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  xpBarBg:       { flex: 1, height: 4, backgroundColor: Colors.border, borderRadius: 2, overflow: 'hidden' },
+  xpBarBg:       { flex: 1, height: 4, backgroundColor: Glass.border, borderRadius: 2, overflow: 'hidden' },
   xpBarFill:     { height: 4, backgroundColor: Colors.accentPurple, borderRadius: 2 },
   xpTxt:         { fontSize: Typography.sizeXS, color: Colors.textMuted, minWidth: 60 },
 
   // Section header
   sectionHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
   sectionTitle:   { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  sectionAddBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.border },
+  sectionAddBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Glass.border },
   sectionAddTxt:  { fontSize: Typography.sizeXS, fontWeight: Typography.weightSemiBold },
 
-  // Empty state
-  emptyCard:  { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.md },
-  emptyEmoji: { fontSize: 40, marginBottom: Spacing.sm },
-  emptyTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  emptySub:   { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginTop: 4 },
-
-  // Goal cards
-  goalCard:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, borderRadius: Radius.xl, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  goalInfo:     { flex: 1 },
-  goalTitle:    { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  goalAmts:     { fontSize: Typography.sizeSM, color: Colors.success, fontWeight: Typography.weightSemiBold, marginTop: 2 },
-  goalAmtMuted: { color: Colors.textMuted, fontWeight: Typography.weightRegular },
-  goalSub:      { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginTop: 2 },
-  goalRight:    { alignItems: 'center', gap: Spacing.sm },
-  goalPctBadge: { backgroundColor: Colors.success + '22', borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderWidth: 1, borderColor: Colors.success + '44' },
-  goalPctTxt:   { fontSize: Typography.sizeXS, color: Colors.success, fontWeight: Typography.weightBold },
-  goalTrash:    { padding: 4 },
-
-  // What-if
-  whatifCard: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md, borderWidth: 1, borderLeftWidth: 3, borderColor: Colors.border, borderLeftColor: Colors.warning, marginBottom: Spacing.md },
-  whatifTitle:{ fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary, marginBottom: 4 },
-  whatifBody: { fontSize: Typography.sizeXS, color: Colors.textSecondary, lineHeight: 16 },
-
-  // Fridge zone row
-  zoneRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-
-  // Fridge items
-  fridgeRow:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border, borderLeftWidth: 3 },
-  fridgeDot:     { width: 8, height: 8, borderRadius: 4 },
-  fridgeInfo:    { flex: 1 },
-  fridgeName:    { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary },
-  fridgeQty:     { fontSize: Typography.sizeXS, color: Colors.textMuted, marginTop: 2 },
-  fridgeDays:    { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, minWidth: 54, textAlign: 'right' },
-  fridgeUsedBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.success + '20', alignItems: 'center', justifyContent: 'center' },
-  fridgeTrashBtn:{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.danger + '15', alignItems: 'center', justifyContent: 'center' },
-
-  // Recipe button
-  recipeBtn:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.warning + '15', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.warning + '44' },
-  recipeBtnTxt: { fontSize: Typography.sizeXS, color: Colors.warning, fontWeight: Typography.weightSemiBold },
-
   // XP card
-  xpCard:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, borderRadius: Radius.xl, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  xpCard:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, borderRadius: Radius.xl, marginBottom: Spacing.md, borderWidth: 1, borderColor: Glass.border },
   xpLevelNum: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.accentPurple },
   xpCardInfo: { flex: 1 },
   xpCardLevel:{ fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary },
@@ -846,65 +385,45 @@ const s = StyleSheet.create({
 
   // Achievement grid
   achGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
-  achCell:    { width: '48%', backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', gap: 6 },
+  achCell:    { width: '48%', backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.md, borderWidth: 1, borderColor: Glass.border, alignItems: 'center', gap: 6 },
   achBadge:   { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, position: 'relative' },
   achBadgeStar:{ fontSize: 26 },
   achTierDot: { width: 8, height: 8, borderRadius: 4, position: 'absolute', bottom: -2, right: -2 },
   achName:    { fontSize: Typography.sizeXS, color: Colors.textPrimary, textAlign: 'center', fontWeight: Typography.weightSemiBold, lineHeight: 14 },
   achNameLocked:{ color: Colors.textMuted },
-  achProgressBar:{ width: '100%', height: 3, backgroundColor: Colors.border, borderRadius: 2, overflow: 'hidden', marginTop: 2 },
+  achProgressBar:{ width: '100%', height: 3, backgroundColor: Glass.border, borderRadius: 2, overflow: 'hidden', marginTop: 2 },
   achProgressFill:{ height: 3, borderRadius: 2 },
   achXp:      { fontSize: Typography.sizeXS, fontWeight: Typography.weightBold },
 
   // Finance section
   financeRow:       { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
-  financeCard:      { flex: 1, borderRadius: Radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border },
+  financeCard:      { flex: 1, borderRadius: Radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: Glass.border },
   financeCardGrad:  { padding: Spacing.lg, gap: Spacing.xs, minHeight: 120 },
   financeEmoji:     { fontSize: 28, marginBottom: Spacing.xs },
   financeCardTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary },
   financeCardSub:   { fontSize: Typography.sizeXS, color: Colors.textSecondary, lineHeight: 14, flex: 1 },
 
   // Profile row
-  profileRow:      { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.border, marginTop: Spacing.xl },
+  profileRow:      { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.lg, borderWidth: 1, borderColor: Glass.border, marginTop: Spacing.xl },
   profileIconWrap: { width: 36, height: 36, borderRadius: Radius.md, backgroundColor: Colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
   profileTxt:      { flex: 1, fontSize: Typography.sizeMD, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold },
 
   // Bottom sheets
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:         { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Colors.border },
-  sheetHandle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.lg },
+  sheet:         { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Glass.border },
+  sheetHandle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: Glass.border, alignSelf: 'center', marginBottom: Spacing.lg },
   sheetTitle:    { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
   sheetLabel:    { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
-  sheetInput:    { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Colors.border },
+  sheetInput:    { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Glass.border },
   sheetBtns:     { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xl },
   sheetCancel:   { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
   sheetCancelTxt:{ color: Colors.textSecondary, fontWeight: Typography.weightSemiBold },
   sheetSave:     { flex: 2, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
   sheetSaveTxt:  { color: Colors.bg, fontWeight: Typography.weightBold, fontSize: Typography.sizeMD },
 
-  // Chips
-  chip:    { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border },
-  chipOn:  { borderColor: Colors.accentTeal, backgroundColor: Colors.accentTeal + '18' },
-  chipTxt: { fontSize: Typography.sizeSM, color: Colors.textSecondary },
-  chipTxtOn:{ color: Colors.accentTeal, fontWeight: Typography.weightSemiBold },
-
-  // Emoji picker
-  emojiBtn:  { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
-  emojiBtnOn:{ borderColor: Colors.accentTeal, borderWidth: 2 },
-
-  // Recipe sheet
-  recipeCard:       { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xl, borderWidth: 1, borderColor: Colors.border },
-  recipeName:       { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.md },
-  recipeMetaRow:    { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md, justifyContent: 'center' },
-  recipeMeta:       { backgroundColor: Colors.surfaceElevated, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 4 },
-  recipeMetaTxt:    { fontSize: Typography.sizeXS, color: Colors.textSecondary },
-  recipeIngTitle:   { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textSecondary, marginBottom: Spacing.xs },
-  recipeIng:        { fontSize: Typography.sizeSM, color: Colors.textPrimary, marginBottom: 2 },
-  recipeDisclaimer: { fontSize: Typography.sizeXS, color: Colors.textMuted, marginTop: Spacing.md, textAlign: 'center', lineHeight: 16 },
-
   // Achievement modal
   achModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  achModalCard:     { backgroundColor: Colors.surfaceElevated, borderRadius: Radius.xl, padding: Spacing.xl, width: '100%', alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  achModalCard:     { backgroundColor: Colors.surfaceElevated, borderRadius: Radius.xl, padding: Spacing.xl, width: '100%', alignItems: 'center', borderWidth: 1, borderColor: Glass.border },
   achModalBadge:    { width: 88, height: 88, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 2, marginBottom: Spacing.lg },
   achModalStar:     { fontSize: 36 },
   achModalXp:       { fontSize: Typography.sizeXS, fontWeight: Typography.weightBold, marginTop: 2 },
@@ -912,7 +431,7 @@ const s = StyleSheet.create({
   achModalDesc:     { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: Spacing.lg },
   achModalProgress: { width: '100%', marginBottom: Spacing.lg },
   achModalProgressLbl:{ fontSize: Typography.sizeXS, color: Colors.textMuted, marginBottom: Spacing.xs },
-  achModalProgressBar:{ height: 6, backgroundColor: Colors.border, borderRadius: 3, overflow: 'hidden', marginBottom: 4 },
+  achModalProgressBar:{ height: 6, backgroundColor: Glass.border, borderRadius: 3, overflow: 'hidden', marginBottom: 4 },
   achModalProgressFill:{ height: 6, borderRadius: 3 },
   achModalProgressPct:{ fontSize: Typography.sizeXS, color: Colors.textSecondary },
   achModalBtn:      { width: '100%', borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },

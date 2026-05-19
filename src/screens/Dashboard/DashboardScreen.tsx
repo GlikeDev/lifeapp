@@ -27,17 +27,19 @@ const DASHBOARD_TIPS: TipStep[] = [
 import {
   View, Text, ScrollView, StyleSheet, RefreshControl,
   TouchableOpacity, Modal, FlatList, TextInput, Animated,
+  KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, G, Circle, Text as SvgText } from 'react-native-svg';
 import { Card, ProgressBar } from '../../components/common';
-import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { useBudgetStore } from '../../store/useBudgetStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatCurrency, monthsLeft } from '../../utils/format';
 import { supabase } from '../../lib/supabase';
 import type { Transaction, Goal } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Currencies ───────────────────────────────────────────────────────────────
 
@@ -109,12 +111,25 @@ const CURRENCIES = [
 // ─── Category config ──────────────────────────────────────────────────────────
 
 const CAT = {
-  food:      { label: 'Еда',        color: Colors.categoryFood },
-  transport: { label: 'Транспорт',  color: Colors.categoryTransport },
-  home:      { label: 'Дом',        color: Colors.categoryHome },
-  health:    { label: 'Здоровье',   color: Colors.accentTeal },
-  other:     { label: 'Прочее',     color: Colors.categoryOther },
+  food:          { key: 'cat.food',          color: Colors.categoryFood },
+  transport:     { key: 'cat.transport',     color: Colors.categoryTransport },
+  home:          { key: 'cat.home',          color: Colors.categoryHome },
+  health:        { key: 'cat.health',        color: Colors.accentTeal },
+  entertainment: { key: 'cat.entertainment', color: '#E879F9' },
+  shopping:      { key: 'cat.shopping',      color: '#FB7185' },
+  other:         { key: 'cat.other',         color: Colors.categoryOther },
 };
+
+// ─── Goal constants ───────────────────────────────────────────────────────────
+
+const GOAL_EMOJIS = ['🏖️','🏠','🚗','💍','✈️','📱','🎓','🏋️','💰','🎯'];
+const GOAL_PALETTES: [string, string][] = [
+  ['#1E2A3A','#0F1B26'],
+  ['#1E1F38','#161727'],
+  ['#1F2A1A','#141E0F'],
+  ['#2A1F3E','#1A1228'],
+  ['#2A2010','#1A1208'],
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -233,12 +248,14 @@ function CategoryDonut({ data, total }: { data: Record<string, number>; total: n
 // ─── Currency Modal ───────────────────────────────────────────────────────────
 
 function CurrencyModal({
-  visible, current, onSelect, onClose,
+  visible, current, onSelect, onClose, title, searchPh,
 }: {
   visible: boolean;
   current: string;
   onSelect: (code: string) => void;
   onClose: () => void;
+  title: string;
+  searchPh: string;
 }) {
   const [search, setSearch] = useState('');
   const filtered = CURRENCIES.filter(c =>
@@ -251,10 +268,10 @@ function CurrencyModal({
       <View style={ms.overlay}>
         <View style={ms.sheet}>
           <View style={ms.handle} />
-          <Text style={ms.title}>Выберите валюту</Text>
+          <Text style={ms.title}>{title}</Text>
           <TextInput
             style={ms.search}
-            placeholder="Поиск валюты..."
+            placeholder={searchPh}
             placeholderTextColor={Colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -289,7 +306,7 @@ function CurrencyModal({
 
 const ms = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, paddingHorizontal: Spacing.lg, paddingBottom: 40, maxHeight: '80%' },
+  sheet: { backgroundColor: '#0D0E1C', borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, paddingHorizontal: Spacing.lg, paddingBottom: 40, maxHeight: '80%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginTop: Spacing.md, marginBottom: Spacing.lg },
   title: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, marginBottom: Spacing.md },
   search: { backgroundColor: Colors.surfaceElevated, borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, color: Colors.textPrimary, fontSize: Typography.sizeMD, marginBottom: Spacing.md },
@@ -306,25 +323,41 @@ export function DashboardScreen() {
   const { user, setUser } = useAuthStore();
   const {
     transactions, goals, monthlyBudget,
-    setTransactions, setGoals, setMonthlyBudget,
+    setTransactions, setGoals, addGoal, setMonthlyBudget,
     getTotalSpent, getRemaining, getSpentByCategory,
   } = useBudgetStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [currencyModal, setCurrencyModal] = useState(false);
+  const [insightIdx, setInsightIdx] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const neonAnim = useRef(new Animated.Value(0)).current;
   const { visible: tipsVisible, complete: tipsDone } = useCoachMark('dashboard');
+  const insets = useSafeAreaInsets();
+  const { t, lang, setLang, locale } = useTranslation();
+
+  // Goal modal state
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [goalEmoji, setGoalEmoji] = useState('🎯');
+  const [goalTitle, setGoalTitle] = useState('');
+  const [goalTarget, setGoalTarget] = useState('');
+  const [goalMonthly, setGoalMonthly] = useState('');
+  const [goalSaving, setGoalSaving] = useState(false);
 
   const totalSpent = getTotalSpent();
   const remaining = getRemaining();
   const spentPct = monthlyBudget > 0 ? totalSpent / monthlyBudget : 0;
   const byCategory = getSpentByCategory();
-  const activeGoal = goals[0] ?? null;
   const currency = user?.currency ?? 'EUR';
   const health = getBudgetHealth(spentPct, goals.length > 0);
   const trend = getTrend(spentPct);
   const weekData = getLast7Days(transactions);
   const fmt = (n: number) => formatCurrency(n, currency);
+
+  const neonBorderColor = neonAnim.interpolate({
+    inputRange: [0, 0.33, 0.66, 1],
+    outputRange: ['#22D3EE', '#A78BFA', '#E879F9', '#22D3EE'],
+  });
 
   async function loadData() {
     if (!user) return;
@@ -351,7 +384,15 @@ export function DashboardScreen() {
   useEffect(() => {
     loadData();
     Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+    Animated.loop(
+      Animated.timing(neonAnim, { toValue: 1, duration: 3000, useNativeDriver: false })
+    ).start();
   }, [user?.id]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setInsightIdx(i => (i + 1) % 3), 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -365,18 +406,64 @@ export function DashboardScreen() {
     await supabase.from('profiles').update({ currency: code }).eq('id', user.id);
   }
 
-  const monthName = new Date().toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
+  async function handleAddGoal() {
+    const target = parseFloat(goalTarget.replace(',', '.'));
+    const monthly = parseFloat(goalMonthly.replace(',', '.'));
+    if (!goalTitle.trim()) { return; }
+    if (isNaN(target) || target <= 0) { return; }
+    if (!user) return;
+    setGoalSaving(true);
+    const { data, error } = await supabase.from('goals').insert({
+      user_id: user.id,
+      title: goalTitle.trim(),
+      emoji: goalEmoji,
+      target_amount: target,
+      current_amount: 0,
+      monthly_contribution: isNaN(monthly) ? 0 : monthly,
+    }).select().single();
+    if (!error && data) {
+      addGoal(data as Goal);
+    }
+    setGoalSaving(false);
+    setShowGoalModal(false);
+    setGoalTitle(''); setGoalTarget(''); setGoalMonthly(''); setGoalEmoji('🎯');
+  }
+
+  async function handleDeleteGoal(id: string) {
+    await supabase.from('goals').delete().eq('id', id);
+    setGoals(goals.filter(g => g.id !== id));
+  }
+
+  const monthName = new Date().toLocaleString(locale, { month: 'long', year: 'numeric' });
   const firstName = user?.full_name?.split(' ')[0] ?? 'Привет';
   const currObj = CURRENCIES.find(c => c.code === currency) ?? CURRENCIES[0];
-  const savingsTotal = goals.reduce((s, g) => s + (g.monthly_contribution ?? 0), 0);
   const healthColor = health >= 70 ? Colors.success : health >= 40 ? Colors.warning : Colors.danger;
+
+  const aiMessages = [
+    spentPct > 0.85
+      ? t('dash.ai.over85')
+      : spentPct > 0.5
+      ? t('dash.ai.over50', { pct: Math.round(spentPct * 100) })
+      : totalSpent === 0
+      ? t('dash.ai.empty')
+      : t('dash.ai.great', { amount: fmt(Math.abs(remaining)) }),
+    t('dash.ai.tip2'),
+    t('dash.ai.tip3'),
+  ];
+
+  const balanceInt = Math.floor(Math.max(monthlyBudget - totalSpent, 0));
+  const balanceDec = String(Math.round((Math.max(monthlyBudget - totalSpent, 0) % 1) * 100)).padStart(2, '0');
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      {/* Holographic blob background */}
+      <View style={styles.blobTR} pointerEvents="none" />
+      <View style={styles.blobCL} pointerEvents="none" />
+      <View style={styles.blobBR} pointerEvents="none" />
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        indicatorStyle="white"
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accentTeal} />}
       >
@@ -384,164 +471,208 @@ export function DashboardScreen() {
 
           {/* ── Header ── */}
           <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting}>Привет, {firstName} 👋</Text>
-              <Text style={styles.subtitle}>{monthName}</Text>
+            <Text style={styles.monthLabel}>{monthName.toUpperCase()}</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity style={styles.langBtn} onPress={() => setLang(lang === 'ru' ? 'en' : 'ru')} activeOpacity={0.7}>
+                <Text style={styles.langBtnText}>{t('dash.lang.btn')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.currencyBtn} onPress={() => setCurrencyModal(true)} activeOpacity={0.7}>
+                <Text style={styles.currencyBtnText}>{currObj.symbol} {currency}</Text>
+                <Text style={styles.currencyChevron}>▾</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.currencyBtn} onPress={() => setCurrencyModal(true)} activeOpacity={0.7}>
-              <Text style={styles.currencySymbol}>{currObj.symbol}</Text>
-              <Text style={styles.currencyCode}>{currency}</Text>
-              <Text style={styles.currencyChevron}>▾</Text>
-            </TouchableOpacity>
           </View>
 
-          {/* ── Hero Card ── */}
-          <LinearGradient
-            colors={['#6C5CE7', '#4B3FC7', '#2D2B8F']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
-          >
-            <View style={styles.heroTopRow}>
-              <Text style={styles.heroLabel}>Остаток бюджета</Text>
-              <View style={[styles.trendBadge, { backgroundColor: trend.positive ? 'rgba(57,217,138,0.2)' : 'rgba(245,85,74,0.2)' }]}>
-                <Text style={[styles.trendText, { color: trend.positive ? Colors.success : Colors.danger }]}>
-                  {trend.positive ? '↑' : '↓'} {trend.label}
-                </Text>
+          {/* ── Hero Balance ── */}
+          <View style={styles.heroSection}>
+            <Text style={styles.heroLabel}>{t('dash.availableBudget')}</Text>
+            <Animated.View style={[styles.neonBorder, { borderColor: neonBorderColor }]}>
+              <View style={styles.heroAmountRow}>
+                <Text style={styles.heroCurrency}>{currObj.symbol}</Text>
+                <Text style={styles.heroNumber}>{balanceInt.toLocaleString('ru-RU')}</Text>
+                <Text style={styles.heroDec}>.{balanceDec}</Text>
               </View>
-            </View>
-            <Text style={styles.heroAmount}>{fmt(Math.max(monthlyBudget - totalSpent, 0))}</Text>
-            <Text style={styles.heroSub}>из {fmt(monthlyBudget)} · {Math.round(spentPct * 100)}% использовано</Text>
-            <View style={styles.heroBg}>
-              <ProgressBar
-                progress={spentPct}
-                color={spentPct > 0.85 ? Colors.danger : 'rgba(255,255,255,0.9)'}
-                height={5}
-                style={styles.heroBar}
+            </Animated.View>
+
+            {/* Gradient progress bar */}
+            <View style={styles.barTrack}>
+              <LinearGradient
+                colors={['#22D3EE', '#A78BFA']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.barFill, { width: `${Math.min(spentPct * 100, 100)}%` as any }]}
               />
             </View>
-          </LinearGradient>
 
-          {/* ── Quick Stats ── */}
-          <View style={styles.statsRow}>
-            <StatCard
-              label="Потрачено"
-              value={fmt(totalSpent)}
-              sub={`${Math.round(spentPct * 100)}%`}
-              color={Colors.danger}
-              icon="↓"
-            />
-            <StatCard
-              label="Сбережения"
-              value={fmt(savingsTotal)}
-              sub="/мес"
-              color={Colors.accentTeal}
-              icon="↑"
-            />
-            <StatCard
-              label="Здоровье"
-              value={`${health}`}
-              sub="/100"
-              color={healthColor}
-              icon="♥"
-            />
+            <View style={styles.heroMeta}>
+              <Text style={styles.heroMetaText}>
+                <Text style={{ color: Colors.accentTeal }}>{fmt(totalSpent)}</Text>
+                <Text style={{ color: Colors.textMuted }}> {t('dash.spent')}</Text>
+              </Text>
+              <Text style={styles.heroMetaText}>
+                <Text style={{ color: Colors.textMuted }}>{fmt(monthlyBudget)}</Text>
+                <Text style={{ color: Colors.textFaint }}> {t('dash.total')}</Text>
+              </Text>
+            </View>
           </View>
 
-          {/* ── Weekly Chart ── */}
-          <Card style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Расходы за 7 дней</Text>
-              <Text style={styles.sectionSub}>{fmt(weekData.reduce((s, d) => s + d.amount, 0))}</Text>
-            </View>
-            <SpendingBarChart data={weekData} currency={currency} />
-          </Card>
-
-          {/* ── Category Breakdown ── */}
-          {totalSpent > 0 && (
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Структура расходов</Text>
-              <View style={styles.categoryLayout}>
-                <CategoryDonut data={byCategory} total={totalSpent} />
-                <View style={styles.legend}>
-                  {Object.entries(CAT).map(([key, cfg]) => {
-                    const amount = byCategory[key] ?? 0;
-                    if (amount === 0) return null;
-                    const pct = Math.round((amount / totalSpent) * 100);
+          {/* ── Categories ── */}
+          <View style={styles.catSection}>
+            <Text style={styles.catTitle}>{t('dash.categories')}</Text>
+            {(() => {
+              const catTotal = Object.entries(CAT).reduce((s, [k]) => s + (byCategory[k] ?? 0), 0);
+              const activeCats = Object.entries(CAT)
+                .map(([k, cfg]) => ({ key: k, cfg, amount: byCategory[k] ?? 0 }))
+                .filter(c => c.amount > 0)
+                .sort((a, b) => b.amount - a.amount);
+              if (activeCats.length === 0) return (
+                <Text style={styles.catEmpty}>{t('dash.cat.empty')}</Text>
+              );
+              return (
+                <View style={styles.catBlocks}>
+                  {activeCats.map(({ key, cfg, amount }) => {
+                    const pct = catTotal > 0 ? amount / catTotal : 0;
                     return (
-                      <View key={key} style={styles.legendRow}>
-                        <View style={[styles.legendDot, { backgroundColor: cfg.color }]} />
-                        <Text style={styles.legendLabel}>{cfg.label}</Text>
-                        <Text style={styles.legendPct}>{pct}%</Text>
+                      <View
+                        key={key}
+                        style={[styles.catBlock, {
+                          flex: Math.max(pct, 0.08),
+                          backgroundColor: cfg.color + '18',
+                          borderColor: cfg.color + '55',
+                          shadowColor: cfg.color,
+                        }]}
+                      >
+                        <Text style={[styles.catBlockLabel, { color: cfg.color }]} numberOfLines={1}>{t(cfg.key)}</Text>
+                        <Text style={[styles.catBlockAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(amount)}</Text>
                       </View>
                     );
                   })}
                 </View>
-              </View>
-            </Card>
+              );
+            })()}
+          </View>
+
+          {/* ── Goals Section ── */}
+          <View style={styles.goalsSection}>
+          <View style={styles.goalsSectionHeader}>
+            <Text style={styles.goalsSectionTitle}>{t('dash.goals')}</Text>
+            <TouchableOpacity style={styles.goalsAddBtn} onPress={() => setShowGoalModal(true)} activeOpacity={0.7}>
+              <Text style={styles.goalsAddBtnText}>{t('dash.goals.add')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {goals.length === 0 ? (
+            <TouchableOpacity style={styles.goalsEmpty} onPress={() => setShowGoalModal(true)} activeOpacity={0.8}>
+              <Text style={styles.emptyIcon}>🎯</Text>
+              <Text style={styles.emptyTitle}>{t('dash.goals.emptyTitle')}</Text>
+              <Text style={styles.emptyText}>{t('dash.goals.emptyDesc')}</Text>
+            </TouchableOpacity>
+          ) : (
+            goals.map((goal, idx) => {
+              const progress = goal.target_amount > 0 ? goal.current_amount / goal.target_amount : 0;
+              const pct = Math.round(Math.min(progress * 100, 100));
+              const months = monthsLeft(goal.current_amount, goal.target_amount, goal.monthly_contribution);
+              const palette = GOAL_PALETTES[idx % GOAL_PALETTES.length];
+              return (
+                <LinearGradient key={goal.id} colors={palette} style={styles.goalCard} start={{x:0,y:0}} end={{x:1,y:1}}>
+                  <View style={styles.goalCardTop}>
+                    <View style={styles.goalEmojiWrap}>
+                      <Text style={{ fontSize: 22 }}>{goal.emoji}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
+                      <Text style={styles.goalCardAmts}>
+                        {fmt(goal.current_amount)}
+                        <Text style={styles.goalCardAmtMuted}> / {fmt(goal.target_amount)}</Text>
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                      <View style={styles.goalPctBadge}>
+                        <Text style={styles.goalPctTxt}>{pct}%</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => handleDeleteGoal(goal.id)} style={styles.goalTrashBtn}>
+                        <Text style={styles.goalTrashTxt}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.goalBarTrack}>
+                    <LinearGradient
+                      colors={['#4ADE80', '#22D3EE']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                      style={[styles.goalBarFill, { width: `${pct}%` as any }]}
+                    />
+                  </View>
+                  {months > 0 && (
+                    <Text style={styles.goalCardSub}>
+                      +{fmt(goal.monthly_contribution)}{t('dash.goals.perMonth')} {months} {t('dash.goals.months')}
+                    </Text>
+                  )}
+                  {goal.current_amount >= goal.target_amount && (
+                    <Text style={[styles.goalCardSub, { color: Colors.success }]}>{t('dash.goals.done')}</Text>
+                  )}
+                </LinearGradient>
+              );
+            })
           )}
 
-          {/* ── No transactions placeholder ── */}
-          {totalSpent === 0 && (
-            <Card style={[styles.section, styles.emptyCard]}>
-              <Text style={styles.emptyIcon}>📊</Text>
-              <Text style={styles.emptyTitle}>Добавьте первую трату</Text>
-              <Text style={styles.emptyText}>Отсканируйте чек или добавьте вручную — и увидите графики расходов</Text>
-            </Card>
-          )}
+          </View>
 
-          {/* ── Active Goal ── */}
-          {activeGoal && (
-            <Card style={styles.section}>
-              <View style={styles.goalHeader}>
-                <Text style={styles.goalEmoji}>{activeGoal.emoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.goalTitle}>{activeGoal.title}</Text>
-                  <Text style={styles.goalSub}>
-                    {fmt(activeGoal.current_amount)} из {fmt(activeGoal.target_amount)}
-                  </Text>
-                </View>
-                <View style={styles.goalBadge}>
-                  <Text style={styles.goalMonths}>
-                    {monthsLeft(activeGoal.current_amount, activeGoal.target_amount, activeGoal.monthly_contribution)} мес.
-                  </Text>
-                </View>
-              </View>
-              <ProgressBar
-                progress={activeGoal.current_amount / activeGoal.target_amount}
-                color={Colors.success}
-                height={6}
-                style={{ marginTop: Spacing.sm }}
-              />
-            </Card>
-          )}
-
-          {/* ── Smart Tip ── */}
-          <LinearGradient
-            colors={['rgba(123,108,246,0.15)', 'rgba(0,212,200,0.08)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tipCard}
-          >
-            <Text style={styles.tipLabel}>💡 Умный совет</Text>
-            <Text style={styles.tipText}>
-              {spentPct > 0.85
-                ? 'Бюджет почти исчерпан. Постарайтесь ограничить расходы до конца месяца.'
-                : spentPct > 0.5
-                ? `Вы потратили ${Math.round(spentPct * 100)}% бюджета. Хороший темп — продолжайте!`
-                : totalSpent === 0
-                ? 'Начните отслеживать расходы — это первый шаг к финансовой свободе.'
-                : `Отличный результат! Вы тратите меньше запланированного. Разница ${fmt(Math.abs(remaining))} может пойти в накопления.`}
-            </Text>
-          </LinearGradient>
+          {/* ── AI Insight card ── */}
+          <TouchableOpacity style={styles.aiCard} onPress={() => setInsightIdx(i => (i + 1) % 3)} activeOpacity={0.9}>
+            <View style={styles.aiShine} pointerEvents="none" />
+            <Text style={styles.aiLabel}>{t('dash.ai.label')}</Text>
+            <Text style={styles.aiText}>{aiMessages[insightIdx]}</Text>
+            <View style={styles.aiDots}>
+              {[0, 1, 2].map(i => (
+                <View key={i} style={[styles.aiDot, i === insightIdx && styles.aiDotActive]} />
+              ))}
+            </View>
+          </TouchableOpacity>
 
         </Animated.View>
       </ScrollView>
+
+      {/* ── Add Goal Modal ── */}
+      <Modal visible={showGoalModal} transparent animationType="slide" onRequestClose={() => setShowGoalModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity style={gm.backdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setShowGoalModal(false); }} />
+          <View style={[gm.sheet, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={gm.handle} />
+            <Text style={gm.title}>{t('dash.goals.new')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                {GOAL_EMOJIS.map(e => (
+                  <TouchableOpacity key={e} style={[gm.emojiBtn, goalEmoji === e && gm.emojiBtnOn]} onPress={() => setGoalEmoji(e)}>
+                    <Text style={{ fontSize: 22 }}>{e}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+            <Text style={gm.label}>{t('dash.goals.name')}</Text>
+            <TextInput style={gm.input} value={goalTitle} onChangeText={setGoalTitle} placeholder={t('dash.goals.namePh')} placeholderTextColor={Colors.textMuted} />
+            <Text style={gm.label}>{t('dash.goals.target')}</Text>
+            <TextInput style={gm.input} value={goalTarget} onChangeText={setGoalTarget} keyboardType="decimal-pad" placeholder="2 000" placeholderTextColor={Colors.textMuted} />
+            <Text style={gm.label}>{t('dash.goals.monthly')}</Text>
+            <TextInput style={gm.input} value={goalMonthly} onChangeText={setGoalMonthly} keyboardType="decimal-pad" placeholder="150" placeholderTextColor={Colors.textMuted} />
+            <View style={gm.btns}>
+              <TouchableOpacity style={gm.cancel} onPress={() => setShowGoalModal(false)}>
+                <Text style={gm.cancelTxt}>{t('dash.goals.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[gm.save, { backgroundColor: Colors.success }]} onPress={handleAddGoal} disabled={goalSaving}>
+                {goalSaving ? <ActivityIndicator color={Colors.bg} /> : <Text style={gm.saveTxt}>{t('dash.goals.save')}</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <CurrencyModal
         visible={currencyModal}
         current={currency}
         onSelect={handleCurrencySelect}
         onClose={() => setCurrencyModal(false)}
+        title={t('dash.currency.title')}
+        searchPh={t('dash.currency.search')}
       />
 
       <CoachMark steps={DASHBOARD_TIPS} visible={tipsVisible} onDone={tipsDone} />
@@ -549,91 +680,143 @@ export function DashboardScreen() {
   );
 }
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, color, icon }: { label: string; value: string; sub: string; color: string; icon: string }) {
-  return (
-    <View style={styles.statCard}>
-      <View style={[styles.statIcon, { backgroundColor: color + '22' }]}>
-        <Text style={[styles.statIconText, { color }]}>{icon}</Text>
-      </View>
-      <Text style={[styles.statValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>
-        {value}
-      </Text>
-      <Text style={styles.statSub}>{sub}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: Layout.tabBarClearance },
+  safe:    { flex: 1, backgroundColor: Colors.bg },
+  scroll:  { flex: 1 },
+  content: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, paddingBottom: Layout.tabBarClearance },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg },
-  greeting: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  subtitle: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginTop: 2 },
+  // Holographic blob background layers
+  blobTR: { position: 'absolute', width: 320, height: 200, top: -60, right: -80, borderRadius: 999, backgroundColor: 'rgba(34,211,238,0.20)', opacity: 0.6, transform: [{ scaleX: 1.4 }] },
+  blobCL: { position: 'absolute', width: 280, height: 220, top: '28%', left: -100, borderRadius: 999, backgroundColor: 'rgba(167,139,250,0.16)', opacity: 0.6, transform: [{ scaleY: 1.3 }] },
+  blobBR: { position: 'absolute', width: 300, height: 200, bottom: 120, right: -80, borderRadius: 999, backgroundColor: 'rgba(232,121,249,0.14)', opacity: 0.6, transform: [{ scaleX: 1.3 }] },
 
-  currencyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.surfaceElevated, borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs,
-    borderWidth: 1, borderColor: Colors.border,
+  // Header
+  header:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xl },
+  monthLabel:      { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2 },
+  langBtn:         { backgroundColor: 'rgba(167,139,250,0.12)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(167,139,250,0.35)' },
+  langBtnText:     { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.accentPurple },
+  currencyBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(34,211,238,0.12)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(34,211,238,0.35)' },
+  currencyBtnText: { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.accentTeal },
+  currencyChevron: { fontSize: 10, color: Colors.accentTeal },
+
+  // Hero
+  heroSection:   { marginBottom: Spacing.xxl },
+  heroLabel:     { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, marginBottom: Spacing.sm },
+  neonBorder: {
+    borderWidth: 2,
+    borderRadius: Radius.xl,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.lg,
+    alignSelf: 'flex-start',
+    shadowColor: '#A78BFA',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
   },
-  currencySymbol: { fontSize: Typography.sizeMD, color: Colors.accentTeal, fontWeight: Typography.weightBold },
-  currencyCode: { fontSize: Typography.sizeSM, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold },
-  currencyChevron: { fontSize: 10, color: Colors.textMuted },
+  heroAmountRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  heroCurrency:  { fontSize: 28, fontFamily: Typography.fontDisplay, color: Colors.textSecondary, marginBottom: 6, marginRight: 4 },
+  heroNumber:    { fontSize: 72, fontFamily: Typography.fontDisplay, color: Colors.textPrimary, lineHeight: 76, letterSpacing: -2 },
+  heroDec:       { fontSize: 22, fontFamily: Typography.fontDisplay, color: Colors.textMuted, marginBottom: 10, marginLeft: 2 },
 
-  heroCard: { borderRadius: Radius.xl, padding: Spacing.xl, marginBottom: Spacing.md },
-  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  heroLabel: { fontSize: Typography.sizeSM, color: 'rgba(255,255,255,0.7)' },
-  trendBadge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3 },
-  trendText: { fontSize: Typography.sizeXS, fontWeight: Typography.weightSemiBold },
-  heroAmount: { fontSize: 38, fontWeight: Typography.weightBold, color: '#fff', letterSpacing: -0.5 },
-  heroSub: { fontSize: Typography.sizeSM, color: 'rgba(255,255,255,0.6)', marginTop: 4, marginBottom: Spacing.lg },
-  heroBg: { backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: Radius.full, overflow: 'hidden' },
-  heroBar: {},
+  // Progress bar
+  barTrack: { height: 6, backgroundColor: Glass.elev, borderRadius: Radius.full, overflow: 'hidden', marginBottom: Spacing.sm },
+  barFill:  { height: '100%', borderRadius: Radius.full, shadowColor: '#22D3EE', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.7, shadowRadius: 8 },
 
-  statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  statCard: {
-    flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    padding: Spacing.md, alignItems: 'center', gap: 2,
-    borderWidth: 1, borderColor: Colors.border,
+  heroMeta:     { flexDirection: 'row', justifyContent: 'space-between' },
+  heroMetaText: { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular },
+
+  // Categories
+  catSection: { marginBottom: Spacing.xl },
+  catTitle:   { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2, marginBottom: Spacing.md },
+  catBlocks:  { flexDirection: 'row', gap: 6 },
+  catBlock: {
+    minWidth: 46,
+    height: 62,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    padding: Spacing.sm,
+    justifyContent: 'space-between',
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 3,
   },
-  statIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
-  statIconText: { fontSize: 12, fontWeight: Typography.weightBold },
-  statValue: { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold },
-  statSub: { fontSize: Typography.sizeXS, color: Colors.textMuted },
-  statLabel: { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginTop: 1 },
+  catBlockLabel:  { fontSize: 9, fontFamily: Typography.fontSemiBold, letterSpacing: 0.2 },
+  catBlockAmount: { fontSize: Typography.sizeSM, fontFamily: Typography.fontBold },
+  catEmpty:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg },
 
-  section: { marginBottom: Spacing.md },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  sectionTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary },
-  sectionSub: { fontSize: Typography.sizeSM, color: Colors.accentTeal, fontWeight: Typography.weightSemiBold },
+  // Goals section
+  section:              { marginBottom: Spacing.md },
+  goalsSection: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.accentPurple + '35',
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    shadowColor: Colors.accentPurple,
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  goalsSectionHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+  goalsSectionTitle:    { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2 },
+  goalsAddBtn:          { backgroundColor: 'rgba(74,222,128,0.14)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(74,222,128,0.35)' },
+  goalsAddBtnText:      { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.success },
+  goalsEmpty:           { backgroundColor: Glass.surface, borderRadius: Radius.xl, padding: Spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: Glass.border, marginBottom: Spacing.md },
 
-  categoryLayout: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
-  legend: { flex: 1, gap: Spacing.sm },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { flex: 1, fontSize: Typography.sizeSM, color: Colors.textSecondary },
-  legendPct: { fontSize: Typography.sizeSM, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold },
+  goalCard:       { borderRadius: Radius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Glass.border },
+  goalCardTop:    { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
+  goalEmojiWrap:  { width: 46, height: 46, borderRadius: Radius.md, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
+  goalCardTitle:  { fontSize: Typography.sizeMD, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
+  goalCardAmts:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.success, marginTop: 2 },
+  goalCardAmtMuted:{ color: Colors.textMuted, fontFamily: Typography.fontRegular },
+  goalCardSub:    { fontSize: Typography.sizeXS, fontFamily: Typography.fontRegular, color: Colors.textSecondary, marginTop: Spacing.sm },
+  goalPctBadge:   { backgroundColor: 'rgba(74,222,128,0.18)', borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(74,222,128,0.4)' },
+  goalPctTxt:     { fontSize: Typography.sizeXS, color: Colors.success, fontFamily: Typography.fontSemiBold },
+  goalTrashBtn:   { padding: 2 },
+  goalTrashTxt:   { fontSize: 12, color: Colors.textMuted },
+  goalBarTrack:   { height: 5, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: Radius.full, overflow: 'hidden' },
+  goalBarFill:    { height: '100%', borderRadius: Radius.full },
 
-  emptyCard: { alignItems: 'center', paddingVertical: Spacing.xl },
-  emptyIcon: { fontSize: 40, marginBottom: Spacing.md },
-  emptyTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary, marginBottom: Spacing.sm },
-  emptyText: { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  emptyIcon:  { fontSize: 36, marginBottom: Spacing.md },
+  emptyTitle: { fontSize: Typography.sizeMD, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary, marginBottom: Spacing.xs },
+  emptyText:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
 
-  goalHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  goalEmoji: { fontSize: 24 },
-  goalTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary },
-  goalSub: { fontSize: Typography.sizeXS, color: Colors.textMuted, marginTop: 2 },
-  goalBadge: { backgroundColor: Colors.success + '22', borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3 },
-  goalMonths: { fontSize: Typography.sizeXS, color: Colors.success, fontWeight: Typography.weightBold },
+  // AI card (goal emojis in gm stylesheet below)
+  aiCard: {
+    borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md,
+    backgroundColor: 'rgba(34,211,238,0.06)',
+    borderWidth: 1, borderColor: 'rgba(34,211,238,0.25)',
+    overflow: 'hidden',
+    shadowColor: '#22D3EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 16,
+  },
+  aiShine: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(34,211,238,0.30)' },
+  aiLabel: { fontSize: Typography.sizeXS, fontFamily: Typography.fontSemiBold, color: Colors.accentTeal, letterSpacing: 1, marginBottom: Spacing.sm },
+  aiText:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textSecondary, lineHeight: 20 },
+  aiDots:  { flexDirection: 'row', gap: 6, marginTop: Spacing.sm },
+  aiDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(34,211,238,0.25)' },
+  aiDotActive: { backgroundColor: Colors.accentTeal, width: 16 },
+});
 
-  tipCard: { borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.accentPurple + '33' },
-  tipLabel: { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, color: Colors.accentPurple, marginBottom: Spacing.xs },
-  tipText: { fontSize: Typography.sizeSM, color: Colors.textSecondary, lineHeight: 20 },
+// ─── Goal modal styles ────────────────────────────────────────────────────────
+
+const gm = StyleSheet.create({
+  backdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheet:     { backgroundColor: '#0D0E1C', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Glass.border },
+  handle:    { width: 40, height: 4, borderRadius: 2, backgroundColor: Glass.border, alignSelf: 'center', marginBottom: Spacing.lg },
+  title:     { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
+  label:     { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
+  input:     { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Glass.border },
+  emojiBtn:  { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Glass.border },
+  emojiBtnOn:{ borderColor: Colors.accentTeal, borderWidth: 2 },
+  btns:      { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xl },
+  cancel:    { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
+  cancelTxt: { color: Colors.textSecondary, fontWeight: Typography.weightSemiBold },
+  save:      { flex: 2, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
+  saveTxt:   { color: Colors.bg, fontWeight: Typography.weightBold, fontSize: Typography.sizeMD },
 });
