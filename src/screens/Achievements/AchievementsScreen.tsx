@@ -5,7 +5,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassCard, GlyphIcon, Chip, Confetti, IconChip } from '../../components/common';
-import { Colors, Radius } from '../../constants/tokens';
+import { Colors, Radius, fontMono } from '../../constants/tokens';
 
 type FilterKey = 'all' | 'unlocked' | 'locked';
 
@@ -135,7 +135,7 @@ export function AchievementsScreen() {
               <View style={[styles.modalIcon, { backgroundColor: `${selected.color}22` }]}>
                 <GlyphIcon name={selected.icon as any} size={44} color={selected.color} />
               </View>
-              <Text style={{ fontFamily: 'monospace', fontSize: 10, color: Colors.t4, letterSpacing: 2, textTransform: 'uppercase' }}>
+              <Text style={{ fontFamily: fontMono, fontSize: 10, color: Colors.t4, letterSpacing: 2, textTransform: 'uppercase' }}>
                 Достижение разблокировано
               </Text>
               <Text style={{ fontSize: 22, fontWeight: '800', color: Colors.t1, textAlign: 'center', marginTop: 4 }}>

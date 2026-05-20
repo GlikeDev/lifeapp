@@ -5,7 +5,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassCard, GlyphIcon, Chip, Toast } from '../../components/common';
-import { Colors, Radius } from '../../constants/tokens';
+import { Colors, Radius, fontMono } from '../../constants/tokens';
 
 type FilterKey = 'all' | 'expiring' | 'fresh';
 
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   modalSheet: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 24, paddingBottom: 40 },
   modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: Colors.border2, alignSelf: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: Colors.t1, marginBottom: 18 },
-  fieldLabel: { fontFamily: 'monospace', fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 6 },
+  fieldLabel: { fontFamily: fontMono, fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 6 },
   input: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: Colors.border2, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: Colors.t1, marginBottom: 14 },
   cancelBtn: { paddingVertical: 16, borderRadius: Radius.full, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: Colors.border2 },
   gradBtn: { paddingVertical: 16, borderRadius: Radius.full, alignItems: 'center' },

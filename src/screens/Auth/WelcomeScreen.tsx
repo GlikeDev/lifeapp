@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassCard, GlyphIcon } from '../../components/common';
-import { Colors, Radius } from '../../constants/tokens';
+import { Colors, Radius, fontMono } from '../../constants/tokens';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types';
 
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     position: 'absolute', width: 320, height: 320, borderRadius: 160,
     backgroundColor: Colors.magenta + 'B2', bottom: -100, right: -80, opacity: 0.18,
   },
-  mono: { fontFamily: 'monospace', fontSize: 10, letterSpacing: 2, color: Colors.t3, textTransform: 'uppercase', marginBottom: 14 },
+  mono: { fontFamily: fontMono, fontSize: 10, letterSpacing: 2, color: Colors.t3, textTransform: 'uppercase', marginBottom: 14 },
   wordmark: { fontSize: 56, fontWeight: '800', letterSpacing: -2, lineHeight: 60, color: Colors.t1, marginBottom: 16 },
   tagline: { color: Colors.t2, fontSize: 15, lineHeight: 22 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

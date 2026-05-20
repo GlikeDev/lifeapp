@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GlassCard, GlyphIcon, Avatar } from '../../components/common';
-import { Colors, Radius } from '../../constants/tokens';
+import { Colors, Radius, fontMono } from '../../constants/tokens';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { MoreStackParamList } from '../../types';
 

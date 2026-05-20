@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { GlassCard, GlyphIcon, Chip, ProgressBar } from '../../components/common';
-import { Colors, Radius } from '../../constants/tokens';
+import { Colors, Radius, fontMono } from '../../constants/tokens';
 
 const MEALS = [
   { id: 'b', label: 'Завтрак', icon: 'bolt' as const, color: Colors.gold, kcal: 420, items: ['Овсянка 150г', 'Банан', 'Миндаль 30г'] },
@@ -177,5 +177,5 @@ const st = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
   title: { fontSize: 26, fontWeight: '700', color: Colors.t1 },
   sub: { fontSize: 12, color: Colors.t3, marginTop: 2 },
-  sectionLabel: { fontFamily: 'monospace', fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 2 },
+  sectionLabel: { fontFamily: fontMono, fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 2 },
 });

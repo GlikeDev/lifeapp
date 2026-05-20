@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, FlatLi
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassCard, GlyphIcon, ProgressBar, Toast } from '../../components/common';
-import { Colors, Radius } from '../../constants/tokens';
+import { Colors, Radius, fontMono } from '../../constants/tokens';
 
 type Screen = 'search' | 'detail' | 'scan';
 
@@ -196,7 +196,7 @@ const s = StyleSheet.create({
   scanBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: `${Colors.cyan}1A`, borderWidth: 1, borderColor: `${Colors.cyan}40`, alignItems: 'center', justifyContent: 'center' },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: Colors.border2, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12 },
   searchInput: { flex: 1, fontSize: 15, color: Colors.t1 },
-  sectionLabel: { fontFamily: 'monospace', fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 4 },
+  sectionLabel: { fontFamily: fontMono, fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 4 },
   gradBtn: { paddingVertical: 16, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   gradBtnLabel: { fontSize: 15, fontWeight: '700', color: '#06070D' },
 });

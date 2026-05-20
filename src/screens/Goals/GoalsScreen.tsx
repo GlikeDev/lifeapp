@@ -5,7 +5,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassCard, GlyphIcon, ProgressBar, IconChip } from '../../components/common';
-import { Colors, Radius } from '../../constants/tokens';
+import { Colors, Radius, fontMono } from '../../constants/tokens';
 
 const GOALS_DATA = [
   {
@@ -41,7 +41,7 @@ function GoalFrame({ goal }: { goal: typeof GOALS_DATA[0] }) {
           </Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 11, fontFamily: 'monospace', color: Colors.t4 }}>{goal.deadline}</Text>
+          <Text style={{ fontSize: 11, fontFamily: fontMono, color: Colors.t4 }}>{goal.deadline}</Text>
         </View>
       </View>
 

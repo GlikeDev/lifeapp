@@ -3,6 +3,7 @@ import {
   View, TouchableOpacity, Text, StyleSheet, Animated, Dimensions,
 } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Colors, Radius } from '../constants/tokens';
 import { GlyphIcon } from '../components/common/GlyphIcon';
@@ -41,7 +42,7 @@ function buildBarPath(w: number, h: number, cx: number, r: number, depth: number
   ].join(' ');
 }
 
-function AnimatedBarSvg({ activeIndex, tabCount }: { activeIndex: Animated.Value; tabCount: number }) {
+function AnimatedBarSvg({ activeIndex, tabCount, barH }: { activeIndex: Animated.Value; tabCount: number; barH: number }) {
   const tabW = SCREEN_W / tabCount;
   const [cx, setCx] = useState(tabW * 0 + tabW / 2);
 
@@ -52,9 +53,9 @@ function AnimatedBarSvg({ activeIndex, tabCount }: { activeIndex: Animated.Value
     return () => activeIndex.removeListener(id);
   }, [tabW]);
 
-  const path = buildBarPath(SCREEN_W, BAR_H, cx, NOTCH_R, NOTCH_DEPTH);
+  const path = buildBarPath(SCREEN_W, barH, cx, NOTCH_R, NOTCH_DEPTH);
   return (
-    <Svg width={SCREEN_W} height={BAR_H} style={StyleSheet.absoluteFill}>
+    <Svg width={SCREEN_W} height={barH} style={StyleSheet.absoluteFill}>
       <Defs>
         <LinearGradient id="notch_glow" x1="0" y1="0" x2="1" y2="0">
           <Stop offset="0%" stopColor={Colors.cyan} stopOpacity="0.9"/>
@@ -68,6 +69,10 @@ function AnimatedBarSvg({ activeIndex, tabCount }: { activeIndex: Animated.Value
 }
 
 export function CurvedTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 8);
+  const totalH = BAR_H + bottomPad;
+
   const tabCount = state.routes.length;
   const tabW = SCREEN_W / tabCount;
   const activeIndexAnim = useRef(new Animated.Value(state.index)).current;
@@ -86,8 +91,8 @@ export function CurvedTabBar({ state, descriptors, navigation }: BottomTabBarPro
   });
 
   return (
-    <View style={[styles.bar, { width: SCREEN_W }]}>
-      <AnimatedBarSvg activeIndex={activeIndexAnim} tabCount={tabCount} />
+    <View style={{ width: SCREEN_W, height: totalH, backgroundColor: 'transparent' }}>
+      <AnimatedBarSvg activeIndex={activeIndexAnim} tabCount={tabCount} barH={totalH} />
 
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
@@ -99,7 +104,12 @@ export function CurvedTabBar({ state, descriptors, navigation }: BottomTabBarPro
         const iconName = ICON_NAMES[route.name] ?? 'home';
         const label = TAB_LABELS[route.name] ?? route.name;
         return (
-          <TouchableOpacity key={route.key} onPress={onPress} style={[styles.tabBtn, { left: tabW * index, width: tabW }]} activeOpacity={0.7}>
+          <TouchableOpacity
+            key={route.key}
+            onPress={onPress}
+            style={[styles.tabBtn, { left: tabW * index, width: tabW, height: BAR_H }]}
+            activeOpacity={0.7}
+          >
             <GlyphIcon name={iconName} size={22} color={Colors.t3}/>
             <Text style={styles.tabLabel}>{label}</Text>
           </TouchableOpacity>
@@ -124,15 +134,9 @@ export function CurvedTabBar({ state, descriptors, navigation }: BottomTabBarPro
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    height: BAR_H + 16,
-    backgroundColor: 'transparent',
-    position: 'relative',
-  },
   tabBtn: {
     position: 'absolute',
     top: 10,
-    height: BAR_H,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,

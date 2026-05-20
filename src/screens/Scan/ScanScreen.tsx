@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassCard, ProgressBar, Chip, GlyphIcon, Toast } from '../../components/common';
-import { Colors, CATEGORIES, Radius } from '../../constants/tokens';
+import { Colors, CATEGORIES, Radius, fontMono } from '../../constants/tokens';
 import { useBudgetStore } from '../../store/useBudgetStore';
 import type { Transaction } from '../../types';
 
@@ -199,26 +199,26 @@ const styles = StyleSheet.create({
   scanSub: { fontSize: 12, color: Colors.t3 },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerLabel: { fontFamily: 'monospace', fontSize: 10, letterSpacing: 1.5, color: Colors.t3, textTransform: 'uppercase' },
+  dividerLabel: { fontFamily: fontMono, fontSize: 10, letterSpacing: 1.5, color: Colors.t3, textTransform: 'uppercase' },
   manualRow: { padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14 },
   manualIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center' },
   manualLabel: { fontSize: 15, fontWeight: '600', color: Colors.t1 },
   manualSub: { fontSize: 11, color: Colors.t3, marginTop: 2 },
   camera: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   receipt: { backgroundColor: '#f8f5e9', borderRadius: 4, padding: 16, width: 220, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 20 }, elevation: 12, marginBottom: 20, transform: [{ rotate: '-3deg' }] },
-  receiptStore: { fontFamily: 'monospace', fontSize: 9, color: '#3a3a3a', textAlign: 'center', borderBottomWidth: 1, borderBottomColor: '#999', paddingBottom: 4, marginBottom: 6 },
-  receiptItem: { fontFamily: 'monospace', fontSize: 8, color: '#3a3a3a' },
+  receiptStore: { fontFamily: fontMono, fontSize: 9, color: '#3a3a3a', textAlign: 'center', borderBottomWidth: 1, borderBottomColor: '#999', paddingBottom: 4, marginBottom: 6 },
+  receiptItem: { fontFamily: fontMono, fontSize: 8, color: '#3a3a3a' },
   receiptTotal: { borderTopWidth: 1, borderTopColor: '#999', marginTop: 6, paddingTop: 4, flexDirection: 'row', justifyContent: 'space-between' },
-  receiptTotalLabel: { fontFamily: 'monospace', fontSize: 10, fontWeight: '700', color: '#222' },
+  receiptTotalLabel: { fontFamily: fontMono, fontSize: 10, fontWeight: '700', color: '#222' },
   viewfinder: { width: 280, height: 320, position: 'relative' },
   scanLine: { position: 'absolute', left: 12, right: 12, height: 2, backgroundColor: Colors.cyan, shadowColor: Colors.cyan, shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
   hint: { position: 'absolute', bottom: -34, left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.8)', fontSize: 12 },
-  ocrLabel: { fontFamily: 'monospace', fontSize: 10, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: 6 },
+  ocrLabel: { fontFamily: fontMono, fontSize: 10, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: 6 },
   cancelBtn: { position: 'absolute', top: 64, right: 18, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
   cancelLabel: { color: '#fff', fontSize: 13, fontWeight: '600' },
   subHeader: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   subTitle: { fontSize: 18, fontWeight: '700', color: Colors.t1 },
-  fieldLabel: { fontFamily: 'monospace', fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 6 },
+  fieldLabel: { fontFamily: fontMono, fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 6 },
   input: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: Colors.border2, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: Colors.t1, marginBottom: 12 },
   saveBtn: { paddingVertical: 16, borderRadius: Radius.full, alignItems: 'center' },
   saveBtnLabel: { fontSize: 15, fontWeight: '700', color: '#06070D' },

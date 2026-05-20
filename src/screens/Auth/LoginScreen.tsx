@@ -6,7 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlyphIcon } from '../../components/common';
-import { Colors, Radius } from '../../constants/tokens';
+import { Colors, Radius, fontMono } from '../../constants/tokens';
 import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../lib/supabase';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -32,7 +32,7 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <GlyphIcon name="arrow-left" size={16} color={Colors.cyan} />
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   backLabel: { fontSize: 13, color: Colors.cyan },
   title: { fontSize: 32, fontWeight: '800', color: Colors.t1, marginBottom: 6, letterSpacing: -0.8 },
   sub: { fontSize: 14, color: Colors.t2, marginBottom: 24 },
-  fieldLabel: { fontFamily: 'monospace', fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 6 },
+  fieldLabel: { fontFamily: fontMono, fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 6 },
   input: {
     backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: Colors.border2,
     borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14,

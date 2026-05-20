@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 // SaveSmart — Liquid Glass Design Tokens
 
 export const Colors = {
@@ -75,3 +76,6 @@ export const Shadow = {
     shadowOpacity: 0.7, shadowRadius: radius, elevation: 8,
   }),
 };
+
+// Cross-platform monospace font
+export const fontMono = Platform.select({ ios: 'Courier New', android: 'monospace' }) ?? 'monospace';

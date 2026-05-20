@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassCard, GlyphIcon, ProgressBar, HoloNumber } from '../../components/common';
-import { Colors, CATEGORIES, Radius } from '../../constants/tokens';
+import { Colors, CATEGORIES, Radius, fontMono } from '../../constants/tokens';
 import { useBudgetStore } from '../../store/useBudgetStore';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -131,10 +131,10 @@ function DashV2({ spent, budget }: { spent: number; budget: number }) {
 }
 
 function DashV3({ spent, budget }: { spent: number; budget: number }) {
-  const heatData = Array.from({ length: 30 }, (_, i) => ({
+  const heatData = useMemo(() => Array.from({ length: 30 }, (_, i) => ({
     day: i + 1,
     intensity: Math.random(),
-  }));
+  })), []);
   return (
     <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 100 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
@@ -214,11 +214,11 @@ const styles = StyleSheet.create({
   heroAmount: { fontSize: 48, fontWeight: '800', color: Colors.t1, letterSpacing: -2 },
   heroSub: { fontSize: 13, color: Colors.t3, marginBottom: 6 },
   editorialMonth: {
-    fontFamily: 'monospace', fontSize: 10, letterSpacing: 2.5,
+    fontFamily: fontMono, fontSize: 10, letterSpacing: 2.5,
     color: Colors.t4, textTransform: 'uppercase', marginBottom: 4,
   },
   sectionLabel: {
-    fontFamily: 'monospace', fontSize: 10, letterSpacing: 1.8, color: Colors.t3,
+    fontFamily: fontMono, fontSize: 10, letterSpacing: 1.8, color: Colors.t3,
     textTransform: 'uppercase', marginBottom: 10, marginTop: 4,
   },
   catDot: { width: 8, height: 8, borderRadius: 4 },
