@@ -1,267 +1,132 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { GlassCard, Chip, IconChip, GlyphIcon } from '../../components/common';
+import { Colors, Radius } from '../../constants/tokens';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types';
-import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../store/useAuthStore';
-import { useBudgetStore } from '../../store/useBudgetStore';
 
-type Nav = NativeStackNavigationProp<AuthStackParamList>;
+const GOALS = [
+  { k: 'expenses',  icon: 'chart',     tone: Colors.cyan,    label: 'Контролировать расходы' },
+  { k: 'trip',      icon: 'travel',    tone: Colors.purple,  label: 'Накопить на отпуск'     },
+  { k: 'home',      icon: 'home',      tone: Colors.magenta, label: 'Купить жильё'           },
+  { k: 'groceries', icon: 'groceries', tone: Colors.green,   label: 'Экономить на продуктах' },
+  { k: 'nutrition', icon: 'nutrition', tone: Colors.coral,   label: 'Питаться правильно'     },
+] as const;
 
-const GOAL_OPTIONS = [
-  { label: 'Контролировать расходы', emoji: '📊' },
-  { label: 'Накопить на отпуск',     emoji: '✈️' },
-  { label: 'Купить жильё',           emoji: '🏠' },
-  { label: 'Экономить на продуктах', emoji: '🛒' },
-  { label: 'Питаться правильно',     emoji: '🥗' },
-];
+const BUDGET_PRESETS = ['500', '1000', '1500', '1800', '2500', '3500'];
 
-// ─── Step 1: Profile ─────────────────────────────────────────────────────────
-export function OnboardingProfileScreen() {
-  const nav = useNavigation<Nav>();
-  const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
-
+function ProgressDots({ step }: { step: number }) {
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Progress */}
-        <View style={styles.dots}>
-          <View style={[styles.dot, styles.dotDone]} />
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
-        </View>
+    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+      {[1, 2].map(i => (
+        <View key={i} style={[
+          styles.dot,
+          { width: i === step ? 28 : 6, backgroundColor: i <= step ? Colors.cyan : Colors.border2 },
+        ]} />
+      ))}
+    </View>
+  );
+}
 
+type Props = NativeStackScreenProps<AuthStackParamList, 'OnboardingProfile'>;
+
+export function OnboardingProfileScreen({ navigation }: Props) {
+  const [picked, setPicked] = useState<string | null>(null);
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ProgressDots step={1} />
         <Text style={styles.title}>Ваша главная цель</Text>
-        <Text style={styles.subtitle}>Это поможет настроить AI-инсайты</Text>
-
-        <View style={styles.goalList}>
-          {GOAL_OPTIONS.map((g) => (
+        <Text style={styles.sub}>Это поможет настроить AI-инсайты</Text>
+        <View style={{ gap: 8 }}>
+          {GOALS.map(g => (
             <TouchableOpacity
-              key={g.label}
-              style={[styles.goalItem, selectedGoal === g.label && styles.goalItemSelected]}
-              onPress={() => setSelectedGoal(g.label)}
+              key={g.k}
+              onPress={() => setPicked(g.k)}
+              style={[styles.goalRow, picked === g.k && { borderColor: Colors.cyan + '99', backgroundColor: Colors.cyan + '1A' }]}
+              activeOpacity={0.8}
             >
-              <Text style={styles.goalEmoji}>{g.emoji}</Text>
-              <Text style={[styles.goalLabel, selectedGoal === g.label && styles.goalLabelSelected]}>
-                {g.label}
-              </Text>
-              {selectedGoal === g.label && <Text style={styles.goalCheck}>✓</Text>}
+              <IconChip name={g.icon as any} color={g.tone} size={38} radius={12} />
+              <Text style={[styles.goalLabel, picked === g.k && { fontWeight: '600' }]}>{g.label}</Text>
+              {picked === g.k && <GlyphIcon name="check" size={14} color={Colors.cyan} />}
             </TouchableOpacity>
           ))}
         </View>
-
-        <TouchableOpacity
-          style={[styles.btnPrimary, !selectedGoal && styles.btnDisabled]}
-          disabled={!selectedGoal}
-          onPress={() => nav.navigate('OnboardingBudget')}
-        >
-          <Text style={styles.btnPrimaryText}>Далее →</Text>
+        <View style={{ flex: 1, minHeight: 40 }} />
+        <TouchableOpacity onPress={() => navigation.navigate('OnboardingBudget')} disabled={!picked} activeOpacity={0.85}>
+          <LinearGradient
+            colors={[Colors.cyan, Colors.purple]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={[styles.btn, !picked && { opacity: 0.4 }]}
+          >
+            <Text style={styles.btnLabel}>Далее →</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ─── Step 2: Budget ───────────────────────────────────────────────────────────
-export function OnboardingBudgetScreen() {
-  const nav = useNavigation<Nav>();
-  const { setUser } = useAuthStore();
-  const { setMonthlyBudget } = useBudgetStore();
+type BudgetProps = NativeStackScreenProps<AuthStackParamList, 'OnboardingBudget'>;
 
-  const [budget, setBudget] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const PRESETS = ['500', '1000', '1500', '2000', '3000'];
-
-  async function handleFinish() {
-    const amount = parseFloat(budget);
-    if (!budget || isNaN(amount) || amount <= 0) {
-      Alert.alert('Введите корректный бюджет');
-      return;
-    }
-    setLoading(true);
-    try {
-      // Try session first, then getUser as fallback
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user ?? (await supabase.auth.getUser()).data.user;
-      if (!user) throw new Error('Сессия не найдена. Отключите подтверждение email в Supabase Dashboard → Authentication → Providers → Email → Confirm email OFF');
-
-      await supabase
-        .from('profiles')
-        .update({ monthly_budget: amount })
-        .eq('id', user.id);
-
-      // Load full profile into store
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profile) setUser({ ...profile, email: user.email! });
-      setMonthlyBudget(amount);
-      // RootNavigator will auto-navigate to Main via onAuthStateChange
-    } catch (e: any) {
-      Alert.alert('Ошибка', e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
+export function OnboardingBudgetScreen({ navigation }: BudgetProps) {
+  const [budget, setBudget] = useState('1800');
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Progress */}
-          <View style={styles.dots}>
-            <View style={[styles.dot, styles.dotDone]} />
-            <View style={[styles.dot, styles.dotDone]} />
-            <View style={[styles.dot, styles.dotActive]} />
-          </View>
-
-          <Text style={styles.title}>Месячный бюджет</Text>
-          <Text style={styles.subtitle}>Сколько планируете тратить в месяц?</Text>
-
-          {/* Amount input */}
-          <View style={styles.amountRow}>
-            <Text style={styles.currency}>€</Text>
-            <TextInput
-              style={styles.amountInput}
-              value={budget}
-              onChangeText={setBudget}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor={Colors.textMuted}
-            />
-          </View>
-
-          {/* Presets */}
-          <View style={styles.presets}>
-            {PRESETS.map((p) => (
-              <TouchableOpacity
-                key={p}
-                style={[styles.preset, budget === p && styles.presetSelected]}
-                onPress={() => setBudget(p)}
-              >
-                <Text style={[styles.presetText, budget === p && styles.presetTextSelected]}>
-                  €{p}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={styles.hint}>
-            <Text style={styles.hintText}>💡 Можно изменить в любой момент в настройках</Text>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.btnPrimary, (!budget || loading) && styles.btnDisabled]}
-            onPress={handleFinish}
-            disabled={!budget || loading}
-          >
-            {loading
-              ? <ActivityIndicator color={Colors.bg} />
-              : <Text style={styles.btnPrimaryText}>Начать →</Text>
-            }
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ProgressDots step={2} />
+        <Text style={styles.title}>Месячный бюджет</Text>
+        <Text style={styles.sub}>Сколько планируете тратить в месяц?</Text>
+        <View style={styles.budgetDisplay}>
+          <Text style={styles.budgetCurrency}>€</Text>
+          <TextInput
+            style={styles.budgetInput}
+            value={budget}
+            onChangeText={t => setBudget(t.replace(/[^\d]/g, ''))}
+            keyboardType="number-pad"
+          />
+        </View>
+        <View style={styles.presets}>
+          {BUDGET_PRESETS.map(p => (
+            <Chip key={p} active={budget === p} onPress={() => setBudget(p)} color={Colors.cyan}>€{p}</Chip>
+          ))}
+        </View>
+        <GlassCard style={styles.hintCard}>
+          <GlyphIcon name="sparkle" size={16} color={Colors.cyan} />
+          <Text style={styles.hint}>Можно изменить в любой момент в настройках</Text>
+        </GlassCard>
+        <View style={{ flex: 1, minHeight: 40 }} />
+        <TouchableOpacity onPress={() => navigation.replace('Login')} activeOpacity={0.85}>
+          <LinearGradient colors={[Colors.cyan, Colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
+            <Text style={styles.btnLabel}>Начать →</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-  content: { flexGrow: 1, padding: Spacing.xl, paddingBottom: 40 },
-
-  dots: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xxxl },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.border },
-  dotActive: { backgroundColor: Colors.accentTeal, width: 24 },
-  dotDone: { backgroundColor: Colors.success },
-
-  title: { fontSize: 28, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  subtitle: { fontSize: Typography.sizeMD, color: Colors.textSecondary, marginTop: Spacing.xs, marginBottom: Spacing.xl },
-
-  goalList: { gap: Spacing.sm, marginBottom: Spacing.xl },
-  goalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    gap: Spacing.md,
+  content: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40, gap: 12 },
+  title: { fontSize: 28, fontWeight: '700', color: Colors.t1, marginTop: 28, letterSpacing: -0.5 },
+  sub: { fontSize: 14, color: Colors.t2, marginBottom: 8 },
+  goalRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 18, paddingVertical: 16,
+    borderRadius: 18, backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: Colors.border,
   },
-  goalItemSelected: { borderColor: Colors.accentTeal, backgroundColor: Colors.accentTeal + '15' },
-  goalEmoji: { fontSize: 22 },
-  goalLabel: { flex: 1, fontSize: Typography.sizeMD, color: Colors.textSecondary },
-  goalLabelSelected: { color: Colors.textPrimary, fontWeight: Typography.weightSemiBold },
-  goalCheck: { color: Colors.accentTeal, fontWeight: Typography.weightBold, fontSize: Typography.sizeMD },
-
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xl,
-    gap: Spacing.sm,
-  },
-  currency: { fontSize: 40, fontWeight: Typography.weightBold, color: Colors.accentTeal },
-  amountInput: {
-    fontSize: 48,
-    fontWeight: Typography.weightBold,
-    color: Colors.textPrimary,
-    minWidth: 120,
-    textAlign: 'center',
-  },
-
-  presets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.xl },
-  preset: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  presetSelected: { borderColor: Colors.accentTeal, backgroundColor: Colors.accentTeal + '22' },
-  presetText: { color: Colors.textSecondary, fontSize: Typography.sizeSM },
-  presetTextSelected: { color: Colors.accentTeal, fontWeight: Typography.weightSemiBold },
-
-  hint: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  hintText: { color: Colors.textSecondary, fontSize: Typography.sizeSM },
-
-  btnPrimary: {
-    backgroundColor: Colors.accentTeal,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-  },
-  btnDisabled: { opacity: 0.4 },
-  btnPrimaryText: { color: Colors.bg, fontSize: Typography.sizeMD, fontWeight: Typography.weightBold },
+  goalLabel: { flex: 1, fontSize: 15, color: Colors.t1 },
+  budgetDisplay: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', paddingVertical: 28, gap: 8 },
+  budgetCurrency: { fontSize: 36, color: Colors.cyan, fontWeight: '700' },
+  budgetInput: { fontSize: 64, fontWeight: '800', letterSpacing: -2, color: Colors.t1, width: 200, textAlign: 'center', backgroundColor: 'transparent' },
+  presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  hintCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  hint: { flex: 1, fontSize: 12, color: Colors.t3, lineHeight: 18 },
+  btn: { paddingVertical: 16, borderRadius: Radius.full, alignItems: 'center' },
+  btnLabel: { fontSize: 15, fontWeight: '700', color: '#06070D' },
+  dot: { height: 6, borderRadius: 3 },
 });

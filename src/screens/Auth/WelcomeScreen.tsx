@@ -1,177 +1,87 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { GlassCard, GlyphIcon } from '../../components/common';
+import { Colors, Radius } from '../../constants/tokens';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types';
-import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
 
-const { width, height } = Dimensions.get('window');
+type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
-type Nav = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
-
-export function WelcomeScreen() {
-  const nav = useNavigation<Nav>();
-
+export function WelcomeScreen({ navigation }: Props) {
   return (
-    <View style={styles.container}>
-      {/* Background blobs */}
-      <View style={[styles.blob, styles.blobGreen]} />
-      <View style={[styles.blob, styles.blobYellow]} />
+    <SafeAreaView style={styles.safe}>
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <View style={styles.blobTop} />
+        <View style={styles.blobBot} />
+      </View>
 
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.content}>
-          {/* Logo */}
-          <View style={styles.logoArea}>
-            <Text style={styles.logo}>SaveSmart</Text>
-            <View style={styles.logoDivider} />
-            <Text style={styles.tagline}>Умный бюджет · Продукты · Нутриция</Text>
-          </View>
-
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <StatCard value="6" label="экранов" />
-            <StatCard value="3" label="модуля" />
-            <StatCard value="AI" label="в основе" color={Colors.accentPurple} />
-          </View>
-
-          {/* Actions */}
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.btnPrimary}
-              onPress={() => nav.navigate('Register')}
-            >
-              <Text style={styles.btnPrimaryText}>Начать бесплатно</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.btnSecondary}
-              onPress={() => nav.navigate('Login')}
-            >
-              <Text style={styles.btnSecondaryText}>Уже есть аккаунт</Text>
-            </TouchableOpacity>
-          </View>
+      <View style={styles.content}>
+        <View style={{ marginTop: 32 }}>
+          <Text style={styles.mono}>SaveSmart · v1.0</Text>
+          <Text style={styles.wordmark}>
+            Save{'\n'}<Text style={{ color: Colors.cyan }}>Smart</Text>.
+          </Text>
+          <Text style={styles.tagline}>Умный бюджет · Продукты · Нутриция</Text>
         </View>
-      </SafeAreaView>
-    </View>
+
+        <View style={styles.tileGrid}>
+          <CapTile icon="bolt"      value="AI"   sub="в основе"    color={Colors.magenta} />
+          <CapTile icon="star"      value="48"   sub="ачивок"      color={Colors.cyan}    />
+          <CapTile icon="cart"      value="3M+"  sub="продуктов"   color={Colors.cyan}    />
+          <CapTile icon="fire"      value="92"   sub="день стрика" color={Colors.gold}    />
+        </View>
+
+        <View style={styles.ctas}>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.85}>
+            <LinearGradient colors={[Colors.cyan, Colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
+              <Text style={styles.btnLabel}>Начать бесплатно</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.btnGhost} activeOpacity={0.85}>
+            <Text style={styles.btnGhostLabel}>Уже есть аккаунт</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
-function StatCard({ value, label, color = Colors.accentTeal }: { value: string; label: string; color?: string }) {
+function CapTile({ icon, value, sub, color }: { icon: any; value: string; sub: string; color: string }) {
   return (
-    <View style={styles.statCard}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    <GlassCard style={styles.tile}>
+      <GlyphIcon name={icon} size={20} color={color} />
+      <Text style={[styles.tileValue, { color: Colors.t1 }]}>{value}</Text>
+      <Text style={styles.tileSub}>{sub}</Text>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  safe: { flex: 1 },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.xl,
-    justifyContent: 'space-between',
-    paddingBottom: Spacing.xxxl,
-    paddingTop: height * 0.12,
+  safe: { flex: 1, backgroundColor: Colors.bg },
+  content: { flex: 1, paddingHorizontal: 24, paddingBottom: 48, justifyContent: 'space-between' },
+  blobTop: {
+    position: 'absolute', width: 380, height: 380, borderRadius: 190,
+    backgroundColor: Colors.cyan + 'B2', top: -120, left: -120, opacity: 0.2,
   },
-
-  blob: {
-    position: 'absolute',
-    borderRadius: 999,
-    opacity: 0.7,
+  blobBot: {
+    position: 'absolute', width: 320, height: 320, borderRadius: 160,
+    backgroundColor: Colors.magenta + 'B2', bottom: -100, right: -80, opacity: 0.18,
   },
-  blobGreen: {
-    width: 220,
-    height: 220,
-    backgroundColor: '#39FF14',
-    top: -60,
-    left: -60,
+  mono: { fontFamily: 'monospace', fontSize: 10, letterSpacing: 2, color: Colors.t3, textTransform: 'uppercase', marginBottom: 14 },
+  wordmark: { fontSize: 56, fontWeight: '800', letterSpacing: -2, lineHeight: 60, color: Colors.t1, marginBottom: 16 },
+  tagline: { color: Colors.t2, fontSize: 15, lineHeight: 22 },
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  tile: { width: '47%', padding: 14, gap: 4 },
+  tileValue: { fontSize: 24, fontWeight: '700', marginTop: 4 },
+  tileSub: { fontSize: 11, color: Colors.t3 },
+  ctas: { gap: 10 },
+  btn: { paddingVertical: 16, borderRadius: Radius.full, alignItems: 'center' },
+  btnLabel: { fontSize: 15, fontWeight: '700', color: '#06070D' },
+  btnGhost: {
+    paddingVertical: 15, borderRadius: Radius.full, alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: Colors.border2,
   },
-  blobYellow: {
-    width: 160,
-    height: 160,
-    backgroundColor: '#D4A017',
-    top: 40,
-    right: -40,
-    opacity: 0.5,
-  },
-
-  logoArea: { alignItems: 'center', marginTop: height * 0.08 },
-  logo: {
-    fontSize: 48,
-    fontWeight: Typography.weightBold,
-    color: Colors.textPrimary,
-    letterSpacing: -1,
-  },
-  logoDivider: {
-    width: 120,
-    height: 2,
-    backgroundColor: Colors.accentPurple,
-    marginVertical: Spacing.md,
-  },
-  tagline: {
-    fontSize: Typography.sizeSM,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    justifyContent: 'center',
-  },
-  statCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    minWidth: 90,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  statValue: {
-    fontSize: Typography.sizeXL,
-    fontWeight: Typography.weightBold,
-    color: Colors.accentTeal,
-  },
-  statLabel: {
-    fontSize: Typography.sizeXS,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  },
-
-  actions: { gap: Spacing.md },
-  btnPrimary: {
-    backgroundColor: Colors.accentTeal,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-  },
-  btnPrimaryText: {
-    color: Colors.bg,
-    fontSize: Typography.sizeMD,
-    fontWeight: Typography.weightBold,
-  },
-  btnSecondary: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  btnSecondaryText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizeMD,
-    fontWeight: Typography.weightSemiBold,
-  },
+  btnGhostLabel: { fontSize: 15, fontWeight: '600', color: Colors.t1 },
 });
