@@ -1,345 +1,158 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
-  TextInput,
-  Alert,
-  ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, ProgressBar, Badge } from '../../components/common';
-import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
-import { useBudgetStore } from '../../store/useBudgetStore';
-import { useAuthStore } from '../../store/useAuthStore';
-import { formatCurrency, monthsLeft } from '../../utils/format';
-import { supabase } from '../../lib/supabase';
-import type { Goal } from '../../types';
+import { GlassCard, GlyphIcon, ProgressBar, IconChip } from '../../components/common';
+import { Colors, Radius } from '../../constants/tokens';
 
-const EMOJIS = ['🏖️', '🏠', '🚗', '💍', '✈️', '📱', '🎓', '🏋️', '💰', '🎯'];
+const GOALS_DATA = [
+  {
+    id: 'trip', icon: 'travel' as const, color: Colors.purple, label: 'Отпуск на Мальдивах',
+    saved: 1840, target: 4200, deadline: '2026-08', monthly: 370,
+  },
+  {
+    id: 'home', icon: 'home' as const, color: Colors.magenta, label: 'Первый взнос на жильё',
+    saved: 8200, target: 25000, deadline: '2028-06', monthly: 700,
+  },
+  {
+    id: 'expenses', icon: 'chart' as const, color: Colors.cyan, label: 'Сократить расходы',
+    saved: 420, target: 600, deadline: '2026-06', monthly: 60,
+  },
+];
 
-// What-if: показывает на сколько быстрее достигнешь цели, отказавшись от траты
-function WhatIfSimulator({ goal }: { goal: Goal }) {
-  const monthly = goal.monthly_contribution;
-  const remaining = goal.target_amount - goal.current_amount;
-  const baseMonths = monthly > 0 ? Math.ceil(remaining / monthly) : 0;
-
-  const scenarios = [
-    { label: 'Кофе навынос', saving: 47, emoji: '☕' },
-    { label: 'Доставка еды',  saving: 80, emoji: '🍕' },
-    { label: 'Такси',         saving: 60, emoji: '🚕' },
-  ];
-
+function GoalFrame({ goal }: { goal: typeof GOALS_DATA[0] }) {
+  const progress = goal.saved / goal.target;
+  const months = Math.ceil((goal.target - goal.saved) / goal.monthly);
   return (
-    <Card style={styles.whatif}>
-      <Text style={styles.whatifTitle}>What-if симулятор</Text>
-      <Text style={styles.whatifSub}>Откажись от расхода и цель станет ближе</Text>
-      {scenarios.map((s) => {
-        const newMonthly = monthly + s.saving;
-        const newMonths = Math.ceil(remaining / newMonthly);
-        const diff = baseMonths - newMonths;
-        return (
-          <View key={s.label} style={styles.whatifRow}>
-            <Text style={styles.whatifEmoji}>{s.emoji}</Text>
-            <View style={styles.whatifInfo}>
-              <Text style={styles.whatifLabel}>{s.label} — {formatCurrency(s.saving)}/мес</Text>
-              <Text style={styles.whatifEffect}>
-                цель на <Text style={styles.whatifHighlight}>{diff} нед.</Text> ближе
-              </Text>
-            </View>
-          </View>
-        );
-      })}
-
-      <View style={styles.scenariosRow}>
-        <Text style={styles.scenariosTitle}>Нужно откладывать</Text>
-        <View style={styles.scenarios}>
-          {[
-            { label: 'Оптимально', amount: remaining / Math.max(baseMonths - 2, 1) },
-            { label: 'Реалистично', amount: monthly },
-            { label: 'Минимум', amount: remaining / (baseMonths + 3) },
-          ].map((sc) => (
-            <View key={sc.label} style={styles.scenarioCard}>
-              <Text style={styles.scenarioAmount}>{formatCurrency(Math.round(sc.amount))}</Text>
-              <Text style={styles.scenarioLabel}>{sc.label}</Text>
-            </View>
-          ))}
+    <GlassCard style={styles.goalCard} accentColor={goal.color}>
+      <LinearGradient
+        colors={[`${goal.color}28`, 'transparent']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
+        <IconChip name={goal.icon} color={goal.color} size={44} radius={14} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: Colors.t1, lineHeight: 22 }}>{goal.label}</Text>
+          <Text style={{ fontSize: 11, color: Colors.t3, marginTop: 2 }}>
+            ~{months} мес. до цели · €{goal.monthly}/мес
+          </Text>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 11, fontFamily: 'monospace', color: Colors.t4 }}>{goal.deadline}</Text>
         </View>
       </View>
-    </Card>
+
+      <View style={{ gap: 6, marginTop: 14 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={{ fontSize: 13, color: Colors.t2 }}>Накоплено</Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: goal.color }}>
+            €{goal.saved.toLocaleString()} <Text style={{ fontWeight: '400', color: Colors.t3 }}>/ €{goal.target.toLocaleString()}</Text>
+          </Text>
+        </View>
+        <ProgressBar progress={progress} color={goal.color} height={6} />
+        <Text style={{ fontSize: 11, color: Colors.t3, textAlign: 'right' }}>{Math.round(progress * 100)}%</Text>
+      </View>
+    </GlassCard>
   );
 }
 
-// Add Goal Modal
-function AddGoalModal({
-  visible,
-  onClose,
-  onSave,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onSave: (goal: Omit<Goal, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
-}) {
-  const [title, setTitle] = useState('');
-  const [emoji, setEmoji] = useState('🎯');
-  const [target, setTarget] = useState('');
-  const [monthly, setMonthly] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  async function handleSave() {
-    if (!title || !target || isNaN(parseFloat(target))) {
-      Alert.alert('Заполните название и сумму цели');
-      return;
-    }
-    setSaving(true);
-    await onSave({
-      title,
-      emoji,
-      target_amount: parseFloat(target),
-      current_amount: 0,
-      monthly_contribution: parseFloat(monthly) || 0,
-    });
-    setSaving(false);
-    setTitle(''); setTarget(''); setMonthly(''); setEmoji('🎯');
-    onClose();
-  }
+function WhatIfSimulator() {
+  const [extra, setExtra] = useState('100');
+  const base = 370;
+  const added = parseInt(extra) || 0;
+  const total = base + added;
+  const basePeriod = Math.ceil(2360 / base);
+  const newPeriod = total > 0 ? Math.ceil(2360 / total) : basePeriod;
+  const saved = basePeriod - newPeriod;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalSheet}>
-          <Text style={styles.modalTitle}>Новая цель</Text>
-
-          {/* Emoji picker */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiScroll}>
-            <View style={styles.emojis}>
-              {EMOJIS.map((e) => (
-                <TouchableOpacity
-                  key={e}
-                  style={[styles.emojiBtn, emoji === e && styles.emojiSelected]}
-                  onPress={() => setEmoji(e)}
-                >
-                  <Text style={styles.emojiChar}>{e}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-
-          <Text style={styles.modalLabel}>Название</Text>
-          <TextInput
-            style={styles.modalInput}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Отпуск в Греции"
-            placeholderTextColor={Colors.textMuted}
-          />
-
-          <Text style={styles.modalLabel}>Сумма цели</Text>
-          <TextInput
-            style={styles.modalInput}
-            value={target}
-            onChangeText={setTarget}
-            keyboardType="decimal-pad"
-            placeholder="2000"
-            placeholderTextColor={Colors.textMuted}
-          />
-
-          <Text style={styles.modalLabel}>Откладываю в месяц</Text>
-          <TextInput
-            style={styles.modalInput}
-            value={monthly}
-            onChangeText={setMonthly}
-            keyboardType="decimal-pad"
-            placeholder="170"
-            placeholderTextColor={Colors.textMuted}
-          />
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelText}>Отмена</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
-              {saving
-                ? <ActivityIndicator color={Colors.bg} />
-                : <Text style={styles.saveBtnText}>Сохранить</Text>
-              }
-            </TouchableOpacity>
-          </View>
-        </View>
+    <GlassCard style={styles.whatIfCard}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <GlyphIcon name="sparkle" size={16} color={Colors.cyan} />
+        <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.t1 }}>What-if симулятор</Text>
       </View>
-    </Modal>
+      <Text style={{ fontSize: 12, color: Colors.t2, marginBottom: 12 }}>
+        Что если откладывать на €{extra || '…'} больше каждый месяц?
+      </Text>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <Text style={{ fontSize: 15, color: Colors.cyan, fontWeight: '700' }}>+€</Text>
+        <TextInput
+          value={extra}
+          onChangeText={t => setExtra(t.replace(/[^\d]/g, ''))}
+          keyboardType="number-pad"
+          style={styles.whatIfInput}
+          placeholderTextColor={Colors.t4}
+          placeholder="0"
+        />
+        <Text style={{ fontSize: 13, color: Colors.t3 }}>/ месяц</Text>
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={styles.whatIfStat}>
+          <Text style={styles.whatIfStatVal}>{basePeriod}</Text>
+          <Text style={styles.whatIfStatLabel}>мес. сейчас</Text>
+        </View>
+        <GlyphIcon name="arrow-right" size={16} color={Colors.t4} />
+        <View style={[styles.whatIfStat, { backgroundColor: `${Colors.green}18` }]}>
+          <Text style={[styles.whatIfStatVal, { color: Colors.green }]}>{newPeriod}</Text>
+          <Text style={styles.whatIfStatLabel}>мес. с допл.</Text>
+        </View>
+        {saved > 0 && (
+          <View style={[styles.whatIfStat, { backgroundColor: `${Colors.cyan}18`, flex: 1 }]}>
+            <Text style={[styles.whatIfStatVal, { color: Colors.cyan, fontSize: 16 }]}>−{saved}</Text>
+            <Text style={styles.whatIfStatLabel}>мес. быстрее</Text>
+          </View>
+        )}
+      </View>
+    </GlassCard>
   );
 }
 
 export function GoalsScreen() {
-  const { user } = useAuthStore();
-  const { goals, addGoal } = useBudgetStore();
-  const [showModal, setShowModal] = useState(false);
-
-  async function handleAddGoal(data: Omit<Goal, 'id' | 'user_id' | 'created_at'>) {
-    if (!user) return;
-    const { data: row, error } = await supabase
-      .from('goals')
-      .insert({ ...data, user_id: user.id })
-      .select()
-      .single();
-    if (error) { Alert.alert('Ошибка', error.message); return; }
-    addGoal(row as Goal);
-  }
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>Мои цели</Text>
-          {goals.length < 5 && (
-            <TouchableOpacity style={styles.addBtn} onPress={() => setShowModal(true)}>
-              <Text style={styles.addBtnText}>+ Добавить</Text>
-            </TouchableOpacity>
-          )}
+          <Text style={styles.title}>Цели</Text>
+          <TouchableOpacity style={styles.addBtn}>
+            <GlyphIcon name="plus" size={16} color={Colors.cyan} />
+          </TouchableOpacity>
         </View>
 
-        {goals.length === 0 && (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>🎯</Text>
-            <Text style={styles.emptyTitle}>Нет активных целей</Text>
-            <Text style={styles.emptySub}>Поставьте финансовую цель и отслеживайте прогресс</Text>
-            <TouchableOpacity style={styles.saveBtn} onPress={() => setShowModal(true)}>
-              <Text style={styles.saveBtnText}>Поставить цель</Text>
-            </TouchableOpacity>
-          </Card>
-        )}
+        {GOALS_DATA.map(g => <GoalFrame key={g.id} goal={g} />)}
+        <WhatIfSimulator />
 
-        {goals.map((goal, i) => {
-          const progress = goal.target_amount > 0
-            ? goal.current_amount / goal.target_amount
-            : 0;
-          const months = monthsLeft(goal.current_amount, goal.target_amount, goal.monthly_contribution);
-
-          return (
-            <Card key={goal.id} style={[styles.goalCard, i === 0 && styles.goalCardActive]}>
-              <View style={styles.goalTop}>
-                <Text style={styles.goalEmoji}>{goal.emoji}</Text>
-                <View style={styles.goalInfo}>
-                  <Text style={styles.goalTitle}>{goal.title}</Text>
-                  <Text style={styles.goalTarget}>Цель: {formatCurrency(goal.target_amount)}</Text>
-                </View>
-                <View style={styles.goalRight}>
-                  <Text style={styles.goalAmount}>{formatCurrency(goal.current_amount)}</Text>
-                  <Badge label={`${Math.round(progress * 100)}%`} color={Colors.success} />
-                </View>
-              </View>
-              <ProgressBar progress={progress} color={Colors.success} height={8} style={styles.goalBar} />
-              <Text style={styles.goalSub}>
-                +{formatCurrency(goal.monthly_contribution)}/мес
-                {months > 0 ? ` | ${months} месяцев до цели` : ' | Цель достигнута! 🎉'}
-              </Text>
-            </Card>
-          );
-        })}
-
-        {/* What-if simulator for first goal */}
-        {goals.length > 0 && goals[0].monthly_contribution > 0 && (
-          <WhatIfSimulator goal={goals[0]} />
-        )}
+        <GlassCard style={{ padding: 16, flexDirection: 'row', gap: 20, justifyContent: 'center', marginTop: 6 }}>
+          {[
+            { label: 'Всего целей', val: '3' },
+            { label: 'Откладываю', val: '€1 130/мес' },
+            { label: 'Ближ. дедлайн', val: '3 мес.' },
+          ].map(s => (
+            <View key={s.label} style={{ alignItems: 'center', gap: 2 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: Colors.t1 }}>{s.val}</Text>
+              <Text style={{ fontSize: 10, color: Colors.t3 }}>{s.label}</Text>
+            </View>
+          ))}
+        </GlassCard>
       </ScrollView>
-
-      <AddGoalModal
-        visible={showModal}
-        onClose={() => setShowModal(false)}
-        onSave={handleAddGoal}
-      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: 40 },
-
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg },
-  title: { fontSize: Typography.sizeXL, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  addBtn: {
-    backgroundColor: Colors.accentTeal + '22',
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderWidth: 1,
-    borderColor: Colors.accentTeal + '66',
-  },
-  addBtnText: { color: Colors.accentTeal, fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
-
-  emptyCard: { alignItems: 'center', padding: Spacing.xl, marginBottom: Spacing.lg },
-  emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
-  emptyTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, marginBottom: Spacing.xs },
-  emptySub: { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.lg },
-
-  goalCard: { marginBottom: Spacing.md },
-  goalCardActive: { borderColor: Colors.success + '66' },
-  goalTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.md },
-  goalEmoji: { fontSize: 28, marginRight: Spacing.md },
-  goalInfo: { flex: 1 },
-  goalTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary },
-  goalTarget: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginTop: 2 },
-  goalRight: { alignItems: 'flex-end', gap: Spacing.xs },
-  goalAmount: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.success },
-  goalBar: { marginBottom: Spacing.sm },
-  goalSub: { fontSize: Typography.sizeXS, color: Colors.textSecondary },
-
-  // What-if
-  whatif: { marginBottom: Spacing.md, borderColor: Colors.warning + '44' },
-  whatifTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.warning, marginBottom: 2 },
-  whatifSub: { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginBottom: Spacing.md },
-  whatifRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
-  whatifEmoji: { fontSize: 20, marginRight: Spacing.sm },
-  whatifInfo: { flex: 1 },
-  whatifLabel: { fontSize: Typography.sizeSM, color: Colors.textPrimary },
-  whatifEffect: { fontSize: Typography.sizeXS, color: Colors.textSecondary },
-  whatifHighlight: { color: Colors.success, fontWeight: Typography.weightBold },
-
-  scenariosRow: { borderTopWidth: 1, borderTopColor: Colors.border, marginTop: Spacing.md, paddingTop: Spacing.md },
-  scenariosTitle: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.sm },
-  scenarios: { flexDirection: 'row', gap: Spacing.sm },
-  scenarioCard: { flex: 1, backgroundColor: Colors.surfaceElevated, borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center' },
-  scenarioAmount: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  scenarioLabel: { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginTop: 2, textAlign: 'center' },
-
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    padding: Spacing.xl,
-    paddingBottom: 40,
-  },
-  modalTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, marginBottom: Spacing.lg, textAlign: 'center' },
-  modalLabel: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
-  modalInput: {
-    backgroundColor: Colors.surfaceElevated,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    color: Colors.textPrimary,
-    fontSize: Typography.sizeMD,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  emojiScroll: { marginBottom: Spacing.sm },
-  emojis: { flexDirection: 'row', gap: Spacing.sm },
-  emojiBtn: { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
-  emojiSelected: { borderWidth: 2, borderColor: Colors.accentTeal },
-  emojiChar: { fontSize: 24 },
-  modalButtons: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xl },
-  cancelBtn: { flex: 1, backgroundColor: Colors.surfaceElevated, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
-  cancelText: { color: Colors.textSecondary, fontWeight: Typography.weightSemiBold },
-  saveBtn: { flex: 1, backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
-  saveBtnText: { color: Colors.bg, fontWeight: Typography.weightBold, fontSize: Typography.sizeMD },
+  scroll: { padding: 18, paddingBottom: 100, gap: 14 },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  title: { flex: 1, fontSize: 26, fontWeight: '700', color: Colors.t1 },
+  addBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: `${Colors.cyan}1A`, borderWidth: 1, borderColor: `${Colors.cyan}40`, alignItems: 'center', justifyContent: 'center' },
+  goalCard: { padding: 20, overflow: 'hidden' },
+  whatIfCard: { padding: 18 },
+  whatIfInput: { flex: 1, fontSize: 24, fontWeight: '800', color: Colors.t1, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: Colors.border2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
+  whatIfStat: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', gap: 2 },
+  whatIfStatVal: { fontSize: 22, fontWeight: '800', color: Colors.t1 },
+  whatIfStatLabel: { fontSize: 10, color: Colors.t3 },
 });

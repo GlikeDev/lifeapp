@@ -1,3 +1,11 @@
 export { Card } from './Card';
+export { GlassCard } from './GlassCard';
 export { ProgressBar } from './ProgressBar';
 export { Badge } from './Badge';
+export { Chip } from './Chip';
+export { GlyphIcon, IconChip } from './GlyphIcon';
+export type { GlyphName } from './GlyphIcon';
+export { Avatar } from './Avatar';
+export { Toast } from './Toast';
+export { Confetti } from './Confetti';
+export { HoloNumber } from './HoloNumber';

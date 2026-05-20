@@ -1,427 +1,169 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
-  TextInput,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
-  Keyboard,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, ProgressBar, Badge } from '../../components/common';
-import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../store/useAuthStore';
-import { scheduleItemNotifications, cancelItemNotifications } from '../../lib/notifications';
-import type { FridgeItem } from '../../types';
+import { GlassCard, GlyphIcon, Chip, Toast } from '../../components/common';
+import { Colors, Radius } from '../../constants/tokens';
 
-function daysUntil(dateStr: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expires = new Date(dateStr);
-  return Math.round((expires.getTime() - today.getTime()) / 86400000);
+type FilterKey = 'all' | 'expiring' | 'fresh';
+
+const FRIDGE_ITEMS = [
+  { id: '1', name: 'Греческий йогурт', qty: '500г', expires: 1, cat: 'dairy' },
+  { id: '2', name: 'Куриная грудка',   qty: '400г', expires: 2, cat: 'meat' },
+  { id: '3', name: 'Шпинат',           qty: '200г', expires: 1, cat: 'veggie' },
+  { id: '4', name: 'Молоко',           qty: '1л',   expires: 4, cat: 'dairy' },
+  { id: '5', name: 'Яйца',             qty: '10 шт',expires: 8, cat: 'other' },
+  { id: '6', name: 'Лосось',           qty: '300г', expires: 3, cat: 'meat' },
+  { id: '7', name: 'Помидоры',         qty: '4 шт', expires: 5, cat: 'veggie' },
+  { id: '8', name: 'Сыр Гауда',        qty: '200г', expires: 12, cat: 'dairy' },
+];
+
+function expiryColor(days: number) {
+  if (days <= 1) return Colors.coral;
+  if (days <= 3) return Colors.gold;
+  return Colors.green;
 }
 
-function expiryColor(days: number): string {
-  if (days <= 0) return Colors.danger;
-  if (days <= 1) return Colors.danger;
-  if (days <= 3) return Colors.warning;
-  return Colors.success;
+function expiryLabel(days: number) {
+  if (days === 1) return 'Истекает завтра';
+  if (days <= 3) return `${days} дня`;
+  return `${days} дней`;
 }
 
-function expiryLabel(days: number): string {
-  if (days < 0) return 'Истёк';
-  if (days === 0) return 'Сег.';
-  return `${days} д.`;
-}
-
-// ─── Add Item Modal ───────────────────────────────────────────────────────────
-function AddItemModal({
-  visible,
-  onClose,
-  onAdd,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onAdd: (item: { name: string; quantity: number; unit: string; expires_at: string }) => Promise<void>;
-}) {
-  const [name, setName] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [unit, setUnit] = useState('шт');
-  const [days, setDays] = useState('7');
-  const [saving, setSaving] = useState(false);
-
-  const UNITS = ['шт', 'г', 'кг', 'мл', 'л', 'пач.'];
-  const DAY_PRESETS = [
-    { label: '1 д.', value: '1' },
-    { label: '3 д.', value: '3' },
-    { label: '7 д.', value: '7' },
-    { label: '14 д.', value: '14' },
-    { label: '30 д.', value: '30' },
-  ];
-
-  async function handleAdd() {
-    if (!name.trim()) { Alert.alert('Введите название'); return; }
-    const d = parseInt(days);
-    if (isNaN(d) || d < 1) { Alert.alert('Укажите срок годности'); return; }
-
-    const expires = new Date();
-    expires.setDate(expires.getDate() + d);
-
-    setSaving(true);
-    await onAdd({
-      name: name.trim(),
-      quantity: parseFloat(quantity) || 1,
-      unit,
-      expires_at: expires.toISOString().slice(0, 10),
-    });
-    setSaving(false);
-    setName(''); setQuantity('1'); setDays('7');
-    onClose();
-  }
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={Keyboard.dismiss}
-        >
-          <TouchableOpacity activeOpacity={1} style={styles.modalSheet}>
-            {/* Drag handle */}
-            <View style={styles.dragHandle} />
-
-            <Text style={styles.modalTitle}>Добавить продукт</Text>
-
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.modalLabel}>Название</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={name}
-                onChangeText={setName}
-                placeholder="Молоко 1л"
-                placeholderTextColor={Colors.textMuted}
-                autoFocus
-                returnKeyType="next"
-              />
-
-              <View style={styles.modalRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalLabel}>Количество</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={quantity}
-                    onChangeText={setQuantity}
-                    keyboardType="decimal-pad"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalLabel}>Единица</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.unitChips}>
-                      {UNITS.map((u) => (
-                        <TouchableOpacity
-                          key={u}
-                          style={[styles.chip, unit === u && styles.chipSelected]}
-                          onPress={() => setUnit(u)}
-                        >
-                          <Text style={[styles.chipText, unit === u && styles.chipTextSelected]}>{u}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </ScrollView>
-                </View>
-              </View>
-
-              <Text style={styles.modalLabel}>Срок годности</Text>
-              <View style={styles.dayPresets}>
-                {DAY_PRESETS.map((p) => (
-                  <TouchableOpacity
-                    key={p.value}
-                    style={[styles.chip, days === p.value && styles.chipSelected]}
-                    onPress={() => { setDays(p.value); Keyboard.dismiss(); }}
-                  >
-                    <Text style={[styles.chipText, days === p.value && styles.chipTextSelected]}>{p.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TextInput
-                style={[styles.modalInput, { marginTop: Spacing.xs }]}
-                value={days}
-                onChangeText={setDays}
-                keyboardType="number-pad"
-                placeholder="или введите дни"
-                placeholderTextColor={Colors.textMuted}
-                returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
-              />
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-                  <Text style={styles.cancelText}>Отмена</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.saveBtn} onPress={handleAdd} disabled={saving}>
-                  {saving ? <ActivityIndicator color={Colors.bg} /> : <Text style={styles.saveBtnText}>Добавить</Text>}
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-// ─── Main Screen ─────────────────────────────────────────────────────────────
 export function FridgeScreen() {
-  const { user } = useAuthStore();
-  const [items, setItems] = useState<FridgeItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  const [filter, setFilter] = useState<FilterKey>('all');
+  const [items, setItems] = useState(FRIDGE_ITEMS);
+  const [showAdd, setShowAdd] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
+  const [newQty, setNewQty] = useState('');
+  const [newDays, setNewDays] = useState('7');
 
-  async function loadItems() {
-    if (!user) return;
-    const { data } = await supabase
-      .from('fridge_items')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('expires_at', { ascending: true });
-    if (data) setItems(data as FridgeItem[]);
+  const filtered = items.filter(i => {
+    if (filter === 'expiring') return i.expires <= 3;
+    if (filter === 'fresh') return i.expires > 3;
+    return true;
+  });
+
+  function removeItem(id: string) {
+    setItems(prev => prev.filter(i => i.id !== id));
+    setToast('Продукт удалён');
   }
 
-  useEffect(() => {
-    loadItems().finally(() => setLoading(false));
-  }, [user]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadItems();
-    setRefreshing(false);
-  }, [user]);
-
-  async function handleAdd(item: { name: string; quantity: number; unit: string; expires_at: string }) {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('fridge_items')
-      .insert({ ...item, user_id: user.id })
-      .select()
-      .single();
-    if (error) { Alert.alert('Ошибка', error.message); return; }
-    const newItem = data as FridgeItem;
-    setItems((prev) => [...prev, newItem].sort(
-      (a, b) => new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime()
-    ));
-    scheduleItemNotifications(newItem).catch(() => {});
+  function addItem() {
+    if (!newName) return;
+    setItems(prev => [...prev, {
+      id: Date.now().toString(), name: newName, qty: newQty || '1 шт',
+      expires: parseInt(newDays) || 7, cat: 'other',
+    }]);
+    setNewName(''); setNewQty(''); setNewDays('7');
+    setShowAdd(false);
+    setToast(`${newName} добавлен`);
   }
 
-  async function handleDelete(id: string) {
-    Alert.alert('Удалить продукт?', '', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Удалить', style: 'destructive',
-        onPress: async () => {
-          await supabase.from('fridge_items').delete().eq('id', id);
-          cancelItemNotifications(id).catch(() => {});
-          setItems((prev) => prev.filter((i) => i.id !== id));
-        },
-      },
-    ]);
-  }
-
-  // Derived
-  const expiringSoon = items.filter((i) => daysUntil(i.expires_at) <= 3);
-  const normal = items.filter((i) => daysUntil(i.expires_at) > 3);
-  const wastedThisMonth = items.filter((i) => daysUntil(i.expires_at) < 0).length;
-
-  // Max shelf life for progress bar (30 days)
-  const MAX_DAYS = 30;
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.center}><ActivityIndicator color={Colors.accentTeal} size="large" /></View>
-      </SafeAreaView>
-    );
-  }
+  const expiring = items.filter(i => i.expires <= 3).length;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accentTeal} />}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Мой холодильник</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowModal(true)}>
-            <Text style={styles.addBtnText}>+ Добавить</Text>
-          </TouchableOpacity>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Холодильник</Text>
+          <Text style={styles.sub}>{items.length} продуктов · {expiring} скоро истекает</Text>
         </View>
+        <TouchableOpacity onPress={() => setShowAdd(true)} style={styles.addBtn}>
+          <GlyphIcon name="plus" size={16} color={Colors.cyan} />
+        </TouchableOpacity>
+      </View>
 
-        {/* Summary row */}
-        <View style={styles.summaryRow}>
-          <SummaryCard value={String(items.length)} label="продуктов" color={Colors.textPrimary} />
-          <SummaryCard value={String(expiringSoon.length)} label="истекают" color={Colors.warning} />
-          <SummaryCard value={String(wastedThisMonth)} label="выброшено" color={Colors.danger} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 18 }}>
+          {([
+            { k: 'all' as FilterKey, label: 'Все' },
+            { k: 'expiring' as FilterKey, label: `Истекают (${expiring})` },
+            { k: 'fresh' as FilterKey, label: 'Свежие' },
+          ]).map(f => (
+            <Chip key={f.k} active={filter === f.k} onPress={() => setFilter(f.k)} color={Colors.cyan}>
+              {f.label}
+            </Chip>
+          ))}
         </View>
-
-        {/* Expiring soon */}
-        {expiringSoon.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>
-              <Text style={{ color: Colors.danger }}>Скоро истекает</Text>
-            </Text>
-            {expiringSoon.map((item) => {
-              const days = daysUntil(item.expires_at);
-              const color = expiryColor(days);
-              return (
-                <TouchableOpacity key={item.id} onLongPress={() => handleDelete(item.id)}>
-                  <Card style={[styles.itemCard, { borderLeftColor: color, borderLeftWidth: 3 }]}>
-                    <View style={styles.itemRow}>
-                      <View style={[styles.alertDot, { backgroundColor: color }]} />
-                      <View style={styles.itemInfo}>
-                        <Text style={styles.itemName}>{item.name}</Text>
-                        <Text style={styles.itemQty}>{item.quantity} {item.unit}</Text>
-                      </View>
-                      <Text style={[styles.itemDays, { color }]}>{expiryLabel(days)}</Text>
-                    </View>
-                  </Card>
-                </TouchableOpacity>
-              );
-            })}
-          </>
-        )}
-
-        {/* All items */}
-        {normal.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Все продукты</Text>
-            {normal.map((item) => {
-              const days = daysUntil(item.expires_at);
-              const color = expiryColor(days);
-              const progress = Math.min(days / MAX_DAYS, 1);
-              return (
-                <TouchableOpacity key={item.id} onLongPress={() => handleDelete(item.id)}>
-                  <Card style={styles.itemCard}>
-                    <View style={styles.itemRow}>
-                      <View style={styles.itemInfo}>
-                        <Text style={styles.itemName}>{item.name}</Text>
-                        <Text style={styles.itemQty}>{item.quantity} {item.unit}</Text>
-                      </View>
-                      <Text style={[styles.itemDays, { color }]}>{days} д.</Text>
-                    </View>
-                    <ProgressBar progress={progress} color={color} height={4} style={{ marginTop: Spacing.xs }} />
-                  </Card>
-                </TouchableOpacity>
-              );
-            })}
-          </>
-        )}
-
-        {items.length === 0 && (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>🧊</Text>
-            <Text style={styles.emptyTitle}>Холодильник пуст</Text>
-            <Text style={styles.emptySub}>Добавьте продукты вручную или через Smart Shop</Text>
-          </Card>
-        )}
-
-        <Text style={styles.hint}>Удержите продукт чтобы удалить</Text>
       </ScrollView>
 
-      <AddItemModal
-        visible={showModal}
-        onClose={() => setShowModal(false)}
-        onAdd={handleAdd}
-      />
-    </SafeAreaView>
-  );
-}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100, gap: 10 }}>
+        {filtered.map(item => {
+          const color = expiryColor(item.expires);
+          return (
+            <GlassCard key={item.id} style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <View style={[styles.itemIcon, { backgroundColor: `${color}18` }]}>
+                <GlyphIcon name="groceries" size={18} color={color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: Colors.t1 }}>{item.name}</Text>
+                <Text style={{ fontSize: 11, color: Colors.t3, marginTop: 1 }}>{item.qty}</Text>
+              </View>
+              <View style={[styles.expiryBadge, { backgroundColor: `${color}22`, borderColor: `${color}50` }]}>
+                <Text style={{ fontSize: 10, color, fontWeight: '700' }}>{expiryLabel(item.expires)}</Text>
+              </View>
+              <TouchableOpacity onPress={() => removeItem(item.id)} style={{ padding: 4 }}>
+                <GlyphIcon name="close" size={14} color={Colors.t4} />
+              </TouchableOpacity>
+            </GlassCard>
+          );
+        })}
+        {filtered.length === 0 && (
+          <View style={{ alignItems: 'center', paddingTop: 40, gap: 12 }}>
+            <GlyphIcon name="groceries" size={40} color={Colors.t4} />
+            <Text style={{ color: Colors.t3 }}>Ничего не найдено</Text>
+          </View>
+        )}
+      </ScrollView>
 
-function SummaryCard({ value, label, color }: { value: string; label: string; color: string }) {
-  return (
-    <Card style={styles.summaryCard}>
-      <Text style={[styles.summaryValue, { color }]}>{value}</Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
-    </Card>
+      <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
+        <View style={styles.modalOverlay}>
+          <GlassCard style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Добавить продукт</Text>
+            <Text style={styles.fieldLabel}>НАЗВАНИЕ</Text>
+            <TextInput value={newName} onChangeText={setNewName} placeholder="Молоко, курица..." placeholderTextColor={Colors.t4} style={styles.input} />
+            <Text style={styles.fieldLabel}>КОЛИЧЕСТВО</Text>
+            <TextInput value={newQty} onChangeText={setNewQty} placeholder="500г, 1л, 2 шт..." placeholderTextColor={Colors.t4} style={styles.input} />
+            <Text style={styles.fieldLabel}>ИСТЕКАЕТ ЧЕРЕЗ (ДНЕЙ)</Text>
+            <TextInput value={newDays} onChangeText={setNewDays} keyboardType="number-pad" placeholderTextColor={Colors.t4} style={styles.input} />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+              <TouchableOpacity onPress={() => setShowAdd(false)} style={[styles.cancelBtn, { flex: 1 }]}>
+                <Text style={{ color: Colors.t2, fontWeight: '600' }}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={addItem} style={{ flex: 2 }} activeOpacity={0.85}>
+                <LinearGradient colors={[Colors.cyan, Colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradBtn}>
+                  <Text style={styles.gradBtnLabel}>Добавить</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </GlassCard>
+        </View>
+      </Modal>
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: 40 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  title: { fontSize: Typography.sizeXL, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  addBtn: {
-    backgroundColor: Colors.accentTeal + '22',
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderWidth: 1,
-    borderColor: Colors.accentTeal + '66',
-  },
-  addBtnText: { color: Colors.accentTeal, fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
-
-  summaryRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  summaryCard: { flex: 1, padding: Spacing.md, alignItems: 'center' },
-  summaryValue: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold },
-  summaryLabel: { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginTop: 2 },
-
-  sectionTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary, marginBottom: Spacing.sm, marginTop: Spacing.sm },
-
-  itemCard: { marginBottom: Spacing.sm, padding: Spacing.md },
-  itemRow: { flexDirection: 'row', alignItems: 'center' },
-  alertDot: { width: 10, height: 10, borderRadius: 5, marginRight: Spacing.sm },
-  itemInfo: { flex: 1 },
-  itemName: { fontSize: Typography.sizeMD, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold },
-  itemQty: { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginTop: 2 },
-  itemDays: { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, minWidth: 36, textAlign: 'right' },
-
-  emptyCard: { alignItems: 'center', padding: Spacing.xl, marginTop: Spacing.lg },
-  emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
-  emptyTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  emptySub: { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs },
-
-  hint: { textAlign: 'center', color: Colors.textMuted, fontSize: Typography.sizeXS, marginTop: Spacing.md },
-
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.xl, paddingBottom: 40 },
-  dragHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.md },
-  modalTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
-  modalLabel: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
-  modalInput: { backgroundColor: Colors.surfaceElevated, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Colors.border },
-  modalRow: { flexDirection: 'row', gap: Spacing.md },
-  unitChips: { flexDirection: 'row', gap: Spacing.xs, paddingVertical: Spacing.xs },
-  dayPresets: { flexDirection: 'row', gap: Spacing.xs, flexWrap: 'wrap' },
-  chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: Radius.full, backgroundColor: Colors.surfaceElevated, borderWidth: 1, borderColor: Colors.border },
-  chipSelected: { borderColor: Colors.accentTeal, backgroundColor: Colors.accentTeal + '22' },
-  chipText: { color: Colors.textSecondary, fontSize: Typography.sizeSM },
-  chipTextSelected: { color: Colors.accentTeal, fontWeight: Typography.weightSemiBold },
-  modalButtons: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xl },
-  cancelBtn: { flex: 1, backgroundColor: Colors.surfaceElevated, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
-  cancelText: { color: Colors.textSecondary, fontWeight: Typography.weightSemiBold },
-  saveBtn: { flex: 1, backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
-  saveBtnText: { color: Colors.bg, fontWeight: Typography.weightBold },
+  header: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingVertical: 14 },
+  title: { fontSize: 26, fontWeight: '700', color: Colors.t1 },
+  sub: { fontSize: 12, color: Colors.t3, marginTop: 2 },
+  addBtn: { width: 38, height: 38, borderRadius: 12, marginLeft: 'auto', backgroundColor: `${Colors.cyan}1A`, borderWidth: 1, borderColor: `${Colors.cyan}40`, alignItems: 'center', justifyContent: 'center' },
+  itemIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  expiryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalSheet: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 24, paddingBottom: 40 },
+  modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: Colors.border2, alignSelf: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: Colors.t1, marginBottom: 18 },
+  fieldLabel: { fontFamily: 'monospace', fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 6 },
+  input: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: Colors.border2, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: Colors.t1, marginBottom: 14 },
+  cancelBtn: { paddingVertical: 16, borderRadius: Radius.full, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: Colors.border2 },
+  gradBtn: { paddingVertical: 16, borderRadius: Radius.full, alignItems: 'center' },
+  gradBtnLabel: { fontSize: 15, fontWeight: '700', color: '#06070D' },
 });
