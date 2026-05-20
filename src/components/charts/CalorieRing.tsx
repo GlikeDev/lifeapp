@@ -1,78 +1,60 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
-import { Colors, Typography } from '../../constants/tokens';
+import { View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { Animated } from 'react-native';
+import { Colors } from '../../constants/tokens';
+
+let _ringId = 0;
 
 interface CalorieRingProps {
-  current: number;
-  target: number;
+  consumed: number;
+  goal: number;
   size?: number;
 }
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-export function CalorieRing({ current, target, size = 160 }: CalorieRingProps) {
-  const progress = target > 0 ? Math.min(current / target, 1) : 0;
-  const strokeWidth = 14;
-  const radius = (size - strokeWidth) / 2;
+export function CalorieRing({ consumed, goal, size = 180 }: CalorieRingProps) {
+  const id = useRef(`ring_${++_ringId}`).current;
+  const radius = (size - 20) / 2;
   const circumference = 2 * Math.PI * radius;
-  const anim = useRef(new Animated.Value(0)).current;
+  const progress = Math.min(consumed / goal, 1);
+  const dashoffset = useRef(new Animated.Value(circumference)).current;
 
   useEffect(() => {
-    Animated.timing(anim, {
-      toValue: progress,
-      duration: 900,
+    Animated.timing(dashoffset, {
+      toValue: circumference * (1 - progress),
+      duration: 1200,
       useNativeDriver: false,
     }).start();
   }, [progress]);
 
-  const strokeDashoffset = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [circumference, 0],
-  });
-
-  const color = progress > 0.95 ? Colors.danger : progress > 0.75 ? Colors.warning : Colors.accentTeal;
-
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
+    <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
-        {/* Track */}
+        <Defs>
+          <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0%" stopColor={Colors.cyan}/>
+            <Stop offset="50%" stopColor={Colors.purple}/>
+            <Stop offset="100%" stopColor={Colors.coral}/>
+          </LinearGradient>
+        </Defs>
         <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={Colors.border}
-          strokeWidth={strokeWidth}
-          fill="none"
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke="rgba(255,255,255,0.06)"
+          strokeWidth={12} fill="none"
         />
-        {/* Progress */}
         <AnimatedCircle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={strokeDashoffset}
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke={`url(#${id})`}
+          strokeWidth={12} fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashoffset}
           strokeLinecap="round"
           rotation="-90"
           origin={`${size / 2}, ${size / 2}`}
         />
       </Svg>
-      <View style={styles.center}>
-        <Text style={[styles.value, { color }]}>{Math.round(current).toLocaleString()}</Text>
-        <Text style={styles.label}>ккал</Text>
-        <Text style={styles.target}>из {Math.round(target).toLocaleString()}</Text>
-      </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { alignItems: 'center', justifyContent: 'center' },
-  center: { position: 'absolute', alignItems: 'center' },
-  value: { fontSize: Typography.sizeXL, fontWeight: Typography.weightBold },
-  label: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginTop: -2 },
-  target: { fontSize: Typography.sizeXS, color: Colors.textMuted, marginTop: 2 },
-});

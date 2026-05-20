@@ -1,113 +1,75 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../../types';
-import { Colors, Typography, Spacing, Radius, Glass } from '../../constants/tokens';
+import { GlyphIcon } from '../../components/common';
+import { Colors, Radius, fontMono } from '../../constants/tokens';
+import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../lib/supabase';
-import { useTranslation } from '../../i18n';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { AuthStackParamList } from '../../types';
 
-type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
-export function LoginScreen() {
-  const nav = useNavigation<Nav>();
-  const { t } = useTranslation();
+export function LoginScreen({ navigation }: Props) {
+  const { setUser } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
-    if (!email || !password) {
-      Alert.alert(t('login.errFields'));
-      return;
-    }
+  async function signIn() {
+    if (!email || !password) { Alert.alert('Заполните все поля'); return; }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) { Alert.alert('Ошибка входа', error.message); setLoading(false); return; }
+    const profile = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+    setUser(profile.data ?? { id: data.user.id, email: data.user.email ?? '', full_name: '' } as any);
     setLoading(false);
-    if (error) Alert.alert(t('login.errTitle'), error.message);
-    // On success RootNavigator auto-switches to Main via onAuthStateChange
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          indicatorStyle="white"
-        >
-          <TouchableOpacity style={styles.back} onPress={() => nav.goBack()}>
-            <Text style={styles.backText}>{t('login.back')}</Text>
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <GlyphIcon name="arrow-left" size={16} color={Colors.cyan} />
+            <Text style={styles.backLabel}>Назад</Text>
           </TouchableOpacity>
 
-          <Text style={styles.title}>{t('login.title')}</Text>
-          <Text style={styles.subtitle}>{t('login.sub')}</Text>
+          <Text style={styles.title}>Вход</Text>
+          <Text style={styles.sub}>Умный бюджет · Продукты · Нутриция</Text>
 
-          <View style={styles.form}>
-            <Text style={styles.label}>{t('login.email')}</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              autoCorrect={false}
-              spellCheck={false}
-              returnKeyType="next"
-              textContentType="emailAddress"
-              selectionColor={Colors.accentTeal}
-              placeholder="you@example.com"
-              placeholderTextColor={Colors.textMuted}
-            />
+          <Text style={styles.fieldLabel}>ЭЛЕКТРОННАЯ ПОЧТА</Text>
+          <TextInput
+            style={styles.input} value={email} onChangeText={setEmail}
+            placeholder="alex@example.com" placeholderTextColor={Colors.t4}
+            keyboardType="email-address" autoCapitalize="none"
+          />
 
-            <Text style={styles.label}>{t('login.password')}</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              returnKeyType="done"
-              textContentType="password"
-              selectionColor={Colors.accentTeal}
-              onSubmitEditing={handleLogin}
-              placeholder="••••••••"
-              placeholderTextColor={Colors.textMuted}
-            />
+          <Text style={styles.fieldLabel}>ПАРОЛЬ</Text>
+          <TextInput
+            style={[styles.input, { marginBottom: 0 }]} value={password} onChangeText={setPassword}
+            placeholder="••••••••" placeholderTextColor={Colors.t4}
+            secureTextEntry
+          />
 
-            <TouchableOpacity
-              style={[styles.btnPrimary, loading && styles.btnDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color={Colors.bg} />
-                : <Text style={styles.btnPrimaryText}>{t('login.btn')}</Text>
-              }
-            </TouchableOpacity>
+          <View style={{ flex: 1, minHeight: 40 }} />
 
-            <TouchableOpacity
-              style={styles.link}
-              onPress={() => nav.navigate('Register')}
-            >
-              <Text style={styles.linkText}>{t('login.noAcc')}<Text style={styles.linkAccent}>{t('login.register')}</Text></Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity onPress={signIn} activeOpacity={0.85} disabled={loading}>
+            <LinearGradient colors={[Colors.cyan, Colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
+              <Text style={styles.btnLabel}>{loading ? 'Входим...' : 'Войти'}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <Text style={styles.switchText}>
+            Нет аккаунта?{' '}
+            <Text style={{ color: Colors.cyan }} onPress={() => navigation.navigate('Register')}>
+              Регистрация
+            </Text>
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -116,37 +78,18 @@ export function LoginScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-  content: { flexGrow: 1, padding: Spacing.xl, paddingBottom: 40 },
-
-  back: { marginBottom: Spacing.xl },
-  backText: { color: Colors.accentTeal, fontSize: Typography.sizeMD },
-
-  title: { fontSize: 32, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  subtitle: { fontSize: Typography.sizeMD, color: Colors.textSecondary, marginTop: Spacing.xs, marginBottom: Spacing.xxxl },
-
-  form: { gap: Spacing.xs },
-  label: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
+  content: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 32 },
+  backLabel: { fontSize: 13, color: Colors.cyan },
+  title: { fontSize: 32, fontWeight: '800', color: Colors.t1, marginBottom: 6, letterSpacing: -0.8 },
+  sub: { fontSize: 14, color: Colors.t2, marginBottom: 24 },
+  fieldLabel: { fontFamily: fontMono, fontSize: 10, letterSpacing: 1.8, color: Colors.t3, textTransform: 'uppercase', marginBottom: 6 },
   input: {
-    backgroundColor: Glass.surface,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    color: Colors.textPrimary,
-    fontSize: Typography.sizeMD,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Glass.border,
+    backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: Colors.border2,
+    borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 15, color: Colors.t1, marginBottom: 12,
   },
-
-  btnPrimary: {
-    backgroundColor: Colors.accentTeal,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-    marginTop: Spacing.xl,
-  },
-  btnDisabled: { opacity: 0.6 },
-  btnPrimaryText: { color: Colors.bg, fontSize: Typography.sizeMD, fontWeight: Typography.weightBold },
-
-  link: { alignItems: 'center', marginTop: Spacing.lg },
-  linkText: { color: Colors.textSecondary, fontSize: Typography.sizeSM },
-  linkAccent: { color: Colors.accentTeal, fontWeight: Typography.weightSemiBold },
+  btn: { paddingVertical: 16, borderRadius: Radius.full, alignItems: 'center', marginBottom: 16 },
+  btnLabel: { fontSize: 15, fontWeight: '700', color: '#06070D' },
+  switchText: { textAlign: 'center', fontSize: 12, color: Colors.t3 },
 });
