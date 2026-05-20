@@ -13,11 +13,22 @@ export interface User {
   monthly_budget: number;
   is_pro: boolean;
   created_at: string;
+  // Onboarding fields
+  age?: number;
+  gender?: 'male' | 'female' | 'other' | 'prefer_not';
+  country?: string;
+  main_goal?: string;
+  dietary?: string;
+  onboarding_done: boolean;
 }
 
 // ─── Transactions ────────────────────────────────────────────────────────────
 
-export type TransactionCategory = 'food' | 'transport' | 'home' | 'health' | 'other';
+export type TransactionCategory =
+  | 'food' | 'transport' | 'home' | 'health' | 'entertainment' | 'shopping'
+  | 'salary' | 'freelance' | 'transfer' | 'gift' | 'cashback' | 'other';
+
+export type TransactionType = 'expense' | 'income';
 
 export interface Transaction {
   id: string;
@@ -103,6 +114,40 @@ export interface DailyNutrition {
   nutrients: NutrientEntry[];
 }
 
+// ─── Subscriptions ───────────────────────────────────────────────────────────
+
+export type SubscriptionCycle = 'weekly' | 'monthly' | 'yearly';
+export type SubscriptionCategory = 'streaming' | 'music' | 'fitness' | 'software' | 'finance' | 'other';
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  name: string;
+  emoji: string;
+  amount: number;
+  currency: string;
+  cycle: SubscriptionCycle;
+  next_billing: string;
+  category: SubscriptionCategory;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ─── Debts ───────────────────────────────────────────────────────────────────
+
+export type DebtDirection = 'owe' | 'owed'; // owe = я должен, owed = мне должны
+
+export interface Debt {
+  id: string;
+  user_id: string;
+  person: string;
+  amount: number;
+  currency: string;
+  note?: string;
+  direction: DebtDirection;
+  created_at: string;
+}
+
 // ─── Achievements ────────────────────────────────────────────────────────────
 
 export type AchievementTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'legend';
@@ -130,22 +175,22 @@ export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Register: undefined;
-  OnboardingProfile: undefined;
-  OnboardingBudget: undefined;
+  Onboarding: undefined;
 };
 
 export type MainTabParamList = {
   Dashboard: undefined;
   Scan: undefined;
-  Shop: undefined;
+  Fridge: undefined;
   Nutrition: undefined;
   More: undefined;
 };
 
 export type MoreStackParamList = {
   MoreMenu: undefined;
-  Goals: undefined;
-  Fridge: undefined;
+  SmartShop: undefined;
   Profile: undefined;
   Achievements: undefined;
+  Subscriptions: undefined;
+  Debts: undefined;
 };

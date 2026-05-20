@@ -18,18 +18,11 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useBudgetStore } from '../../store/useBudgetStore';
 import type { Achievement, MoreStackParamList } from '../../types';
+import { useTranslation } from '../../i18n';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
 
-// XP needed per level
 const XP_PER_LEVEL = [0, 200, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400, 6500, 7700, 9000, 10500, 12000];
-
-const LEVEL_NAMES: Record<number, string> = {
-  1: 'Новичок', 2: 'Начинающий', 3: 'Следит', 4: 'Внимательный',
-  5: 'Экономный', 6: 'Бережливый', 7: 'Опытный', 8: 'Финансовый мастер',
-  9: 'Профи', 10: 'Эксперт', 11: 'Гуру', 12: 'Наставник',
-  13: 'Легенда', 14: 'Элита', 15: 'Легенда SaveSmart',
-};
 
 const TIER_COLORS: Record<string, string> = {
   bronze: Colors.tierBronze,
@@ -39,10 +32,20 @@ const TIER_COLORS: Record<string, string> = {
   legend: Colors.tierLegend,
 };
 
+const LEVEL_KEYS: Record<number, string> = {
+  1: 'prof.level.1',   2: 'prof.level.2',   3: 'prof.level.3',
+  4: 'prof.level.4',   5: 'prof.level.5',   6: 'prof.level.6',
+  7: 'prof.level.7',   8: 'prof.level.8',   9: 'prof.level.9',
+  10: 'prof.level.10', 11: 'prof.level.11', 12: 'prof.level.12',
+  13: 'prof.level.13', 14: 'prof.level.14', 15: 'prof.level.15',
+};
+function levelNameKey(l: number) { return LEVEL_KEYS[l] ?? 'prof.level.15'; }
+
 export function ProfileScreen() {
   const nav = useNavigation<Nav>();
   const { user, setUser } = useAuthStore();
   const { transactions, goals } = useBudgetStore();
+  const { t, locale } = useTranslation();
 
   const [recentAchievements, setRecentAchievements] = useState<Achievement[]>([]);
   const [totalAchievements, setTotalAchievements] = useState(0);
@@ -54,13 +57,12 @@ export function ProfileScreen() {
   const xpForCurrent = XP_PER_LEVEL[level - 1] ?? 0;
   const xpForNext = XP_PER_LEVEL[level] ?? XP_PER_LEVEL[XP_PER_LEVEL.length - 1];
   const xpProgress = (xp - xpForCurrent) / (xpForNext - xpForCurrent);
-  const levelName = LEVEL_NAMES[level] ?? 'Легенда SaveSmart';
+  const levelName = t(levelNameKey(level));
 
   const totalSaved = goals.reduce((s, g) => s + g.current_amount, 0);
   const txCount = transactions.length;
   const goalCount = goals.length;
 
-  // Activity streak dots (last 14 days)
   const [streak, setStreak] = useState<boolean[]>(Array(14).fill(false));
 
   useEffect(() => {
@@ -95,16 +97,14 @@ export function ProfileScreen() {
         setRecentAchievements(mapped);
       }
 
-      // Count total achievements
       const { count } = await supabase
         .from('user_achievements')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
       setTotalAchievements(count ?? 0);
 
-      // Build streak dots
       if (txDatesRes.data) {
-        const activeDates = new Set(txDatesRes.data.map((t: any) => t.date as string));
+        const activeDates = new Set(txDatesRes.data.map((tx: any) => tx.date as string));
         const dots = Array.from({ length: 14 }, (_, i) => {
           const d = new Date(Date.now() - (13 - i) * 86400000);
           return activeDates.has(d.toISOString().slice(0, 10));
@@ -118,10 +118,10 @@ export function ProfileScreen() {
   }, [user]);
 
   async function handleSignOut() {
-    Alert.alert('Выйти из аккаунта?', '', [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(t('prof.signout.title'), '', [
+      { text: t('prof.signout.cancel'), style: 'cancel' },
       {
-        text: 'Выйти', style: 'destructive',
+        text: t('prof.signout.confirm'), style: 'destructive',
         onPress: async () => {
           await supabase.auth.signOut();
           setUser(null);
@@ -145,6 +145,8 @@ export function ProfileScreen() {
     );
   }
 
+  const joinDate = new Date(user?.created_at ?? '').toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} indicatorStyle="white" showsVerticalScrollIndicator={false}>
@@ -159,34 +161,34 @@ export function ProfileScreen() {
               <View style={styles.proBadge}><Text style={styles.proText}>PRO</Text></View>
             )}
           </View>
-          <Text style={styles.name}>{user?.full_name ?? 'Пользователь'}</Text>
-          <Text style={styles.joinDate}>В приложении с {new Date(user?.created_at ?? '').toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</Text>
+          <Text style={styles.name}>{user?.full_name ?? t('more.profile.user')}</Text>
+          <Text style={styles.joinDate}>{t('prof.joined', { date: joinDate })}</Text>
         </View>
 
         {/* Level bar */}
         <Card style={styles.levelCard}>
           <View style={styles.levelHeader}>
-            <Text style={styles.levelText}>Уровень {level} — {levelName}</Text>
+            <Text style={styles.levelText}>{t('prof.levelRow', { n: level, name: levelName })}</Text>
             <Text style={styles.xpText}>{xp} XP</Text>
           </View>
           <ProgressBar progress={xpProgress} color={Colors.accentPurple} height={8} />
-          <Text style={styles.xpNext}>до уровня {level + 1}: {xpForNext - xp} XP</Text>
+          <Text style={styles.xpNext}>{t('prof.xpNext', { n: level + 1, xp: xpForNext - xp })}</Text>
         </Card>
 
         {/* Key metrics */}
         <View style={styles.metricsGrid}>
-          <MetricCard value={`€${Math.round(totalSaved)}`} label="Сэкономлено" color={Colors.success} />
-          <MetricCard value={String(txCount)} label="Транзакций" color={Colors.accentTeal} />
-          <MetricCard value={String(goalCount)} label="Цели" color={Colors.accentPurple} />
-          <MetricCard value={String(totalAchievements)} label="Ачивок" color={Colors.warning} />
+          <MetricCard value={`€${Math.round(totalSaved)}`} label={t('prof.metric.saved')} color={Colors.success} />
+          <MetricCard value={String(txCount)} label={t('prof.metric.txn')} color={Colors.accentTeal} />
+          <MetricCard value={String(goalCount)} label={t('prof.metric.goals')} color={Colors.accentPurple} />
+          <MetricCard value={String(totalAchievements)} label={t('prof.metric.achs')} color={Colors.warning} />
         </View>
 
         {/* Activity streak */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Серия активности{' '}
+            {t('prof.streak.title')}{' '}
             <Text style={{ color: Colors.warning }}>
-              {streak.filter(Boolean).length} дней подряд
+              {t('prof.streak.days', { n: streak.filter(Boolean).length })}
             </Text>
           </Text>
           <View style={styles.streakDots}>
@@ -203,9 +205,9 @@ export function ProfileScreen() {
         {recentAchievements.length > 0 && (
           <Card style={styles.section}>
             <View style={styles.achHeader}>
-              <Text style={styles.sectionTitle}>Последние ачивки</Text>
+              <Text style={styles.sectionTitle}>{t('prof.ach.recent')}</Text>
               <TouchableOpacity onPress={() => nav.navigate('Achievements')}>
-                <Text style={styles.seeAll}>Все →</Text>
+                <Text style={styles.seeAll}>{t('more.ach.all')}</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.achRow}>
@@ -224,7 +226,7 @@ export function ProfileScreen() {
         {/* Settings */}
         <Card style={styles.section}>
           <SettingRow
-            label="Уведомления"
+            label={t('prof.settings.notif')}
             right={
               <Switch
                 value={notificationsOn}
@@ -234,21 +236,21 @@ export function ProfileScreen() {
               />
             }
           />
-          <SettingRow label="Валюта" right={<Text style={styles.settingValue}>EUR — Euro</Text>} />
+          <SettingRow label={t('prof.settings.currency')} right={<Text style={styles.settingValue}>EUR — Euro</Text>} />
           <SettingRow
-            label="Подписка"
+            label={t('prof.settings.sub')}
             right={
               <Text style={[styles.settingValue, { color: user?.is_pro ? Colors.accentPurple : Colors.textMuted }]}>
-                {user?.is_pro ? 'Pro активна' : 'Бесплатный'}
+                {user?.is_pro ? t('prof.pro.active') : t('prof.pro.free')}
               </Text>
             }
           />
-          <SettingRow label="Экспорт данных" right={<Text style={styles.settingValue}>CSV / PDF</Text>} />
+          <SettingRow label={t('prof.settings.export')} right={<Text style={styles.settingValue}>CSV / PDF</Text>} />
         </Card>
 
         {/* Sign out */}
         <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Выйти из аккаунта</Text>
+          <Text style={styles.signOutText}>{t('prof.signout.btn')}</Text>
         </TouchableOpacity>
 
       </ScrollView>

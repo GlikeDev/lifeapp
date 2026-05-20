@@ -15,26 +15,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types';
-import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
+import { useTranslation } from '../../i18n';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
 export function LoginScreen() {
   const nav = useNavigation<Nav>();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
     if (!email || !password) {
-      Alert.alert('Заполните email и пароль');
+      Alert.alert(t('login.errFields'));
       return;
     }
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) Alert.alert('Ошибка входа', error.message);
+    if (error) Alert.alert(t('login.errTitle'), error.message);
     // On success RootNavigator auto-switches to Main via onAuthStateChange
   }
 
@@ -42,7 +44,7 @@ export function LoginScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={styles.content}
@@ -50,14 +52,14 @@ export function LoginScreen() {
           indicatorStyle="white"
         >
           <TouchableOpacity style={styles.back} onPress={() => nav.goBack()}>
-            <Text style={styles.backText}>← Назад</Text>
+            <Text style={styles.backText}>{t('login.back')}</Text>
           </TouchableOpacity>
 
-          <Text style={styles.title}>Войти</Text>
-          <Text style={styles.subtitle}>Рады видеть снова</Text>
+          <Text style={styles.title}>{t('login.title')}</Text>
+          <Text style={styles.subtitle}>{t('login.sub')}</Text>
 
           <View style={styles.form}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('login.email')}</Text>
             <TextInput
               style={styles.input}
               value={email}
@@ -74,7 +76,7 @@ export function LoginScreen() {
               placeholderTextColor={Colors.textMuted}
             />
 
-            <Text style={styles.label}>Пароль</Text>
+            <Text style={styles.label}>{t('login.password')}</Text>
             <TextInput
               style={styles.input}
               value={password}
@@ -95,7 +97,7 @@ export function LoginScreen() {
             >
               {loading
                 ? <ActivityIndicator color={Colors.bg} />
-                : <Text style={styles.btnPrimaryText}>Войти</Text>
+                : <Text style={styles.btnPrimaryText}>{t('login.btn')}</Text>
               }
             </TouchableOpacity>
 
@@ -103,7 +105,7 @@ export function LoginScreen() {
               style={styles.link}
               onPress={() => nav.navigate('Register')}
             >
-              <Text style={styles.linkText}>Нет аккаунта? <Text style={styles.linkAccent}>Зарегистрироваться</Text></Text>
+              <Text style={styles.linkText}>{t('login.noAcc')}<Text style={styles.linkAccent}>{t('login.register')}</Text></Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -125,13 +127,13 @@ const styles = StyleSheet.create({
   form: { gap: Spacing.xs },
   label: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
   input: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Glass.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
     color: Colors.textPrimary,
     fontSize: Typography.sizeMD,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Glass.border,
   },
 
   btnPrimary: {

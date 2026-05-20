@@ -8,7 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Circle, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { useBudgetStore } from '../../store/useBudgetStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../lib/supabase';
@@ -106,7 +106,7 @@ function WhatIfCard({ goal }: { goal: Goal }) {
   );
 }
 const w = StyleSheet.create({
-  card:        { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderLeftWidth: 3, borderColor: Colors.border, borderLeftColor: Colors.warning },
+  card:        { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: StyleSheet.hairlineWidth, borderLeftWidth: 3, borderColor: Glass.border, borderLeftColor: Colors.warning },
   title:       { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.warning, marginBottom: 2 },
   sub:         { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginBottom: Spacing.md },
   row:         { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
@@ -116,7 +116,7 @@ const w = StyleSheet.create({
   highlight:   { color: Colors.success, fontWeight: Typography.weightBold },
   savingBadge: { backgroundColor: Colors.success + '18', borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3 },
   savingTxt:   { fontSize: Typography.sizeXS, color: Colors.success, fontWeight: Typography.weightBold },
-  scenarios:   { borderTopWidth: 1, borderTopColor: Colors.border, marginTop: Spacing.md, paddingTop: Spacing.md },
+  scenarios:   { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Glass.border, marginTop: Spacing.md, paddingTop: Spacing.md },
   scenTitle:   { fontSize: Typography.sizeXS, color: Colors.textMuted, marginBottom: Spacing.sm },
   scenRow:     { flexDirection: 'row', gap: Spacing.sm },
   scenCard:    { flex: 1, backgroundColor: Colors.surfaceElevated, borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center' },
@@ -248,7 +248,7 @@ export function GoalsScreen() {
 
       {/* Add goal sheet */}
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowAdd(false)} />
           <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.handle} />
@@ -292,13 +292,13 @@ const s = StyleSheet.create({
   addBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.success + '18', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.success + '44' },
   addBtnTxt: { color: Colors.success, fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
 
-  emptyCard: { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.md },
+  emptyCard: { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border, marginBottom: Spacing.md },
   emptyTitle:{ fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary },
   emptySub:  { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: Spacing.lg },
   emptyBtn:  { backgroundColor: Colors.success, borderRadius: Radius.full, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
   emptyBtnTxt:{ color: Colors.bg, fontSize: Typography.sizeSM, fontWeight: Typography.weightBold },
 
-  goalCard:    { borderRadius: Radius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  goalCard:    { borderRadius: Radius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   goalTop:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
   goalMeta:    { flex: 1 },
   goalTitle:   { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary, marginBottom: 4 },
@@ -314,12 +314,12 @@ const s = StyleSheet.create({
 
   // Sheet
   backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:      { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Colors.border },
+  sheet:      { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.lg },
   sheetTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
   label:      { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
-  input:      { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Colors.border },
-  emojiBtn:   { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  input:      { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
+  emojiBtn:   { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   emojiBtnOn: { borderColor: Colors.accentTeal, borderWidth: 2 },
   btns:       { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xl },
   cancelBtn:  { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },

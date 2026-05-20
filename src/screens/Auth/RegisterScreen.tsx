@@ -15,13 +15,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types';
-import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
+import { useTranslation } from '../../i18n';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
 export function RegisterScreen() {
   const nav = useNavigation<Nav>();
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,11 +31,11 @@ export function RegisterScreen() {
 
   async function handleRegister() {
     if (!name || !email || !password) {
-      Alert.alert('Заполните все поля');
+      Alert.alert(t('reg.errFields'));
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Пароль должен быть минимум 6 символов');
+      Alert.alert(t('reg.errPassword'));
       return;
     }
     setLoading(true);
@@ -44,7 +46,7 @@ export function RegisterScreen() {
     });
     setLoading(false);
     if (error) {
-      Alert.alert('Ошибка регистрации', error.message);
+      Alert.alert(t('reg.errTitle'), error.message);
       return;
     }
     // Trigger fires handle_new_user() → creates profile
@@ -56,7 +58,7 @@ export function RegisterScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={styles.content}
@@ -64,11 +66,11 @@ export function RegisterScreen() {
           indicatorStyle="white"
         >
           <TouchableOpacity style={styles.back} onPress={() => nav.goBack()}>
-            <Text style={styles.backText}>← Назад</Text>
+            <Text style={styles.backText}>{t('reg.back')}</Text>
           </TouchableOpacity>
 
-          <Text style={styles.title}>Регистрация</Text>
-          <Text style={styles.subtitle}>Создайте аккаунт SaveSmart</Text>
+          <Text style={styles.title}>{t('reg.title')}</Text>
+          <Text style={styles.subtitle}>{t('reg.subtitle')}</Text>
 
           {/* Progress dots */}
           <View style={styles.dots}>
@@ -78,12 +80,12 @@ export function RegisterScreen() {
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.label}>Имя</Text>
+            <Text style={styles.label}>{t('reg.name')}</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Марго"
+              placeholder="Margo"
               placeholderTextColor={Colors.textMuted}
               autoCapitalize="words"
               returnKeyType="next"
@@ -91,7 +93,7 @@ export function RegisterScreen() {
               selectionColor={Colors.accentTeal}
             />
 
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('reg.email')}</Text>
             <TextInput
               style={styles.input}
               value={email}
@@ -108,7 +110,7 @@ export function RegisterScreen() {
               placeholderTextColor={Colors.textMuted}
             />
 
-            <Text style={styles.label}>Пароль</Text>
+            <Text style={styles.label}>{t('reg.password')}</Text>
             <TextInput
               style={styles.input}
               value={password}
@@ -118,7 +120,7 @@ export function RegisterScreen() {
               textContentType="newPassword"
               selectionColor={Colors.accentTeal}
               onSubmitEditing={handleRegister}
-              placeholder="Минимум 6 символов"
+              placeholder={t('reg.passwordPh')}
               placeholderTextColor={Colors.textMuted}
             />
 
@@ -129,7 +131,7 @@ export function RegisterScreen() {
             >
               {loading
                 ? <ActivityIndicator color={Colors.bg} />
-                : <Text style={styles.btnPrimaryText}>Далее →</Text>
+                : <Text style={styles.btnPrimaryText}>{t('reg.btn')}</Text>
               }
             </TouchableOpacity>
 
@@ -137,7 +139,7 @@ export function RegisterScreen() {
               style={styles.link}
               onPress={() => nav.navigate('Login')}
             >
-              <Text style={styles.linkText}>Уже есть аккаунт? <Text style={styles.linkAccent}>Войти</Text></Text>
+              <Text style={styles.linkText}>{t('reg.link')}<Text style={styles.linkAccent}>{t('reg.linkAccent')}</Text></Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -163,13 +165,13 @@ const styles = StyleSheet.create({
   form: { gap: Spacing.xs },
   label: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
   input: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Glass.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
     color: Colors.textPrimary,
     fontSize: Typography.sizeMD,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Glass.border,
   },
 
   btnPrimary: {

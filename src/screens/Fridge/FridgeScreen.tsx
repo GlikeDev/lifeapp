@@ -8,11 +8,12 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Path, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { scheduleItemNotifications, cancelItemNotifications } from '../../lib/notifications';
 import type { FridgeItem } from '../../types';
+import { useTranslation } from '../../i18n';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -26,11 +27,14 @@ function zoneColor(days: number) {
   if (days <= 3) return Colors.warning;
   return Colors.success;
 }
-function zoneLabel(days: number) {
-  if (days < 0) return 'Истёк';
-  if (days === 0) return 'Сегодня';
-  if (days === 1) return '1 день';
-  return `${days} дн.`;
+function zoneLabelKey(days: number) {
+  if (days < 0) return 'more.fridge.days.expired';
+  if (days === 0) return 'more.fridge.days.today';
+  if (days === 1) return 'more.fridge.days.one';
+  return 'more.fridge.days.n';
+}
+function zoneLabelVars(days: number) {
+  return days > 1 ? { n: days } : undefined;
 }
 
 const MOCK_RECIPES = [
@@ -61,6 +65,7 @@ function ZoneSection({ items, label, color, onUsed, onDelete }: {
   items: FridgeItem[]; label: string; color: string;
   onUsed: (id: string) => void; onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   if (items.length === 0) return null;
   return (
     <View style={zs.section}>
@@ -79,7 +84,7 @@ function ZoneSection({ items, label, color, onUsed, onDelete }: {
               <Text style={zs.rowName}>{item.name}</Text>
               <Text style={zs.rowQty}>{item.quantity} {item.unit}</Text>
             </View>
-            <Text style={[zs.rowDays, { color }]}>{zoneLabel(days)}</Text>
+            <Text style={[zs.rowDays, { color }]}>{t(zoneLabelKey(days), zoneLabelVars(days))}</Text>
             <TouchableOpacity style={[zs.actionBtn, { backgroundColor: Colors.success + '18' }]} onPress={() => onUsed(item.id)}>
               <IcoCheck c={Colors.success} n={14} />
             </TouchableOpacity>
@@ -99,7 +104,7 @@ const zs = StyleSheet.create({
   title:   { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold },
   badge:   { borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 2 },
   badgeTxt:{ fontSize: Typography.sizeXS, fontWeight: Typography.weightBold },
-  row:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border, borderLeftWidth: 3 },
+  row:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Glass.border, borderLeftWidth: 3 },
   rowInfo: { flex: 1 },
   rowName: { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary },
   rowQty:  { fontSize: Typography.sizeXS, color: Colors.textMuted, marginTop: 2 },
@@ -111,6 +116,7 @@ const zs = StyleSheet.create({
 
 export function FridgeScreen() {
   const { user } = useAuthStore();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<FridgeItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,9 +156,9 @@ export function FridgeScreen() {
   }, [user]);
 
   async function handleAdd() {
-    if (!name.trim()) { Alert.alert('Введите название'); return; }
+    if (!name.trim()) { Alert.alert(t('fridge.add.errName')); return; }
     const d = parseInt(days);
-    if (isNaN(d) || d < 1) { Alert.alert('Укажите срок годности'); return; }
+    if (isNaN(d) || d < 1) { Alert.alert(t('fridge.add.errDays')); return; }
     if (!user) return;
     const expires = new Date(); expires.setDate(expires.getDate() + d);
     setSaving(true);
@@ -161,7 +167,7 @@ export function FridgeScreen() {
       quantity: parseFloat(qty) || 1, unit,
       expires_at: expires.toISOString().slice(0, 10),
     }).select().single();
-    if (error) { Alert.alert('Ошибка', error.message); setSaving(false); return; }
+    if (error) { Alert.alert(t('scan.err.title'), error.message); setSaving(false); return; }
     const newItem = data as FridgeItem;
     setItems(prev => [...prev, newItem].sort((a, b) => new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime()));
     scheduleItemNotifications(newItem).catch(() => {});
@@ -178,9 +184,9 @@ export function FridgeScreen() {
   }
 
   async function handleDelete(id: string) {
-    Alert.alert('Удалить продукт?', '', [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Удалить', style: 'destructive', onPress: async () => {
+    Alert.alert(t('fridge.delete.title'), '', [
+      { text: t('fridge.delete.cancel'), style: 'cancel' },
+      { text: t('fridge.delete.confirm'), style: 'destructive', onPress: async () => {
         await supabase.from('fridge_items').delete().eq('id', id);
         cancelItemNotifications(id).catch(() => {});
         setItems(prev => prev.filter(i => i.id !== id));
@@ -214,17 +220,17 @@ export function FridgeScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.title}>Холодильник</Text>
+          <Text style={s.title}>{t('fridge.title')}</Text>
           <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
             {expiringSoon.length > 0 && (
               <TouchableOpacity style={s.recipeBtn} onPress={() => setShowRecipe(true)}>
                 <IcoChef c={Colors.warning} n={15} />
-                <Text style={s.recipeBtnTxt}>Рецепт</Text>
+                <Text style={s.recipeBtnTxt}>{t('fridge.recipe')}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={s.addBtn} onPress={() => setShowAdd(true)}>
               <IcoPlus c={Colors.accentTeal} n={14} />
-              <Text style={s.addBtnTxt}>Добавить</Text>
+              <Text style={s.addBtnTxt}>{t('fridge.add')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -232,9 +238,9 @@ export function FridgeScreen() {
         {/* Stats row */}
         {items.length > 0 && (
           <View style={s.statsRow}>
-            <StatCard label="Продуктов" value={items.length} color={Colors.textPrimary} />
-            <StatCard label="Истекают" value={expiringSoon.length} color={expiringSoon.length > 0 ? Colors.warning : Colors.textMuted} />
-            <StatCard label="Свежих" value={fresh.length} color={Colors.success} />
+            <StatCard label={t('fridge.stats.total')} value={items.length} color={Colors.textPrimary} />
+            <StatCard label={t('fridge.stats.expiring')} value={expiringSoon.length} color={expiringSoon.length > 0 ? Colors.warning : Colors.textMuted} />
+            <StatCard label={t('fridge.stats.fresh')} value={fresh.length} color={Colors.success} />
           </View>
         )}
 
@@ -243,8 +249,8 @@ export function FridgeScreen() {
           <LinearGradient colors={['#3A200E','#2A160A']} style={s.alertBanner} start={{x:0,y:0}} end={{x:1,y:1}}>
             <Text style={s.alertEmoji}>⚠️</Text>
             <View style={{ flex: 1 }}>
-              <Text style={s.alertTitle}>{expiringSoon.length} продукта требуют внимания</Text>
-              <Text style={s.alertSub}>Используйте их до истечения срока</Text>
+              <Text style={s.alertTitle}>{t('fridge.alert.title', { count: expiringSoon.length })}</Text>
+              <Text style={s.alertSub}>{t('fridge.alert.sub')}</Text>
             </View>
           </LinearGradient>
         )}
@@ -253,20 +259,20 @@ export function FridgeScreen() {
         {items.length === 0 && (
           <TouchableOpacity style={s.emptyCard} onPress={() => setShowAdd(true)} activeOpacity={0.8}>
             <Text style={{ fontSize: 52, marginBottom: Spacing.md }}>🧊</Text>
-            <Text style={s.emptyTitle}>Холодильник пуст</Text>
-            <Text style={s.emptySub}>Добавляйте продукты и следите за сроками годности</Text>
-            <View style={s.emptyBtn}><Text style={s.emptyBtnTxt}>Добавить продукт</Text></View>
+            <Text style={s.emptyTitle}>{t('fridge.empty.title')}</Text>
+            <Text style={s.emptySub}>{t('fridge.empty.sub')}</Text>
+            <View style={s.emptyBtn}><Text style={s.emptyBtnTxt}>{t('fridge.empty.btn')}</Text></View>
           </TouchableOpacity>
         )}
 
         {/* Zone sections */}
-        <ZoneSection items={expired} label="Истекло" color={Colors.danger} onUsed={handleUsed} onDelete={handleDelete} />
-        <ZoneSection items={urgent}  label="Критично (0–1 день)" color='#FF8C42' onUsed={handleUsed} onDelete={handleDelete} />
-        <ZoneSection items={warning} label="Скоро истекает (2–3 дня)" color={Colors.warning} onUsed={handleUsed} onDelete={handleDelete} />
-        <ZoneSection items={fresh}   label="Свежее" color={Colors.success} onUsed={handleUsed} onDelete={handleDelete} />
+        <ZoneSection items={expired} label={t('fridge.zone.expired')} color={Colors.danger} onUsed={handleUsed} onDelete={handleDelete} />
+        <ZoneSection items={urgent}  label={t('fridge.zone.urgent')} color='#FF8C42' onUsed={handleUsed} onDelete={handleDelete} />
+        <ZoneSection items={warning} label={t('fridge.zone.warning')} color={Colors.warning} onUsed={handleUsed} onDelete={handleDelete} />
+        <ZoneSection items={fresh}   label={t('fridge.zone.fresh')} color={Colors.success} onUsed={handleUsed} onDelete={handleDelete} />
 
         {items.length > 0 && (
-          <Text style={s.hint}>✓ — использовано · 🗑 — удалить</Text>
+          <Text style={s.hint}>{t('fridge.hint')}</Text>
         )}
       </Animated.ScrollView>
 
@@ -276,11 +282,11 @@ export function FridgeScreen() {
           <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setShowAdd(false); }} />
           <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.handle} />
-            <Text style={s.sheetTitle}>Добавить продукт</Text>
+            <Text style={s.sheetTitle}>{t('fridge.add.title')}</Text>
             <ScrollView keyboardShouldPersistTaps="handled" indicatorStyle="white" showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Название</Text>
-              <TextInput style={s.input} value={name} onChangeText={setName} placeholder="Молоко 1л..." placeholderTextColor={Colors.textMuted} autoFocus />
-              <Text style={s.label}>Количество и единица</Text>
+              <Text style={s.label}>{t('fridge.add.name')}</Text>
+              <TextInput style={s.input} value={name} onChangeText={setName} placeholder={t('fridge.add.namePh')} placeholderTextColor={Colors.textMuted} autoFocus />
+              <Text style={s.label}>{t('fridge.add.qty')}</Text>
               <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
                 <TextInput style={[s.input, { flex: 1 }]} value={qty} onChangeText={setQty} keyboardType="decimal-pad" />
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 2 }}>
@@ -293,7 +299,7 @@ export function FridgeScreen() {
                   </View>
                 </ScrollView>
               </View>
-              <Text style={s.label}>Срок годности (дней)</Text>
+              <Text style={s.label}>{t('fridge.add.days')}</Text>
               <View style={{ flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.sm }}>
                 {DAY_PRESETS.map(p => (
                   <TouchableOpacity key={p} style={[s.chip, days === p && s.chipOn]} onPress={() => { setDays(p); Keyboard.dismiss(); }}>
@@ -301,13 +307,13 @@ export function FridgeScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-              <TextInput style={s.input} value={days} onChangeText={setDays} keyboardType="number-pad" placeholder="или введите" placeholderTextColor={Colors.textMuted} />
+              <TextInput style={s.input} value={days} onChangeText={setDays} keyboardType="number-pad" placeholder={t('fridge.add.daysPh')} placeholderTextColor={Colors.textMuted} />
               <View style={s.btns}>
                 <TouchableOpacity style={s.cancelBtn} onPress={() => setShowAdd(false)}>
-                  <Text style={s.cancelTxt}>Отмена</Text>
+                  <Text style={s.cancelTxt}>{t('fridge.add.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.saveBtn} onPress={handleAdd} disabled={saving}>
-                  {saving ? <ActivityIndicator color={Colors.bg} /> : <Text style={s.saveTxt}>Добавить</Text>}
+                  {saving ? <ActivityIndicator color={Colors.bg} /> : <Text style={s.saveTxt}>{t('fridge.add.btn')}</Text>}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -320,20 +326,18 @@ export function FridgeScreen() {
         <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowRecipe(false)} />
         <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
           <View style={s.handle} />
-          <Text style={s.sheetTitle}>Что приготовить?</Text>
+          <Text style={s.sheetTitle}>{t('fridge.recipe.title')}</Text>
           <LinearGradient colors={['#1A2B1E','#0E1A12']} style={s.recipeCard} start={{x:0,y:0}} end={{x:1,y:1}}>
             <Text style={{ fontSize: 52, textAlign: 'center', marginBottom: Spacing.md }}>{recipe.emoji}</Text>
             <Text style={s.recipeName}>{recipe.title}</Text>
             <View style={s.recipeMeta}>
               <View style={s.recipeChip}><Text style={s.recipeChipTxt}>⏱ {recipe.time}</Text></View>
-              <View style={s.recipeChip}><Text style={s.recipeChipTxt}>🧊 Из истекающих</Text></View>
+              <View style={s.recipeChip}><Text style={s.recipeChipTxt}>{t('fridge.recipe.fromExpiring')}</Text></View>
             </View>
-            <Text style={s.recipeDisclaimer}>
-              Рецепт подобран на основе продуктов с истекающим сроком годности
-            </Text>
+            <Text style={s.recipeDisclaimer}>{t('fridge.recipe.disclaimer')}</Text>
           </LinearGradient>
           <TouchableOpacity style={[s.saveBtn, { marginTop: Spacing.lg, flex: 0, width: '100%' }]} onPress={() => setShowRecipe(false)}>
-            <Text style={s.saveTxt}>Понятно</Text>
+            <Text style={s.saveTxt}>{t('fridge.recipe.ok')}</Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -350,7 +354,7 @@ function StatCard({ label, value, color }: { label: string; value: number; color
   );
 }
 const sc = StyleSheet.create({
-  card:  { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  card:  { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: Glass.border },
   value: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold },
   label: { fontSize: Typography.sizeXS, color: Colors.textMuted, marginTop: 2 },
 });
@@ -374,7 +378,7 @@ const s = StyleSheet.create({
   alertTitle: { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, color: Colors.warning },
   alertSub:   { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginTop: 2 },
 
-  emptyCard: { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.md },
+  emptyCard: { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: 1, borderColor: Glass.border, marginBottom: Spacing.md },
   emptyTitle:{ fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary },
   emptySub:  { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: Spacing.lg },
   emptyBtn:  { backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
@@ -384,12 +388,12 @@ const s = StyleSheet.create({
 
   // Sheet
   backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:      { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Colors.border },
-  handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.lg },
+  sheet:      { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Glass.border },
+  handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: Glass.border, alignSelf: 'center', marginBottom: Spacing.lg },
   sheetTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
   label:      { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
-  input:      { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.xs },
-  chip:       { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border },
+  input:      { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Glass.border, marginBottom: Spacing.xs },
+  chip:       { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Glass.border },
   chipOn:     { borderColor: Colors.accentTeal, backgroundColor: Colors.accentTeal + '18' },
   chipTxt:    { fontSize: Typography.sizeSM, color: Colors.textSecondary },
   chipTxtOn:  { color: Colors.accentTeal, fontWeight: Typography.weightSemiBold },
@@ -400,7 +404,7 @@ const s = StyleSheet.create({
   saveTxt:    { color: Colors.bg, fontWeight: Typography.weightBold, fontSize: Typography.sizeMD },
 
   // Recipe
-  recipeCard:     { borderRadius: Radius.xl, padding: Spacing.xl, borderWidth: 1, borderColor: Colors.border },
+  recipeCard:     { borderRadius: Radius.xl, padding: Spacing.xl, borderWidth: 1, borderColor: Glass.border },
   recipeName:     { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.md },
   recipeMeta:     { flexDirection: 'row', gap: Spacing.sm, justifyContent: 'center', marginBottom: Spacing.md },
   recipeChip:     { backgroundColor: Colors.surfaceElevated, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 4 },

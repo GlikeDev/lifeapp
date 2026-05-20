@@ -1,16 +1,37 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import { Colors, Radius, Spacing } from '../../constants/tokens';
+import { View, StyleSheet, ViewStyle, StyleProp, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { Radius, Spacing, Glass } from '../../constants/tokens';
 
 interface CardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   elevated?: boolean;
+  accent?: boolean;
 }
 
-export function Card({ children, style, elevated = false }: CardProps) {
+export function Card({ children, style, elevated = false, accent = false }: CardProps) {
+  const cardStyle = [
+    styles.card,
+    elevated && styles.elevated,
+    accent && styles.accent,
+    style,
+  ];
+
+  if (Platform.OS === 'ios') {
+    return (
+      <BlurView intensity={28} tint="dark" style={[styles.card, elevated && styles.elevated, accent && styles.accent, style]}>
+        {/* top shine */}
+        <View style={styles.shine} pointerEvents="none" />
+        {children}
+      </BlurView>
+    );
+  }
+
   return (
-    <View style={[styles.card, elevated && styles.elevated, style]}>
+    <View style={cardStyle}>
+      {/* top shine */}
+      <View style={styles.shine} pointerEvents="none" />
       {children}
     </View>
   );
@@ -18,17 +39,34 @@ export function Card({ children, style, elevated = false }: CardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Glass.surface,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Glass.borderStrong,
+    overflow: 'hidden',
+    // CSS: box-shadow 0 8px 24px rgba(0,0,0,0.35)
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 8,
   },
   elevated: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    backgroundColor: Glass.surfaceMid,
+    borderColor: Glass.borderStrong,
+  },
+  accent: {
+    borderColor: 'rgba(34,211,238,0.45)',
+    backgroundColor: 'rgba(34,211,238,0.06)',
+  },
+  // inset 0 1px 0 rgba(255,255,255,0.10) — top highlight line
+  shine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: Glass.highlight,
   },
 });

@@ -47,7 +47,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: "./assets/favicon.png",
   },
   scheme: "savesmart",
+  fonts: [
+    "./assets/fonts/Sora-Regular.ttf",
+    "./assets/fonts/Sora-SemiBold.ttf",
+    "./assets/fonts/Sora-Bold.ttf",
+    "./assets/fonts/Onest-Regular.ttf",
+    "./assets/fonts/Onest-Medium.ttf",
+    "./assets/fonts/Onest-SemiBold.ttf",
+    "./assets/fonts/Onest-Bold.ttf",
+  ],
   plugins: [
+    "expo-font",
     "expo-camera",
     "expo-notifications",
     "expo-secure-store",
@@ -67,7 +77,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     revenueCatKeyIos: process.env.REVENUECAT_PUBLIC_KEY_IOS,
     revenueCatKeyAndroid: process.env.REVENUECAT_PUBLIC_KEY_ANDROID,
     eas: {
-      projectId: "6ec6e16d-1eee-4504-8665-b04598bb59ab",
+      projectId: "34fe05a7-44d0-4b14-949b-680d2d7418a6",
     },
   },
 });

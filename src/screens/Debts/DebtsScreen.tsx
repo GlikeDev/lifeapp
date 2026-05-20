@@ -8,9 +8,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useTranslation } from '../../i18n';
 import type { Debt, DebtDirection } from '../../types';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -49,8 +50,8 @@ function IcoArrowUp({ c = Colors.success, n = 20 }: { c?: string; n?: number }) 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(isoStr: string): string {
-  return new Date(isoStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+function formatDate(isoStr: string, locale: string): string {
+  return new Date(isoStr).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function initials(name: string): string {
@@ -72,6 +73,7 @@ function avatarColor(name: string): string {
 export function DebtsScreen() {
   const { user } = useAuthStore();
   const insets = useSafeAreaInsets();
+  const { t, locale } = useTranslation();
   const currency = user?.currency ?? 'EUR';
   const currSymb = currency === 'RUB' ? '₽' : currency === 'USD' ? '$' : currency === 'GBP' ? '£' : '€';
 
@@ -79,7 +81,6 @@ export function DebtsScreen() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
 
-  // Add form
   const [direction, setDirection] = useState<DebtDirection>('owed');
   const [person, setPerson] = useState('');
   const [amount, setAmount] = useState('');
@@ -121,7 +122,7 @@ export function DebtsScreen() {
   async function handleSave() {
     const num = parseFloat(amount.replace(',', '.'));
     if (!person.trim() || isNaN(num) || num <= 0) {
-      Alert.alert('Заполните имя и сумму');
+      Alert.alert(t('debt.err.fields'));
       return;
     }
     if (!user) return;
@@ -134,7 +135,7 @@ export function DebtsScreen() {
       note: note.trim() || null,
       direction,
     }).select().single();
-    if (error) { Alert.alert('Ошибка', error.message); setSaving(false); return; }
+    if (error) { Alert.alert(t('scan.err.title'), error.message); setSaving(false); return; }
     setDebts(prev => [data as Debt, ...prev]);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSaving(false);
@@ -143,12 +144,12 @@ export function DebtsScreen() {
 
   function handleSettle(debt: Debt) {
     const label = debt.direction === 'owed'
-      ? `${debt.person} вернул долг?`
-      : `Вы вернули долг ${debt.person}?`;
+      ? t('debt.settle.owed', { name: debt.person })
+      : t('debt.settle.owe', { name: debt.person });
     Alert.alert(label, `${currSymb}${debt.amount.toFixed(2)}`, [
-      { text: 'Отмена', style: 'cancel' },
+      { text: t('debt.settle.cancel'), style: 'cancel' },
       {
-        text: 'Погасить', onPress: async () => {
+        text: t('debt.settle.btn'), onPress: async () => {
           await supabase.from('debts').delete().eq('id', debt.id);
           setDebts(prev => prev.filter(d => d.id !== debt.id));
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -164,8 +165,8 @@ export function DebtsScreen() {
   const owedToMe = debts.filter(d => d.direction === 'owed');
   const iOwe     = debts.filter(d => d.direction === 'owe');
 
-  const totalOwedToMe = owedToMe.reduce((s, d) => s + d.amount, 0);
-  const totalIOwe     = iOwe.reduce((s, d) => s + d.amount, 0);
+  const totalOwedToMe = owedToMe.reduce((sum, d) => sum + d.amount, 0);
+  const totalIOwe     = iOwe.reduce((sum, d) => sum + d.amount, 0);
   const netBalance    = totalOwedToMe - totalIOwe;
   const netPositive   = netBalance >= 0;
 
@@ -179,10 +180,10 @@ export function DebtsScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.title}>Долги</Text>
+          <Text style={s.title}>{t('debt.title')}</Text>
           <TouchableOpacity style={s.addBtn} onPress={openAdd}>
             <IcoPlus c={Colors.accentTeal} n={14} />
-            <Text style={s.addBtnTxt}>Добавить</Text>
+            <Text style={s.addBtnTxt}>{t('debt.add')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -198,27 +199,27 @@ export function DebtsScreen() {
               {netPositive ? <IcoArrowUp c={Colors.success} n={22} /> : <IcoArrowDown c={Colors.danger} n={22} />}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.heroLabel}>Чистый баланс</Text>
+              <Text style={s.heroLabel}>{t('debt.hero.net')}</Text>
               <Text style={[s.heroAmount, { color: netPositive ? Colors.success : Colors.danger }]}>
                 {netPositive ? '+' : ''}{currSymb}{Math.abs(netBalance).toFixed(2)}
               </Text>
               <Text style={s.heroSub}>
-                {netPositive ? 'В целом вам должны больше' : 'В целом вы должны больше'}
+                {netPositive ? t('debt.hero.sub.pos') : t('debt.hero.sub.neg')}
               </Text>
             </View>
           </View>
           <View style={s.heroDivider} />
           <View style={s.heroRow}>
             <View style={s.heroStat}>
-              <Text style={s.heroStatLabel}>Мне должны</Text>
+              <Text style={s.heroStatLabel}>{t('debt.hero.owed')}</Text>
               <Text style={[s.heroStatAmt, { color: Colors.success }]}>{currSymb}{totalOwedToMe.toFixed(2)}</Text>
-              <Text style={s.heroStatCount}>{owedToMe.length} чел.</Text>
+              <Text style={s.heroStatCount}>{t('debt.hero.persons', { n: owedToMe.length })}</Text>
             </View>
             <View style={s.heroSep} />
             <View style={s.heroStat}>
-              <Text style={s.heroStatLabel}>Я должен</Text>
+              <Text style={s.heroStatLabel}>{t('debt.hero.owe')}</Text>
               <Text style={[s.heroStatAmt, { color: Colors.danger }]}>{currSymb}{totalIOwe.toFixed(2)}</Text>
-              <Text style={s.heroStatCount}>{iOwe.length} чел.</Text>
+              <Text style={s.heroStatCount}>{t('debt.hero.persons', { n: iOwe.length })}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -228,20 +229,19 @@ export function DebtsScreen() {
         ) : debts.length === 0 ? (
           <View style={s.emptyCard}>
             <Text style={{ fontSize: 52, marginBottom: Spacing.md }}>🤝</Text>
-            <Text style={s.emptyTitle}>Нет долгов</Text>
-            <Text style={s.emptySub}>Добавьте долг — кто кому и сколько должен</Text>
+            <Text style={s.emptyTitle}>{t('debt.empty.title')}</Text>
+            <Text style={s.emptySub}>{t('debt.empty.sub')}</Text>
             <TouchableOpacity style={s.emptyBtn} onPress={openAdd}>
-              <Text style={s.emptyBtnTxt}>Добавить долг</Text>
+              <Text style={s.emptyBtnTxt}>{t('debt.empty.btn')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
-            {/* Мне должны */}
             {owedToMe.length > 0 && (
               <View style={s.section}>
                 <View style={s.sectionHeader}>
                   <View style={[s.sectionDot, { backgroundColor: Colors.success }]} />
-                  <Text style={[s.sectionTitle, { color: Colors.success }]}>Мне должны</Text>
+                  <Text style={[s.sectionTitle, { color: Colors.success }]}>{t('debt.hero.owed')}</Text>
                   <Text style={s.sectionTotal}>{currSymb}{totalOwedToMe.toFixed(2)}</Text>
                 </View>
                 {owedToMe.map(debt => (
@@ -250,12 +250,11 @@ export function DebtsScreen() {
               </View>
             )}
 
-            {/* Я должен */}
             {iOwe.length > 0 && (
               <View style={s.section}>
                 <View style={s.sectionHeader}>
                   <View style={[s.sectionDot, { backgroundColor: Colors.danger }]} />
-                  <Text style={[s.sectionTitle, { color: Colors.danger }]}>Я должен</Text>
+                  <Text style={[s.sectionTitle, { color: Colors.danger }]}>{t('debt.hero.owe')}</Text>
                   <Text style={s.sectionTotal}>{currSymb}{totalIOwe.toFixed(2)}</Text>
                 </View>
                 {iOwe.map(debt => (
@@ -269,11 +268,11 @@ export function DebtsScreen() {
 
       {/* Add debt sheet */}
       <Modal visible={showAdd} transparent animationType="none" onRequestClose={closeAdd}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={closeAdd} />
           <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 20, transform: [{ translateY: sheetAnim }] }]}>
             <View style={s.handle} />
-            <Text style={s.sheetTitle}>Новый долг</Text>
+            <Text style={s.sheetTitle}>{t('debt.new')}</Text>
 
             {/* Direction toggle */}
             <View style={s.dirToggle}>
@@ -282,28 +281,28 @@ export function DebtsScreen() {
                 onPress={() => setDirection('owed')}
               >
                 <IcoArrowUp c={direction === 'owed' ? Colors.success : Colors.textMuted} n={14} />
-                <Text style={[s.dirBtnTxt, direction === 'owed' && { color: Colors.success }]}>Мне должны</Text>
+                <Text style={[s.dirBtnTxt, direction === 'owed' && { color: Colors.success }]}>{t('debt.hero.owed')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.dirBtn, direction === 'owe' && s.dirBtnActiveRed]}
                 onPress={() => setDirection('owe')}
               >
                 <IcoArrowDown c={direction === 'owe' ? Colors.danger : Colors.textMuted} n={14} />
-                <Text style={[s.dirBtnTxt, direction === 'owe' && { color: Colors.danger }]}>Я должен</Text>
+                <Text style={[s.dirBtnTxt, direction === 'owe' && { color: Colors.danger }]}>{t('debt.hero.owe')}</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={s.label}>Имя</Text>
+            <Text style={s.label}>{t('debt.form.name')}</Text>
             <TextInput
               style={s.input}
               value={person}
               onChangeText={setPerson}
-              placeholder="Саша, Маша..."
+              placeholder={t('debt.form.namePh')}
               placeholderTextColor={Colors.textMuted}
               autoFocus
             />
 
-            <Text style={s.label}>Сумма</Text>
+            <Text style={s.label}>{t('debt.form.amount')}</Text>
             <TextInput
               style={s.input}
               value={amount}
@@ -313,19 +312,19 @@ export function DebtsScreen() {
               placeholderTextColor={Colors.textMuted}
             />
 
-            <Text style={s.label}>Заметка (необязательно)</Text>
+            <Text style={s.label}>{t('debt.form.note')}</Text>
             <TextInput
               style={[s.input, { height: 72, textAlignVertical: 'top' }]}
               value={note}
               onChangeText={setNote}
-              placeholder="За обед, за билеты..."
+              placeholder={t('debt.form.notePh')}
               placeholderTextColor={Colors.textMuted}
               multiline
             />
 
             <View style={s.btns}>
               <TouchableOpacity style={s.cancelBtn} onPress={closeAdd}>
-                <Text style={s.cancelTxt}>Отмена</Text>
+                <Text style={s.cancelTxt}>{t('debt.form.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.saveBtn, { backgroundColor: direction === 'owed' ? Colors.success : Colors.danger }]}
@@ -334,7 +333,7 @@ export function DebtsScreen() {
               >
                 {saving
                   ? <ActivityIndicator color={Colors.bg} />
-                  : <Text style={s.saveTxt}>{direction === 'owed' ? 'Мне должны' : 'Я должен'}</Text>
+                  : <Text style={s.saveTxt}>{direction === 'owed' ? t('debt.hero.owed') : t('debt.hero.owe')}</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -350,6 +349,7 @@ export function DebtsScreen() {
 function DebtRow({ debt, currSymb, onSettle }: {
   debt: Debt; currSymb: string; onSettle: (d: Debt) => void;
 }) {
+  const { t, locale } = useTranslation();
   const isOwed = debt.direction === 'owed';
   const color   = isOwed ? Colors.success : Colors.danger;
   const bgColor = avatarColor(debt.person);
@@ -362,7 +362,7 @@ function DebtRow({ debt, currSymb, onSettle }: {
       <View style={dr.info}>
         <Text style={dr.name}>{debt.person}</Text>
         {debt.note ? <Text style={dr.note}>{debt.note}</Text> : null}
-        <Text style={dr.date}>{formatDate(debt.created_at)}</Text>
+        <Text style={dr.date}>{formatDate(debt.created_at, locale)}</Text>
       </View>
       <View style={dr.right}>
         <Text style={[dr.amount, { color }]}>
@@ -370,7 +370,7 @@ function DebtRow({ debt, currSymb, onSettle }: {
         </Text>
         <TouchableOpacity style={[dr.settleBtn, { borderColor: color + '50', backgroundColor: color + '12' }]} onPress={() => onSettle(debt)}>
           <IcoCheck c={color} n={12} />
-          <Text style={[dr.settleTxt, { color }]}>Погасить</Text>
+          <Text style={[dr.settleTxt, { color }]}>{t('debt.settle.btn')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -378,7 +378,7 @@ function DebtRow({ debt, currSymb, onSettle }: {
 }
 
 const dr = StyleSheet.create({
-  row:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
+  row:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   avatar:    { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   avatarTxt: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold },
   info:      { flex: 1 },
@@ -402,7 +402,7 @@ const s = StyleSheet.create({
   addBtn:    { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.accentTeal + '18', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.accentTeal + '44' },
   addBtnTxt: { color: Colors.accentTeal, fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
 
-  heroCard:  { borderRadius: Radius.xl, padding: Spacing.xl, marginBottom: Spacing.xl, borderWidth: 1, borderColor: Colors.border },
+  heroCard:  { borderRadius: Radius.xl, padding: Spacing.xl, marginBottom: Spacing.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   heroTop:   { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg, marginBottom: Spacing.lg },
   heroIcon:  { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   heroLabel: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: 4 },
@@ -422,25 +422,25 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold },
   sectionTotal: { marginLeft: 'auto', fontSize: Typography.sizeXS, color: Colors.textMuted, fontWeight: Typography.weightSemiBold },
 
-  emptyCard:  { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  emptyCard:  { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   emptyTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary },
   emptySub:   { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: Spacing.lg },
   emptyBtn:   { backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
   emptyBtnTxt:{ color: Colors.bg, fontSize: Typography.sizeSM, fontWeight: Typography.weightBold },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:    { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Colors.border },
+  sheet:    { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   handle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.lg },
   sheetTitle:{ fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
 
   dirToggle: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  dirBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingVertical: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  dirBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingVertical: Spacing.md, borderWidth: 1, borderColor: Glass.border },
   dirBtnActiveGreen:{ borderColor: Colors.success, backgroundColor: Colors.success + '18' },
   dirBtnActiveRed:  { borderColor: Colors.danger,  backgroundColor: Colors.danger  + '18' },
   dirBtnTxt: { fontSize: Typography.sizeSM, color: Colors.textMuted, fontWeight: Typography.weightSemiBold },
 
   label:     { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
-  input:     { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Colors.border },
+  input:     { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Glass.border },
 
   btns:      { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xl },
   cancelBtn: { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },

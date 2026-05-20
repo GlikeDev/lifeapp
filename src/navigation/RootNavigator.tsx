@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
 import { supabase } from '../lib/supabase';
@@ -13,13 +13,27 @@ import { useBudgetStore } from '../store/useBudgetStore';
 
 import { AuthNavigator } from './AuthNavigator';
 import { MainNavigator } from './MainNavigator';
+import { OnboardingScreen } from '../screens/Auth/OnboardingScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const AppTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background:   Colors.bg,
+    card:         Colors.bg,
+    text:         '#FFFFFF',
+    border:       'rgba(255,255,255,0.08)',
+    primary:      '#22D3EE',
+    notification: '#22D3EE',
+  },
+};
 
 export function RootNavigator() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const { setUser } = useAuthStore();
+  const { setUser, user } = useAuthStore();
   const { setMonthlyBudget } = useBudgetStore();
   const navRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
 
@@ -80,6 +94,8 @@ export function RootNavigator() {
     };
   }, []);
 
+  const needsOnboarding = session && user && !user.onboarding_done;
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' }}>
@@ -89,12 +105,14 @@ export function RootNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navRef}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {session ? (
-          <Stack.Screen name="Main" component={MainNavigator} />
-        ) : (
+    <NavigationContainer ref={navRef} theme={AppTheme}>
+      <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+        {!session ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
+        ) : needsOnboarding ? (
+          <Stack.Screen name="Auth" component={OnboardingScreen} />
+        ) : (
+          <Stack.Screen name="Main" component={MainNavigator} />
         )}
       </Stack.Navigator>
     </NavigationContainer>

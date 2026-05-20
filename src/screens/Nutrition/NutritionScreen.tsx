@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
-import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -387,9 +387,10 @@ export function NutritionScreen() {
         {/* Activity Rings Hero */}
         <View style={s.heroCard}>
           <LinearGradient
-            colors={['#1D1E38', '#131427']}
+            colors={['#1E1F3C', '#111224']}
             style={StyleSheet.absoluteFill}
           />
+          <View style={s.heroShine} pointerEvents="none" />
           <View style={{ alignItems: 'center', paddingTop: Spacing.xxl, paddingBottom: Spacing.lg }}>
             <ActivityRings
               proteinPct={proteinPct}
@@ -462,11 +463,20 @@ const s = StyleSheet.create({
   header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: Spacing.lg },
   title:      { fontSize: Typography.sizeXL, fontWeight: Typography.weightBold, color: Colors.textPrimary },
   subtitle:   { fontSize: Typography.sizeSM, color: Colors.textMuted, marginTop: 2 },
-  scoreBadge: { alignItems: 'center', backgroundColor: Colors.surface, borderRadius: Radius.lg, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderWidth: 1, borderColor: Colors.success + '40' },
+  scoreBadge: { alignItems: 'center', backgroundColor: Glass.surface, borderRadius: Radius.lg, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.success + '55' },
   scoreLabel: { fontSize: Typography.sizeXS, color: Colors.textMuted },
   scoreValue: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.success },
 
-  heroCard:   { borderRadius: Radius.xl, overflow: 'hidden', marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  heroCard: {
+    borderRadius: Radius.xl, overflow: 'hidden', marginBottom: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 20,
+  },
+  heroShine: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth,
+    backgroundColor: Glass.highlight,
+    zIndex: 1,
+  },
   legendRow:  { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   legendDot:  { width: 10, height: 10, borderRadius: 5 },
@@ -481,7 +491,7 @@ const s = StyleSheet.create({
   remainText:  { fontSize: 10, fontWeight: Typography.weightSemiBold },
 
   macroRow:   { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  macroCard:  { flex: 1, borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, overflow: 'hidden', backgroundColor: Colors.surface },
+  macroCard:  { flex: 1, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border, padding: Spacing.md, overflow: 'hidden', backgroundColor: Colors.surface },
   macroIcon:  { fontSize: 20, marginBottom: Spacing.xs },
   macroValue: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold },
   macroUnit:  { fontSize: Typography.sizeXS, color: Colors.textSecondary },
@@ -495,17 +505,17 @@ const s = StyleSheet.create({
   deficitText:   { fontSize: Typography.sizeXS, color: Colors.danger, fontWeight: Typography.weightSemiBold },
 
   vitaminGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: Spacing.lg },
-  vitCard:     { width: '49%', borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, backgroundColor: Colors.surface, marginBottom: Spacing.sm },
+  vitCard:     { width: '49%', borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.md, backgroundColor: Colors.surface, marginBottom: Spacing.sm },
   vitName:     { fontSize: Typography.sizeSM, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold, marginBottom: Spacing.xs },
   vitBadge:    { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 2, alignSelf: 'flex-start', marginTop: Spacing.xs },
   vitBadgeText: { fontSize: 9, fontWeight: Typography.weightBold },
 
-  aiCard:  { borderRadius: Radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.accentPurple + '50', padding: Spacing.lg, marginBottom: Spacing.md },
+  aiCard:  { borderRadius: Radius.xl, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border, padding: Spacing.lg, marginBottom: Spacing.md },
   aiStar:  { fontSize: 16, color: Colors.accentPurple, marginRight: Spacing.sm },
   aiTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary },
   aiText:  { fontSize: Typography.sizeSM, color: Colors.textSecondary, lineHeight: 20 },
 
-  howCard:  { borderRadius: Radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border, padding: Spacing.lg, marginBottom: Spacing.md },
+  howCard:  { borderRadius: Radius.xl, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border, padding: Spacing.lg, marginBottom: Spacing.md },
   howTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary, marginBottom: Spacing.sm },
   howText:  { fontSize: Typography.sizeSM, color: Colors.textSecondary, lineHeight: 20 },
 });

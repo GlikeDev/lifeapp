@@ -8,9 +8,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Path, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useTranslation } from '../../i18n';
 import type { Subscription, SubscriptionCycle, SubscriptionCategory } from '../../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -26,13 +27,17 @@ function daysUntil(dateStr: string): number {
   return Math.round((new Date(dateStr).getTime() - today.getTime()) / 86400000);
 }
 
-function nextBillingLabel(dateStr: string): string {
+function nextBillingLabel(
+  dateStr: string,
+  t: (k: string, v?: Record<string, string | number>) => string,
+  locale: string,
+): string {
   const d = daysUntil(dateStr);
-  if (d < 0)  return 'Просрочено';
-  if (d === 0) return 'Сегодня';
-  if (d === 1) return 'Завтра';
-  if (d <= 7)  return `Через ${d} дн.`;
-  return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  if (d < 0)   return t('sub.billing.overdue');
+  if (d === 0) return t('sub.billing.today');
+  if (d === 1) return t('sub.billing.tomorrow');
+  if (d <= 7)  return t('sub.billing.inDays', { n: d });
+  return new Date(dateStr).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 function urgencyColor(dateStr: string): string {
@@ -43,20 +48,17 @@ function urgencyColor(dateStr: string): string {
   return Colors.textMuted;
 }
 
-const CYCLE_LABELS: Record<SubscriptionCycle, string> = {
-  weekly: 'Еженед.', monthly: 'Ежемес.', yearly: 'Ежегодно',
-};
-const CYCLE_MULTS: Record<SubscriptionCycle, number> = {
-  weekly: 52, monthly: 12, yearly: 1,
+const CAT_INFO: Record<SubscriptionCategory, { color: string }> = {
+  streaming: { color: '#E50914' },
+  music:     { color: Colors.accentPurple },
+  fitness:   { color: Colors.success },
+  software:  { color: Colors.accentTeal },
+  finance:   { color: Colors.warning },
+  other:     { color: Colors.textMuted },
 };
 
-const CAT_INFO: Record<SubscriptionCategory, { label: string; color: string }> = {
-  streaming: { label: 'Стриминг',   color: '#E50914' },
-  music:     { label: 'Музыка',     color: Colors.accentPurple },
-  fitness:   { label: 'Фитнес',     color: Colors.success },
-  software:  { label: 'Программы',  color: Colors.accentTeal },
-  finance:   { label: 'Финансы',    color: Colors.warning },
-  other:     { label: 'Прочее',     color: Colors.textMuted },
+const CYCLE_MULTS: Record<SubscriptionCycle, number> = {
+  weekly: 52, monthly: 12, yearly: 1,
 };
 
 const ALL_CATS: SubscriptionCategory[] = ['streaming','music','fitness','software','finance','other'];
@@ -71,7 +73,7 @@ const PRESETS: Omit<Subscription,'id'|'user_id'|'created_at'|'is_active'|'curren
   { name:'Apple Music',       emoji:'🍎', amount:10.99, cycle:'monthly', category:'music'     },
   { name:'iCloud+',           emoji:'☁️', amount:2.99,  cycle:'monthly', category:'software'  },
   { name:'ChatGPT Plus',      emoji:'🤖', amount:20,    cycle:'monthly', category:'software'  },
-  { name:'Тренажёрный зал',   emoji:'💪', amount:30,    cycle:'monthly', category:'fitness'   },
+  { name:'Gym',               emoji:'💪', amount:30,    cycle:'monthly', category:'fitness'   },
   { name:'Adobe CC',          emoji:'🎨', amount:54.99, cycle:'monthly', category:'software'  },
   { name:'Google One',        emoji:'🔵', amount:2.99,  cycle:'monthly', category:'software'  },
   { name:'Amazon Prime',      emoji:'📦', amount:8.99,  cycle:'monthly', category:'streaming' },
@@ -101,6 +103,7 @@ function IcoPlay({ c = Colors.success, n = 16 }: { c?: string; n?: number }) {
 export function SubscriptionsScreen() {
   const { user } = useAuthStore();
   const insets = useSafeAreaInsets();
+  const { t, locale } = useTranslation();
   const currency = user?.currency ?? 'EUR';
 
   const [subs, setSubs] = useState<Subscription[]>([]);
@@ -108,7 +111,6 @@ export function SubscriptionsScreen() {
   const [showAdd, setShowAdd] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
 
-  // Add form
   const [name, setName]       = useState('');
   const [emoji, setEmoji]     = useState('💳');
   const [amount, setAmount]   = useState('');
@@ -126,7 +128,7 @@ export function SubscriptionsScreen() {
   async function load() {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', user.id)
@@ -138,7 +140,7 @@ export function SubscriptionsScreen() {
 
   async function handleSave() {
     const num = parseFloat(amount.replace(',', '.'));
-    if (!name.trim() || isNaN(num) || num <= 0) { Alert.alert('Введите название и сумму'); return; }
+    if (!name.trim() || isNaN(num) || num <= 0) { Alert.alert(t('sub.err.nameAmount')); return; }
     if (!user) return;
     const nextDate = new Date();
     nextDate.setDate(nextDate.getDate() + (parseInt(daysFromNow) || 30));
@@ -148,7 +150,7 @@ export function SubscriptionsScreen() {
       currency, cycle, next_billing: nextDate.toISOString().slice(0, 10),
       category, is_active: true,
     }).select().single();
-    if (error) { Alert.alert('Ошибка', error.message); setSaving(false); return; }
+    if (error) { Alert.alert(t('scan.err.title'), error.message); setSaving(false); return; }
     setSubs(prev => [...prev, data as Subscription].sort((a, b) =>
       new Date(a.next_billing).getTime() - new Date(b.next_billing).getTime()
     ));
@@ -164,7 +166,7 @@ export function SubscriptionsScreen() {
       user_id: user.id, ...preset, currency, is_active: true,
       next_billing: nextDate.toISOString().slice(0, 10),
     }).select().single();
-    if (error) { Alert.alert('Ошибка', error.message); return; }
+    if (error) { Alert.alert(t('scan.err.title'), error.message); return; }
     setSubs(prev => [...prev, data as Subscription].sort((a, b) =>
       new Date(a.next_billing).getTime() - new Date(b.next_billing).getTime()
     ));
@@ -172,9 +174,9 @@ export function SubscriptionsScreen() {
   }
 
   async function handleDelete(id: string) {
-    Alert.alert('Удалить подписку?', '', [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Удалить', style: 'destructive', onPress: async () => {
+    Alert.alert(t('sub.delete.title'), '', [
+      { text: t('sub.delete.cancel'), style: 'cancel' },
+      { text: t('sub.delete.confirm'), style: 'destructive', onPress: async () => {
         await supabase.from('subscriptions').delete().eq('id', id);
         setSubs(prev => prev.filter(s => s.id !== id));
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -199,7 +201,6 @@ export function SubscriptionsScreen() {
   const totalYearly  = totalMonthly * 12;
   const upcoming     = subs.filter(s => daysUntil(s.next_billing) <= 7 && s.is_active);
 
-  // Group by category
   const byCategory = ALL_CATS.reduce<Record<string, Subscription[]>>((acc, cat) => {
     acc[cat] = subs.filter(s => s.category === cat);
     return acc;
@@ -211,14 +212,14 @@ export function SubscriptionsScreen() {
 
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.title}>Подписки</Text>
+          <Text style={s.title}>{t('sub.title')}</Text>
           <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
             <TouchableOpacity style={s.presetBtn} onPress={() => setShowPresets(true)}>
-              <Text style={s.presetBtnTxt}>Шаблоны</Text>
+              <Text style={s.presetBtnTxt}>{t('sub.presets')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.addBtn} onPress={() => setShowAdd(true)}>
               <IcoPlus c={Colors.accentTeal} n={14} />
-              <Text style={s.addBtnTxt}>Добавить</Text>
+              <Text style={s.addBtnTxt}>{t('sub.add')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -226,18 +227,18 @@ export function SubscriptionsScreen() {
         {/* Summary hero */}
         <LinearGradient colors={['#1A2B3C','#0F1B26']} style={s.summaryCard} start={{x:0,y:0}} end={{x:1,y:1}}>
           <View style={s.summaryMain}>
-            <Text style={s.summaryLabel}>В месяц</Text>
+            <Text style={s.summaryLabel}>{t('sub.summary.monthly')}</Text>
             <Text style={s.summaryAmount}>{currSymb}{totalMonthly.toFixed(2)}</Text>
-            <Text style={s.summaryYearly}>{currSymb}{totalYearly.toFixed(0)} в год · {activeSubs.length} подписок</Text>
+            <Text style={s.summaryYearly}>{t('sub.summary.yearly', { yearly: currSymb + totalYearly.toFixed(0), count: activeSubs.length })}</Text>
           </View>
           <View style={s.summarySplit}>
             {ALL_CATS.filter(cat => byCategory[cat].length > 0).slice(0, 3).map(cat => {
-              const catTotal = byCategory[cat].filter(s => s.is_active).reduce((sum, s) => sum + toMonthly(s.amount, s.cycle), 0);
+              const catTotal = byCategory[cat].filter(sub => sub.is_active).reduce((sum, sub) => sum + toMonthly(sub.amount, sub.cycle), 0);
               const info = CAT_INFO[cat];
               return (
                 <View key={cat} style={s.summaryChip}>
                   <View style={[s.summaryDot, { backgroundColor: info.color }]} />
-                  <Text style={s.summaryChipTxt}>{info.label}</Text>
+                  <Text style={s.summaryChipTxt}>{t('sub.cat.' + cat)}</Text>
                   <Text style={[s.summaryChipAmt, { color: info.color }]}>{currSymb}{catTotal.toFixed(0)}</Text>
                 </View>
               );
@@ -250,10 +251,10 @@ export function SubscriptionsScreen() {
         ) : subs.length === 0 ? (
           <View style={s.emptyCard}>
             <Text style={{ fontSize: 52, marginBottom: Spacing.md }}>💳</Text>
-            <Text style={s.emptyTitle}>Нет подписок</Text>
-            <Text style={s.emptySub}>Добавьте подписки чтобы видеть сколько тратите каждый месяц</Text>
+            <Text style={s.emptyTitle}>{t('sub.empty.title')}</Text>
+            <Text style={s.emptySub}>{t('sub.empty.sub')}</Text>
             <TouchableOpacity style={s.emptyBtn} onPress={() => setShowPresets(true)}>
-              <Text style={s.emptyBtnTxt}>Выбрать из шаблонов</Text>
+              <Text style={s.emptyBtnTxt}>{t('sub.empty.btn')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -261,7 +262,7 @@ export function SubscriptionsScreen() {
             {/* Upcoming renewals */}
             {upcoming.length > 0 && (
               <View style={s.section}>
-                <Text style={[s.sectionTitle, { color: Colors.warning }]}>⚡ Ближайшие списания</Text>
+                <Text style={[s.sectionTitle, { color: Colors.warning }]}>{t('sub.upcoming')}</Text>
                 {upcoming.map(sub => (
                   <SubRow key={sub.id} sub={sub} currSymb={currSymb} onDelete={handleDelete} onToggle={toggleActive} highlight />
                 ))}
@@ -277,9 +278,9 @@ export function SubscriptionsScreen() {
                 <View key={cat} style={s.section}>
                   <View style={s.catHeader}>
                     <View style={[s.catDot, { backgroundColor: info.color }]} />
-                    <Text style={[s.sectionTitle, { color: info.color }]}>{info.label}</Text>
+                    <Text style={[s.sectionTitle, { color: info.color }]}>{t('sub.cat.' + cat)}</Text>
                     <Text style={s.catTotal}>
-                      {currSymb}{items.filter(s=>s.is_active).reduce((sum,s)=>sum+toMonthly(s.amount,s.cycle),0).toFixed(0)}/мес
+                      {currSymb}{items.filter(sub=>sub.is_active).reduce((sum,sub)=>sum+toMonthly(sub.amount,sub.cycle),0).toFixed(0)}{t('sub.perMonth')}
                     </Text>
                   </View>
                   {items.map(sub => (
@@ -294,11 +295,11 @@ export function SubscriptionsScreen() {
 
       {/* Add subscription sheet */}
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowAdd(false)} />
           <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.handle} />
-            <Text style={s.sheetTitle}>Новая подписка</Text>
+            <Text style={s.sheetTitle}>{t('sub.new')}</Text>
             <ScrollView keyboardShouldPersistTaps="handled" indicatorStyle="white" showsVerticalScrollIndicator={false}>
 
               {/* Emoji picker */}
@@ -312,34 +313,34 @@ export function SubscriptionsScreen() {
                 </View>
               </ScrollView>
 
-              <Text style={s.label}>Название</Text>
+              <Text style={s.label}>{t('sub.form.name')}</Text>
               <TextInput style={s.input} value={name} onChangeText={setName} placeholder="Netflix, Spotify..." placeholderTextColor={Colors.textMuted} autoFocus />
 
-              <Text style={s.label}>Сумма</Text>
+              <Text style={s.label}>{t('sub.form.amount')}</Text>
               <TextInput style={s.input} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="9.99" placeholderTextColor={Colors.textMuted} />
 
-              <Text style={s.label}>Периодичность</Text>
+              <Text style={s.label}>{t('sub.form.cycle')}</Text>
               <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
                 {ALL_CYCLES.map(c => (
                   <TouchableOpacity key={c} style={[s.cycleBtn, cycle === c && s.cycleBtnOn]} onPress={() => setCycle(c)}>
-                    <Text style={[s.cycleBtnTxt, cycle === c && s.cycleBtnTxtOn]}>{CYCLE_LABELS[c]}</Text>
+                    <Text style={[s.cycleBtnTxt, cycle === c && s.cycleBtnTxtOn]}>{t('sub.cycle.' + c)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Категория</Text>
+              <Text style={s.label}>{t('sub.form.cat')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs }}>
                 {ALL_CATS.map(cat => {
                   const info = CAT_INFO[cat];
                   return (
                     <TouchableOpacity key={cat} style={[s.catChip, category === cat && { borderColor: info.color, backgroundColor: info.color + '18' }]} onPress={() => setCategory(cat)}>
-                      <Text style={[s.catChipTxt, category === cat && { color: info.color }]}>{info.label}</Text>
+                      <Text style={[s.catChipTxt, category === cat && { color: info.color }]}>{t('sub.cat.' + cat)}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <Text style={s.label}>Следующее списание (дней)</Text>
+              <Text style={s.label}>{t('sub.form.days')}</Text>
               <View style={{ flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.sm }}>
                 {['7','14','30','90','365'].map(d => (
                   <TouchableOpacity key={d} style={[s.dayBtn, daysFromNow === d && s.dayBtnOn]} onPress={() => setDaysFromNow(d)}>
@@ -351,10 +352,10 @@ export function SubscriptionsScreen() {
 
               <View style={s.btns}>
                 <TouchableOpacity style={s.cancelBtn} onPress={() => setShowAdd(false)}>
-                  <Text style={s.cancelTxt}>Отмена</Text>
+                  <Text style={s.cancelTxt}>{t('sub.form.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={saving}>
-                  {saving ? <ActivityIndicator color={Colors.bg} /> : <Text style={s.saveTxt}>Сохранить</Text>}
+                  {saving ? <ActivityIndicator color={Colors.bg} /> : <Text style={s.saveTxt}>{t('sub.form.save')}</Text>}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -367,10 +368,10 @@ export function SubscriptionsScreen() {
         <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowPresets(false)} />
         <View style={[s.sheet, { paddingBottom: insets.bottom + 20, maxHeight: '70%' }]}>
           <View style={s.handle} />
-          <Text style={s.sheetTitle}>Популярные подписки</Text>
+          <Text style={s.sheetTitle}>{t('sub.presetsTitle')}</Text>
           <ScrollView indicatorStyle="white" showsVerticalScrollIndicator={false}>
             {PRESETS.map(preset => {
-              const already = subs.some(s => s.name === preset.name);
+              const already = subs.some(sub => sub.name === preset.name);
               return (
                 <TouchableOpacity
                   key={preset.name}
@@ -381,7 +382,7 @@ export function SubscriptionsScreen() {
                   <Text style={{ fontSize: 24, width: 36 }}>{preset.emoji}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={s.presetName}>{preset.name}</Text>
-                    <Text style={s.presetMeta}>{CAT_INFO[preset.category].label} · {CYCLE_LABELS[preset.cycle]}</Text>
+                    <Text style={s.presetMeta}>{t('sub.cat.' + preset.category)} · {t('sub.cycle.' + preset.cycle)}</Text>
                   </View>
                   <Text style={s.presetAmt}>{currSymb}{preset.amount}</Text>
                   {already
@@ -407,6 +408,7 @@ function SubRow({ sub, currSymb, onDelete, onToggle, highlight }: {
   onDelete: (id: string) => void; onToggle: (sub: Subscription) => void;
   highlight?: boolean;
 }) {
+  const { t, locale } = useTranslation();
   const info = CAT_INFO[sub.category];
   const monthly = toMonthly(sub.amount, sub.cycle);
   const urgColor = urgencyColor(sub.next_billing);
@@ -418,14 +420,14 @@ function SubRow({ sub, currSymb, onDelete, onToggle, highlight }: {
       <View style={sr.info}>
         <Text style={[sr.name, !sub.is_active && { color: Colors.textMuted }]}>{sub.name}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={[sr.nextDate, { color: urgColor }]}>{nextBillingLabel(sub.next_billing)}</Text>
+          <Text style={[sr.nextDate, { color: urgColor }]}>{nextBillingLabel(sub.next_billing, t, locale)}</Text>
           <Text style={sr.dot}>·</Text>
-          <Text style={sr.cycle}>{CYCLE_LABELS[sub.cycle]}</Text>
+          <Text style={sr.cycle}>{t('sub.cycle.' + sub.cycle)}</Text>
         </View>
       </View>
       <View style={sr.right}>
         <Text style={[sr.amount, !sub.is_active && { color: Colors.textMuted }]}>{currSymb}{sub.amount.toFixed(2)}</Text>
-        <Text style={sr.monthly}>{currSymb}{monthly.toFixed(0)}/мес</Text>
+        <Text style={sr.monthly}>{currSymb}{monthly.toFixed(0)}{t('sub.perMonth')}</Text>
       </View>
       <TouchableOpacity style={sr.iconBtn} onPress={() => onToggle(sub)}>
         {sub.is_active ? <IcoPause c={Colors.textMuted} n={14} /> : <IcoPlay c={Colors.success} n={14} />}
@@ -437,7 +439,7 @@ function SubRow({ sub, currSymb, onDelete, onToggle, highlight }: {
   );
 }
 const sr = StyleSheet.create({
-  row:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
+  row:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   rowPaused: { opacity: 0.55 },
   emojiWrap: { width: 42, height: 42, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   info:      { flex: 1 },
@@ -461,10 +463,10 @@ const s = StyleSheet.create({
   title:      { fontSize: 28, fontWeight: Typography.weightBold, color: Colors.textPrimary },
   addBtn:     { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.accentTeal + '18', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.accentTeal + '44' },
   addBtnTxt:  { color: Colors.accentTeal, fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
-  presetBtn:  { backgroundColor: Colors.surface, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.border },
+  presetBtn:  { backgroundColor: Colors.surface, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   presetBtnTxt:{ color: Colors.textSecondary, fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
 
-  summaryCard:  { borderRadius: Radius.xl, padding: Spacing.xl, marginBottom: Spacing.xl, borderWidth: 1, borderColor: Colors.border },
+  summaryCard:  { borderRadius: Radius.xl, padding: Spacing.xl, marginBottom: Spacing.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   summaryMain:  { marginBottom: Spacing.lg },
   summaryLabel: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: 4 },
   summaryAmount:{ fontSize: 40, fontWeight: Typography.weightBold, color: Colors.textPrimary },
@@ -481,28 +483,27 @@ const s = StyleSheet.create({
   catDot:      { width: 8, height: 8, borderRadius: 4 },
   catTotal:    { marginLeft: 'auto', fontSize: Typography.sizeXS, color: Colors.textMuted },
 
-  emptyCard:  { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  emptyCard:  { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   emptyTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary },
   emptySub:   { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: Spacing.lg },
   emptyBtn:   { backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
   emptyBtnTxt:{ color: Colors.bg, fontSize: Typography.sizeSM, fontWeight: Typography.weightBold },
 
-  // Sheet
   backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:      { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Colors.border },
+  sheet:      { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.lg },
   sheetTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
   label:      { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
-  input:      { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Colors.border },
-  emojiBtn:   { width: 40, height: 40, borderRadius: Radius.md, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  input:      { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
+  emojiBtn:   { width: 40, height: 40, borderRadius: Radius.md, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   emojiBtnOn: { borderColor: Colors.accentTeal, borderWidth: 2 },
-  cycleBtn:   { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingVertical: Spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  cycleBtn:   { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingVertical: Spacing.sm, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   cycleBtnOn: { backgroundColor: Colors.accentTeal + '20', borderColor: Colors.accentTeal },
   cycleBtnTxt:{ fontSize: Typography.sizeSM, color: Colors.textSecondary },
   cycleBtnTxtOn:{ color: Colors.accentTeal, fontWeight: Typography.weightSemiBold },
-  catChip:    { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border },
+  catChip:    { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   catChipTxt: { fontSize: Typography.sizeXS, color: Colors.textSecondary },
-  dayBtn:     { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border },
+  dayBtn:     { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   dayBtnOn:   { backgroundColor: Colors.accentPurple + '20', borderColor: Colors.accentPurple },
   dayBtnTxt:  { fontSize: Typography.sizeXS, color: Colors.textSecondary },
   dayBtnTxtOn:{ color: Colors.accentPurple, fontWeight: Typography.weightSemiBold },
@@ -512,8 +513,7 @@ const s = StyleSheet.create({
   saveBtn:    { flex: 2, backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
   saveTxt:    { color: Colors.bg, fontWeight: Typography.weightBold, fontSize: Typography.sizeMD },
 
-  // Presets
-  presetRow:    { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.md, marginBottom: Spacing.sm, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
+  presetRow:    { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.md, marginBottom: Spacing.sm, backgroundColor: Colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
   presetRowDone:{ opacity: 0.5 },
   presetName:   { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textPrimary },
   presetMeta:   { fontSize: Typography.sizeXS, color: Colors.textMuted, marginTop: 2 },

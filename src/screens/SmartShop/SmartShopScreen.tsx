@@ -9,20 +9,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
-import { Colors, Typography, Spacing, Radius, Layout } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { fetchProductByBarcode, searchProductsByName } from '../../lib/openFoodFacts';
 import type { OFFProduct } from '../../lib/openFoodFacts';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useTranslation } from '../../i18n';
 import { CoachMark, TipStep } from '../../components/CoachMark';
 import { useCoachMark } from '../../hooks/useCoachMark';
-
-const PRODUCTS_TIPS: TipStep[] = [
-  { icon: '🛒', title: 'Сравните цены на продукты', body: 'Ищите товары по названию или сканируйте штрих-код прямо в магазине — мы покажем, где дешевле.' },
-  { icon: '📷', title: 'Сканер штрих-кода', body: 'Нажмите на кнопку со сканером рядом с поиском. Наведите камеру на штрих-код — товар определится автоматически.' },
-  { icon: '💰', title: 'Сравнение цен', body: 'После выбора товара увидите цены в разных магазинах. Зелёным выделен самый выгодный вариант поблизости.' },
-  { icon: '➕', title: 'Добавьте свою цену', body: 'Знаете цену в вашем магазине? Нажмите «Добавить цену» и введите данные — мы сразу покажем выгоду.' },
-];
 
 const { width: SW } = Dimensions.get('window');
 const VF_W = Math.round(SW * 0.76);
@@ -93,9 +87,9 @@ interface PriceEntry { store: string; price: number; distance: string; isUser?: 
 
 const STORE_SUGGESTIONS = ['Lidl', 'Aldi', 'Rewe', 'Kaufland', 'Carrefour', 'Spar', 'Пятёрочка', 'Магнит', 'Перекрёсток', 'Лента'];
 
-function hashCode(s: string): number {
+function hashCode(str: string): number {
   let h = 5381;
-  for (let i = 0; i < s.length; i++) { h = ((h << 5) + h) + s.charCodeAt(i); h |= 0; }
+  for (let i = 0; i < str.length; i++) { h = ((h << 5) + h) + str.charCodeAt(i); h |= 0; }
   return Math.abs(h);
 }
 
@@ -103,16 +97,18 @@ function mockPrices(seed: string): PriceEntry[] {
   const h = hashCode(seed);
   const base = 1 + (h % 700) / 100;
   const stores = [
-    { store: STORE_SUGGESTIONS[h % 4],          price: base,                                      distance: '0.3 км' },
-    { store: STORE_SUGGESTIONS[(h + 1) % 4 + 4], price: +(base * (1.08 + ((h >> 8) & 0x1F) / 200)).toFixed(2), distance: '0.8 км' },
-    { store: STORE_SUGGESTIONS[(h + 2) % 3 + 1], price: +(base * (1.15 + ((h >> 16) & 0x1F) / 160)).toFixed(2), distance: '1.3 км' },
-    { store: STORE_SUGGESTIONS[(h + 3) % 3 + 2], price: +(base * (1.22 + ((h >> 24) & 0x1F) / 130)).toFixed(2), distance: '1.8 км' },
+    { store: STORE_SUGGESTIONS[h % 4],          price: base,                                      distance: '0.3 km' },
+    { store: STORE_SUGGESTIONS[(h + 1) % 4 + 4], price: +(base * (1.08 + ((h >> 8) & 0x1F) / 200)).toFixed(2), distance: '0.8 km' },
+    { store: STORE_SUGGESTIONS[(h + 2) % 3 + 1], price: +(base * (1.15 + ((h >> 16) & 0x1F) / 160)).toFixed(2), distance: '1.3 km' },
+    { store: STORE_SUGGESTIONS[(h + 3) % 3 + 2], price: +(base * (1.22 + ((h >> 24) & 0x1F) / 130)).toFixed(2), distance: '1.8 km' },
   ];
   return stores.sort((a, b) => a.price - b.price);
 }
 
+// ─── PriceBar ─────────────────────────────────────────────────────────────────
+
 function PriceBar({ price, best, currency }: { price: number; best: number; currency: string }) {
-  const pct = Math.min((best / price), 1);
+  const { t } = useTranslation();
   const fillPct = best === price ? 1 : price / (best * 1.5);
   const diffPct = Math.round(((price - best) / best) * 100);
   const isBest = price === best;
@@ -123,8 +119,8 @@ function PriceBar({ price, best, currency }: { price: number; best: number; curr
         <View style={[pb.barFill, { width: `${Math.min(fillPct * 100, 100)}%`, backgroundColor: isBest ? Colors.success : Colors.accentPurple }]} />
       </View>
       {isBest
-        ? <Text style={pb.best}>🏆 лучшая цена</Text>
-        : <Text style={pb.diff}>▲ +{diffPct}% дороже</Text>
+        ? <Text style={pb.best}>{t('shop.price.best')}</Text>
+        : <Text style={pb.diff}>{t('shop.price.more', { n: diffPct })}</Text>
       }
     </View>
   );
@@ -132,7 +128,7 @@ function PriceBar({ price, best, currency }: { price: number; best: number; curr
 
 const pb = StyleSheet.create({
   wrap:   { marginTop: 4 },
-  barBg:  { height: 4, backgroundColor: Colors.border, borderRadius: 2, overflow: 'hidden', marginBottom: 4 },
+  barBg:  { height: 4, backgroundColor: Glass.border, borderRadius: 2, overflow: 'hidden', marginBottom: 4 },
   barFill:{ height: 4, borderRadius: 2 },
   best:   { fontSize: 10, color: Colors.success, fontWeight: '600' },
   diff:   { fontSize: 10, color: Colors.textMuted },
@@ -143,8 +139,16 @@ const pb = StyleSheet.create({
 export function SmartShopScreen() {
   const { user } = useAuthStore();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const currency = user?.currency ?? 'EUR';
   const { visible: tipsVisible, complete: tipsDone } = useCoachMark('products');
+
+  const PRODUCTS_TIPS: TipStep[] = [
+    { icon: '🛒', title: t('shop.tips.0.title'), body: t('shop.tips.0.body') },
+    { icon: '📷', title: t('shop.tips.1.title'), body: t('shop.tips.1.body') },
+    { icon: '💰', title: t('shop.tips.2.title'), body: t('shop.tips.2.body') },
+    { icon: '➕', title: t('shop.tips.3.title'), body: t('shop.tips.3.body') },
+  ];
 
   const [mode, setMode]               = useState<Mode>('hub');
   const [permission, reqPerm]         = useCameraPermissions();
@@ -158,14 +162,12 @@ export function SmartShopScreen() {
   const [addStore, setAddStore]       = useState('');
   const [addPrice, setAddPrice]       = useState('');
 
-  // Manual add form
   const [manualName, setManualName]   = useState('');
   const [manualBrand, setManualBrand] = useState('');
   const [manualRows, setManualRows]   = useState<PriceEntry[]>([
     { store: '', price: 0, distance: '' },
   ]);
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scanAnim = useRef(new Animated.Value(0)).current;
 
@@ -188,7 +190,7 @@ export function SmartShopScreen() {
     setLoading(true); setProduct(null); setResults([]);
     const r = await searchProductsByName(query.trim());
     setResults(r); setLoading(false);
-    if (r.length === 0) Alert.alert('Ничего не найдено', 'Попробуйте другое название');
+    if (r.length === 0) Alert.alert(t('shop.search.empty'), t('shop.search.emptySub'));
   }
 
   function selectProduct(p: OFFProduct) {
@@ -201,7 +203,7 @@ export function SmartShopScreen() {
   async function openScanner() {
     if (!permission?.granted) {
       const r = await reqPerm();
-      if (!r.granted) { Alert.alert('Нет доступа к камере'); return; }
+      if (!r.granted) { Alert.alert(t('scan.noCam')); return; }
     }
     setScanned(false);
     setMode('scan');
@@ -218,9 +220,9 @@ export function SmartShopScreen() {
     if (p) {
       selectProduct(p);
     } else {
-      Alert.alert('Товар не найден', `Штрих-код: ${data}\n\nДобавьте вручную?`, [
-        { text: 'Отмена' },
-        { text: 'Добавить', onPress: () => setMode('addManual') },
+      Alert.alert(t('shop.notFound.title'), t('shop.notFound.msg', { code: data }), [
+        { text: t('debt.form.cancel') },
+        { text: t('shop.notFound.add'), onPress: () => setMode('addManual') },
       ]);
     }
   }
@@ -228,10 +230,10 @@ export function SmartShopScreen() {
   function addUserPrice() {
     const num = parseFloat(addPrice.replace(',', '.'));
     if (!addStore.trim() || isNaN(num) || num <= 0) {
-      Alert.alert('Ошибка', 'Введите название магазина и цену');
+      Alert.alert(t('scan.err.title'), t('shop.err.storePrice'));
       return;
     }
-    const entry: PriceEntry = { store: addStore.trim(), price: num, distance: 'Ваш магазин', isUser: true };
+    const entry: PriceEntry = { store: addStore.trim(), price: num, distance: '', isUser: true };
     const updated = [...prices, entry].sort((a, b) => a.price - b.price);
     setPrices(updated);
     setAddStore(''); setAddPrice('');
@@ -253,11 +255,11 @@ export function SmartShopScreen() {
       name: p.name, quantity: 1, unit: 'шт',
       expires_at: exp.toISOString().slice(0, 10),
     });
-    Alert.alert('Добавлено в холодильник', `${p.name} — срок 7 дней`);
+    Alert.alert(t('shop.addedFridge'), t('shop.addedFridgeSub', { name: p.name }));
   }
 
   async function saveManualProduct() {
-    if (!manualName.trim()) { Alert.alert('Введите название товара'); return; }
+    if (!manualName.trim()) { Alert.alert(t('shop.err.name')); return; }
     if (!user) return;
     const validRows = manualRows.filter(r => r.store.trim() && r.price > 0);
 
@@ -290,8 +292,8 @@ export function SmartShopScreen() {
         <ScrollView contentContainerStyle={s.hubPad} keyboardShouldPersistTaps="handled" indicatorStyle="white" showsVerticalScrollIndicator={false}>
 
           <Animated.View style={{ opacity: fadeAnim }}>
-            <Text style={s.hubTitle}>Продукты</Text>
-            <Text style={s.hubSub}>Найди лучшую цену рядом</Text>
+            <Text style={s.hubTitle}>{t('shop.title')}</Text>
+            <Text style={s.hubSub}>{t('shop.sub')}</Text>
 
             {/* Search bar */}
             <View style={s.searchRow}>
@@ -301,7 +303,7 @@ export function SmartShopScreen() {
                   style={s.searchInput}
                   value={query}
                   onChangeText={setQuery}
-                  placeholder="Название товара..."
+                  placeholder={t('shop.searchPh')}
                   placeholderTextColor={Colors.textMuted}
                   returnKeyType="search"
                   onSubmitEditing={doSearch}
@@ -325,7 +327,7 @@ export function SmartShopScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={s.resultName} numberOfLines={1}>{p.name}</Text>
                       {!!p.brand && <Text style={s.resultBrand}>{p.brand}</Text>}
-                      {!!p.calories_per_100g && <Text style={s.resultCal}>{p.calories_per_100g} ккал</Text>}
+                      {!!p.calories_per_100g && <Text style={s.resultCal}>{p.calories_per_100g} {t('shop.nutri.kcal')}</Text>}
                     </View>
                     <Text style={{ color: Colors.textMuted, fontSize: 20 }}>›</Text>
                   </TouchableOpacity>
@@ -338,23 +340,23 @@ export function SmartShopScreen() {
               <TouchableOpacity style={s.actionCard} onPress={openScanner} activeOpacity={0.82}>
                 <LinearGradient colors={['#7B6CF6', '#5243D1']} style={s.actionGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                   <View style={s.actionIcon}><IcoBarcode c="#fff" n={26} /></View>
-                  <Text style={s.actionTitle}>Сканировать</Text>
-                  <Text style={s.actionSub}>штрих-код товара</Text>
+                  <Text style={s.actionTitle}>{t('shop.action.scan')}</Text>
+                  <Text style={s.actionSub}>{t('shop.action.scanSub')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
               <TouchableOpacity style={s.actionCard} onPress={() => setMode('addManual')} activeOpacity={0.82}>
                 <LinearGradient colors={['#00C9A7', '#008F7A']} style={s.actionGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                   <View style={s.actionIcon}><IcoPlus c="#fff" n={26} /></View>
-                  <Text style={s.actionTitle}>Добавить</Text>
-                  <Text style={s.actionSub}>товар вручную</Text>
+                  <Text style={s.actionTitle}>{t('shop.action.add')}</Text>
+                  <Text style={s.actionSub}>{t('shop.action.addSub')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
 
             {/* Tip */}
             <View style={s.tipCard}>
-              <Text style={s.tipText}>💡 Сканируйте штрих-код прямо в магазине — сразу увидите, где дешевле</Text>
+              <Text style={s.tipText}>{t('shop.tip')}</Text>
             </View>
           </Animated.View>
         </ScrollView>
@@ -375,9 +377,7 @@ export function SmartShopScreen() {
           onBarcodeScanned={scanned ? undefined : onBarcodeScanned}
           barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'qr'] }}
         />
-        {/* Mask top */}
         <View style={{ height: vfTop, backgroundColor: 'rgba(0,0,0,0.65)' }} />
-        {/* Middle */}
         <View style={{ height: VF_H, flexDirection: 'row' }}>
           <View style={{ width: (SW - VF_W) / 2, backgroundColor: 'rgba(0,0,0,0.65)' }} />
           <View style={{ width: VF_W, overflow: 'hidden' }}>
@@ -387,12 +387,11 @@ export function SmartShopScreen() {
           </View>
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' }} />
         </View>
-        {/* Mask bottom */}
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', paddingTop: 32 }}>
-          <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, marginBottom: 12 }}>Наведите на штрих-код товара</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, marginBottom: 12 }}>{t('shop.scan.hint')}</Text>
           <TouchableOpacity style={s.cancelBtn} onPress={() => setMode('hub')}>
             <IcoLeft c="#fff" n={18} />
-            <Text style={s.cancelTxt}>Назад</Text>
+            <Text style={s.cancelTxt}>{t('shop.scan.back')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -412,7 +411,7 @@ export function SmartShopScreen() {
             <TouchableOpacity style={s.backBtn} onPress={() => { setMode('hub'); setResults([]); }}>
               <IcoLeft c={Colors.accentTeal} n={22} />
             </TouchableOpacity>
-            <Text style={s.headerTitle} numberOfLines={1}>Информация о товаре</Text>
+            <Text style={s.headerTitle} numberOfLines={1}>{t('shop.product.title')}</Text>
             <View style={{ width: 38 }} />
           </View>
 
@@ -428,10 +427,10 @@ export function SmartShopScreen() {
             {/* Nutrition chips */}
             {!!product.calories_per_100g && (
               <View style={s.nutriRow}>
-                <NChip label="ккал" val={product.calories_per_100g} col={Colors.warning} />
-                {!!product.protein_per_100g && <NChip label="Белок" val={product.protein_per_100g} col={Colors.accentTeal} unit="г" />}
-                {!!product.fat_per_100g && <NChip label="Жир" val={product.fat_per_100g} col={Colors.danger} unit="г" />}
-                {!!product.carbs_per_100g && <NChip label="Углев." val={product.carbs_per_100g} col={Colors.accentPurple} unit="г" />}
+                <NChip label={t('shop.nutri.kcal')} val={product.calories_per_100g} col={Colors.warning} />
+                {!!product.protein_per_100g && <NChip label={t('shop.nutri.protein')} val={product.protein_per_100g} col={Colors.accentTeal} unit="г" />}
+                {!!product.fat_per_100g && <NChip label={t('shop.nutri.fat')} val={product.fat_per_100g} col={Colors.danger} unit="г" />}
+                {!!product.carbs_per_100g && <NChip label={t('shop.nutri.carbs')} val={product.carbs_per_100g} col={Colors.accentPurple} unit="г" />}
               </View>
             )}
           </View>
@@ -439,8 +438,8 @@ export function SmartShopScreen() {
           {/* Price comparison */}
           <View style={s.priceSection}>
             <View style={s.priceSectionHeader}>
-              <Text style={s.priceSectionTitle}>💰 Сравнение цен</Text>
-              <Text style={s.priceSectionSub}>{prices.length} магазинов</Text>
+              <Text style={s.priceSectionTitle}>{t('shop.price.title')}</Text>
+              <Text style={s.priceSectionSub}>{t('shop.price.stores', { n: prices.length })}</Text>
             </View>
 
             {prices.map((p, i) => (
@@ -452,7 +451,7 @@ export function SmartShopScreen() {
                       {symb}{p.price.toFixed(2)}
                     </Text>
                   </View>
-                  <Text style={s.storeDist}>{p.distance}{p.isUser ? ' · Ваш магазин' : ''}</Text>
+                  <Text style={s.storeDist}>{p.distance}{p.isUser ? t('shop.price.yourStore') : ''}</Text>
                   <PriceBar price={p.price} best={best} currency={currency} />
                 </View>
                 {p.isUser && (
@@ -466,14 +465,14 @@ export function SmartShopScreen() {
             {/* Add price button */}
             <TouchableOpacity style={s.addPriceBtn} onPress={() => setShowAddPrice(true)} activeOpacity={0.8}>
               <IcoPlus c={Colors.accentTeal} n={16} />
-              <Text style={s.addPriceTxt}>Добавить цену из другого магазина</Text>
+              <Text style={s.addPriceTxt}>{t('shop.price.addBtn')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Actions */}
           <TouchableOpacity style={s.fridgeBtn} onPress={() => addToFridge(product)} activeOpacity={0.85}>
             <IcoFridge c={Colors.bg} n={18} />
-            <Text style={s.fridgeBtnTxt}>В холодильник · срок 7 дней</Text>
+            <Text style={s.fridgeBtnTxt}>{t('shop.fridge.btn')}</Text>
           </TouchableOpacity>
 
         </ScrollView>
@@ -482,13 +481,13 @@ export function SmartShopScreen() {
         {showAddPrice && (
           <KeyboardAvoidingView
             style={StyleSheet.absoluteFill}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             pointerEvents="box-none"
           >
             <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => setShowAddPrice(false)} />
             <View style={[s.addPriceSheet, { paddingBottom: insets.bottom + 16 }]}>
               <View style={s.sheetHandle} />
-              <Text style={s.sheetTitle}>Добавить цену</Text>
+              <Text style={s.sheetTitle}>{t('shop.price.add.title')}</Text>
 
               {/* Store suggestions */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
@@ -507,7 +506,7 @@ export function SmartShopScreen() {
                     style={s.sheetInputTxt}
                     value={addStore}
                     onChangeText={setAddStore}
-                    placeholder="Магазин..."
+                    placeholder={t('shop.price.add.storePh')}
                     placeholderTextColor={Colors.textMuted}
                   />
                 </View>
@@ -516,14 +515,14 @@ export function SmartShopScreen() {
                     style={s.sheetInputTxt}
                     value={addPrice}
                     onChangeText={setAddPrice}
-                    placeholder={`Цена ${symb}`}
+                    placeholder={`${t('shop.price.add.pricePh')} ${symb}`}
                     placeholderTextColor={Colors.textMuted}
                     keyboardType="decimal-pad"
                   />
                 </View>
               </View>
               <TouchableOpacity style={s.sheetSave} onPress={addUserPrice} activeOpacity={0.85}>
-                <Text style={s.sheetSaveTxt}>Добавить</Text>
+                <Text style={s.sheetSaveTxt}>{t('shop.price.add.btn')}</Text>
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
@@ -536,28 +535,28 @@ export function SmartShopScreen() {
   if (mode === 'addManual') {
     return (
       <SafeAreaView style={s.safe} edges={['top']}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={s.formPad} keyboardShouldPersistTaps="handled" indicatorStyle="white" showsVerticalScrollIndicator={false}>
             <View style={s.header}>
               <TouchableOpacity style={s.backBtn} onPress={() => setMode('hub')}>
                 <IcoLeft c={Colors.accentTeal} n={22} />
               </TouchableOpacity>
-              <Text style={s.headerTitle}>Добавить товар</Text>
+              <Text style={s.headerTitle}>{t('shop.manual.title')}</Text>
               <View style={{ width: 38 }} />
             </View>
 
-            <Text style={s.secLabel}>Название товара *</Text>
+            <Text style={s.secLabel}>{t('shop.manual.nameLbl')}</Text>
             <View style={s.inputBox}>
-              <TextInput style={s.inputTxt} value={manualName} onChangeText={setManualName} placeholder="Молоко 3.5%, 1л..." placeholderTextColor={Colors.textMuted} />
+              <TextInput style={s.inputTxt} value={manualName} onChangeText={setManualName} placeholder={t('shop.manual.namePh')} placeholderTextColor={Colors.textMuted} />
             </View>
 
-            <Text style={s.secLabel}>Бренд (необязательно)</Text>
+            <Text style={s.secLabel}>{t('shop.manual.brandLbl')}</Text>
             <View style={s.inputBox}>
-              <TextInput style={s.inputTxt} value={manualBrand} onChangeText={setManualBrand} placeholder="Простоквашино, Danone..." placeholderTextColor={Colors.textMuted} />
+              <TextInput style={s.inputTxt} value={manualBrand} onChangeText={setManualBrand} placeholder={t('shop.manual.brandPh')} placeholderTextColor={Colors.textMuted} />
             </View>
 
-            <Text style={s.secLabel}>Цены в магазинах</Text>
-            <Text style={s.secSub}>Сравним цены и покажем где выгоднее</Text>
+            <Text style={s.secLabel}>{t('shop.manual.pricesLbl')}</Text>
+            <Text style={s.secSub}>{t('shop.manual.pricesSub')}</Text>
 
             {manualRows.map((row, i) => (
               <View key={i} style={s.manualPriceRow}>
@@ -568,7 +567,7 @@ export function SmartShopScreen() {
                     onChangeText={v => {
                       const r = [...manualRows]; r[i] = { ...r[i], store: v }; setManualRows(r);
                     }}
-                    placeholder="Магазин..."
+                    placeholder={t('shop.price.add.storePh')}
                     placeholderTextColor={Colors.textMuted}
                   />
                 </View>
@@ -579,7 +578,7 @@ export function SmartShopScreen() {
                     onChangeText={v => {
                       const r = [...manualRows]; r[i] = { ...r[i], price: parseFloat(v) || 0 }; setManualRows(r);
                     }}
-                    placeholder="Цена"
+                    placeholder={t('shop.price.add.pricePh')}
                     placeholderTextColor={Colors.textMuted}
                     keyboardType="decimal-pad"
                   />
@@ -594,11 +593,11 @@ export function SmartShopScreen() {
 
             <TouchableOpacity style={s.addRowBtn} onPress={() => setManualRows([...manualRows, { store: '', price: 0, distance: '' }])}>
               <IcoPlus c={Colors.accentTeal} n={16} />
-              <Text style={s.addRowTxt}>Добавить магазин</Text>
+              <Text style={s.addRowTxt}>{t('shop.manual.addStore')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={s.saveBtn} onPress={saveManualProduct} activeOpacity={0.85}>
-              <Text style={s.saveTxt}>Сохранить и сравнить цены</Text>
+              <Text style={s.saveTxt}>{t('shop.manual.save')}</Text>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -631,18 +630,17 @@ const nc = StyleSheet.create({
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
 
-  // Hub
   hubPad:   { padding: Spacing.xl, paddingBottom: Layout.tabBarClearance + Spacing.xl },
   hubTitle: { fontSize: 28, fontWeight: Typography.weightBold, color: Colors.textPrimary, marginBottom: 4 },
   hubSub:   { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xl },
 
   searchRow:  { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  searchBox:  { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  searchBox:  { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: Glass.border },
   searchInput:{ flex: 1, color: Colors.textPrimary, fontSize: Typography.sizeMD, paddingVertical: Spacing.md },
   scanBtn:    { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.accentPurple, alignItems: 'center', justifyContent: 'center' },
 
   resultsList: { marginBottom: Spacing.md },
-  resultRow:   { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
+  resultRow:   { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Glass.border },
   resultImg:   { width: 52, height: 52, borderRadius: Radius.sm },
   resultImgPH: { backgroundColor: Colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
   resultName:  { color: Colors.textPrimary, fontSize: Typography.sizeMD, fontWeight: Typography.weightSemiBold },
@@ -656,10 +654,9 @@ const s = StyleSheet.create({
   actionTitle: { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: '#fff' },
   actionSub:   { fontSize: Typography.sizeXS, color: 'rgba(255,255,255,0.72)' },
 
-  tipCard: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginTop: Spacing.xs },
+  tipCard: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md, borderWidth: 1, borderColor: Glass.border, marginTop: Spacing.xs },
   tipText: { fontSize: Typography.sizeXS, color: Colors.textMuted, lineHeight: 18 },
 
-  // Scanner
   corner:   { position: 'absolute', width: 20, height: 20, borderColor: Colors.accentTeal, borderWidth: 3, borderRadius: 2 },
   cTL: { top: 0, left: 0, borderRightWidth: 0, borderBottomWidth: 0 },
   cTR: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0 },
@@ -669,25 +666,24 @@ const s = StyleSheet.create({
   cancelBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: Radius.full, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
   cancelTxt: { color: '#fff', fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
 
-  // Product detail
   formPad: { padding: Spacing.xl, paddingBottom: Layout.tabBarClearance + Spacing.xl },
   header:       { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xl },
   backBtn:      { width: 38, height: 38, alignItems: 'flex-start', justifyContent: 'center' },
   headerTitle:  { flex: 1, fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center' },
 
-  productCard:  { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xl, marginBottom: Spacing.xl, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  productCard:  { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xl, marginBottom: Spacing.xl, borderWidth: 1, borderColor: Glass.border, alignItems: 'center' },
   productImg:   { width: 120, height: 120, borderRadius: Radius.md, marginBottom: Spacing.md },
   productImgPH: { backgroundColor: Colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
   productName:  { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: 4 },
   productBrand: { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.md },
   nutriRow:     { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap', justifyContent: 'center' },
 
-  priceSection:       { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  priceSection:       { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Glass.border },
   priceSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
   priceSectionTitle:  { fontSize: Typography.sizeMD, fontWeight: Typography.weightBold, color: Colors.textPrimary },
   priceSectionSub:    { fontSize: Typography.sizeXS, color: Colors.textMuted },
 
-  priceRow:     { paddingVertical: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  priceRow:     { paddingVertical: Spacing.md, borderTopWidth: 1, borderTopColor: Glass.border, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   priceRowBest: { borderTopColor: 'transparent' },
   priceRowUser: { backgroundColor: Colors.accentTeal + '08', marginHorizontal: -Spacing.lg, paddingHorizontal: Spacing.lg },
   priceTopLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -702,25 +698,23 @@ const s = StyleSheet.create({
   fridgeBtn:    { backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingVertical: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   fridgeBtnTxt: { color: Colors.bg, fontSize: Typography.sizeSM, fontWeight: Typography.weightBold },
 
-  // Add price sheet
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
   addPriceSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.xl },
-  sheetHandle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.lg },
+  sheetHandle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: Glass.border, alignSelf: 'center', marginBottom: Spacing.lg },
   sheetTitle:    { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, marginBottom: Spacing.md },
   sheetRow:      { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  sheetInput:    { backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: Spacing.md },
+  sheetInput:    { backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: Glass.border, paddingHorizontal: Spacing.md },
   sheetInputTxt: { color: Colors.textPrimary, fontSize: Typography.sizeMD, paddingVertical: Spacing.md },
   sheetSave:     { backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },
   sheetSaveTxt:  { color: Colors.bg, fontSize: Typography.sizeMD, fontWeight: Typography.weightBold },
 
-  storeSuggest:    { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border },
+  storeSuggest:    { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Glass.border },
   storeSuggestOn:  { borderColor: Colors.accentTeal, backgroundColor: Colors.accentTeal + '15' },
   storeSuggestTxt: { fontSize: Typography.sizeXS, color: Colors.textSecondary },
 
-  // Manual add
   secLabel: { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
   secSub:   { fontSize: Typography.sizeXS, color: Colors.textMuted, marginBottom: Spacing.sm, marginTop: -4 },
-  inputBox: { backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
+  inputBox: { backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: Glass.border, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
   inputTxt: { color: Colors.textPrimary, fontSize: Typography.sizeMD, paddingVertical: Spacing.md },
 
   manualPriceRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', marginBottom: Spacing.sm },

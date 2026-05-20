@@ -11,8 +11,9 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import type { AuthStackParamList } from '../../types';
-import { Colors, Typography, Spacing, Radius } from '../../constants/tokens';
+import { Colors, Typography, Spacing, Radius, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
+import { useTranslation } from '../../i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -21,6 +22,7 @@ type Nav = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 
 export function WelcomeScreen() {
   const nav = useNavigation<Nav>();
+  const { t } = useTranslation();
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [loadingApple, setLoadingApple] = useState(false);
 
@@ -45,7 +47,7 @@ export function WelcomeScreen() {
         }
       }
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.message ?? 'Не удалось войти через Google');
+      Alert.alert(t('scan.err.title'), e?.message ?? '');
     } finally {
       setLoadingGoogle(false);
     }
@@ -69,7 +71,7 @@ export function WelcomeScreen() {
       if (error) throw error;
     } catch (e: any) {
       if (e?.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert('Ошибка', e?.message ?? 'Не удалось войти через Apple');
+        Alert.alert(t('scan.err.title'), e?.message ?? '');
       }
     } finally {
       setLoadingApple(false);
@@ -95,15 +97,15 @@ export function WelcomeScreen() {
               <Text style={styles.logoIconText}>S</Text>
             </LinearGradient>
             <Text style={styles.logo}>SaveSmart</Text>
-            <Text style={styles.tagline}>Умный бюджет · Продукты · Нутриция</Text>
+            <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
           </View>
 
           {/* Features */}
           <View style={styles.features}>
             {[
-              { icon: '📊', text: 'Контроль бюджета и расходов' },
-              { icon: '🤖', text: 'AI-инсайты и умные советы' },
-              { icon: '🥗', text: 'Нутриция и здоровое питание' },
+              { icon: '📊', text: t('welcome.feat1') },
+              { icon: '🤖', text: t('welcome.feat2') },
+              { icon: '🥗', text: t('welcome.feat3') },
             ].map(f => (
               <View key={f.text} style={styles.featureRow}>
                 <Text style={styles.featureIcon}>{f.icon}</Text>
@@ -120,7 +122,7 @@ export function WelcomeScreen() {
               {loadingGoogle ? <ActivityIndicator color={Colors.textPrimary} size="small" /> : (
                 <>
                   <GoogleIcon />
-                  <Text style={styles.socialBtnText}>Продолжить с Google</Text>
+                  <Text style={styles.socialBtnText}>{t('welcome.google')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -138,22 +140,20 @@ export function WelcomeScreen() {
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>или</Text>
+              <Text style={styles.dividerText}>{t('welcome.or')}</Text>
               <View style={styles.dividerLine} />
             </View>
 
             <TouchableOpacity style={styles.btnPrimary} onPress={() => nav.navigate('Register')} activeOpacity={0.8}>
-              <Text style={styles.btnPrimaryText}>Зарегистрироваться по email</Text>
+              <Text style={styles.btnPrimaryText}>{t('welcome.register')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.btnGhost} onPress={() => nav.navigate('Login')} activeOpacity={0.7}>
-              <Text style={styles.btnGhostText}>Уже есть аккаунт — войти</Text>
+              <Text style={styles.btnGhostText}>{t('welcome.login')}</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.legal}>
-            Регистрируясь, вы соглашаетесь с условиями использования и политикой конфиденциальности
-          </Text>
+          <Text style={styles.legal}>{t('welcome.legal')}</Text>
         </View>
       </SafeAreaView>
     </View>
@@ -183,7 +183,12 @@ const styles = StyleSheet.create({
   tagline: { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center' },
 
   features: { gap: Spacing.md },
-  featureRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  featureRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: Glass.surface,
+    borderRadius: Radius.lg, padding: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border,
+  },
   featureIcon: { fontSize: 20 },
   featureText: { fontSize: Typography.sizeSM, color: Colors.textSecondary, fontWeight: Typography.weightSemiBold },
 
@@ -191,8 +196,9 @@ const styles = StyleSheet.create({
 
   socialBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.md,
-    backgroundColor: Colors.surface, borderRadius: Radius.full,
-    paddingVertical: Spacing.md, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: Glass.surface, borderRadius: Radius.full,
+    paddingVertical: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border,
   },
   appleAuthBtn: { height: 50, width: '100%' },
   socialBtnText: { fontSize: Typography.sizeMD, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold },
