@@ -365,7 +365,7 @@ function CollapsibleSection({
   const chevronRot = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
 
   return (
-    <View style={cs.wrap}>
+    <View style={[cs.wrap, { backgroundColor: accentColor + '0D', borderColor: accentColor + '22' }]}>
       <TouchableOpacity style={cs.header} onPress={onToggle} activeOpacity={0.7}>
         <Text style={cs.title}>{title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
