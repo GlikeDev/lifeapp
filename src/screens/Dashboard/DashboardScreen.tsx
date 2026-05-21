@@ -365,7 +365,7 @@ function CollapsibleSection({
   const chevronRot = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
 
   return (
-    <View style={[cs.wrap, { borderColor: accentColor + '30', shadowColor: accentColor, backgroundColor: accentColor + '08' }]}>
+    <View style={cs.wrap}>
       <TouchableOpacity style={cs.header} onPress={onToggle} activeOpacity={0.7}>
         <Text style={cs.title}>{title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -383,7 +383,7 @@ function CollapsibleSection({
 }
 
 const cs = StyleSheet.create({
-  wrap: { borderRadius: Radius.xl, borderWidth: 1, marginBottom: Spacing.md, shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  wrap: { marginBottom: Spacing.lg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md },
   title: { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2 },
   badge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderWidth: 1 },
