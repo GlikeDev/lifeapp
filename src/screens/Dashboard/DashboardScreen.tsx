@@ -369,7 +369,7 @@ function CollapsibleSection({
 
   return (
     <View style={[cs.wrap, { borderColor: accentColor + '22', overflow: 'hidden' }]}>
-      <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
+      <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: accentColor + '0D' }]} pointerEvents="none" />
       <TouchableOpacity style={cs.header} onPress={onToggle} activeOpacity={0.7}>
         <Text style={cs.title}>{title}</Text>
