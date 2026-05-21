@@ -7,6 +7,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
@@ -269,7 +270,9 @@ export function DebtsScreen() {
       {/* Add debt sheet */}
       <Modal visible={showAdd} transparent animationType="none" onRequestClose={closeAdd}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={closeAdd} />
+          <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={closeAdd}>
+            <BlurView intensity={92} tint="dark" style={StyleSheet.absoluteFill} />
+          </TouchableOpacity>
           <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 20, transform: [{ translateY: sheetAnim }] }]}>
             <View style={s.handle} />
             <Text style={s.sheetTitle}>{t('debt.new')}</Text>
@@ -428,8 +431,8 @@ const s = StyleSheet.create({
   emptyBtn:   { backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
   emptyBtnTxt:{ color: Colors.bg, fontSize: Typography.sizeSM, fontWeight: Typography.weightBold },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:    { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheet:    { backgroundColor: '#0D0E1C', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   handle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.lg },
   sheetTitle:{ fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
 

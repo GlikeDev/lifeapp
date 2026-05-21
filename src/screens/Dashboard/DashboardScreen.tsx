@@ -35,6 +35,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, G, Circle, Text as SvgText } from 'react-native-svg';
 import { Card, ProgressBar } from '../../components/common';
@@ -880,7 +881,9 @@ export function DashboardScreen() {
       {/* ── Add Goal Modal ── */}
       <Modal visible={showGoalModal} transparent animationType="slide" onRequestClose={() => setShowGoalModal(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableOpacity style={gm.backdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setShowGoalModal(false); }} />
+          <TouchableOpacity style={gm.backdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setShowGoalModal(false); }}>
+            <BlurView intensity={92} tint="dark" style={StyleSheet.absoluteFill} />
+          </TouchableOpacity>
           <View style={[gm.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={gm.handle} />
 
@@ -1146,8 +1149,8 @@ const styles = StyleSheet.create({
 // ─── Goal modal styles ────────────────────────────────────────────────────────
 
 const gm = StyleSheet.create({
-  backdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:     { backgroundColor: '#0D0E1C', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Glass.border },
+  backdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheet:     { backgroundColor: '#0D0E1C', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   handle:    { width: 40, height: 4, borderRadius: 2, backgroundColor: Glass.border, alignSelf: 'center', marginBottom: Spacing.lg },
 
   // Step 1 – picker

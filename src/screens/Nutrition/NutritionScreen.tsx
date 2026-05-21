@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import Svg, { Circle } from 'react-native-svg';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
@@ -446,7 +447,9 @@ function CalorieSettingsModal({ visible, currentGoal, onSave, onClose }: {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={onClose} />
+      <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={onClose}>
+        <BlurView intensity={92} tint="dark" style={StyleSheet.absoluteFill} />
+      </TouchableOpacity>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[s.sheet, { paddingBottom: insets.bottom + Spacing.lg }]}
@@ -592,7 +595,9 @@ function AddMealModal({ visible, onAdd, onClose }: {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={onClose} />
+      <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={onClose}>
+        <BlurView intensity={92} tint="dark" style={StyleSheet.absoluteFill} />
+      </TouchableOpacity>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[s.sheet, { paddingBottom: insets.bottom + Spacing.lg }]}
@@ -1132,7 +1137,7 @@ const s = StyleSheet.create({
   proBtnText:  { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, color: '#0A0B14' },
 
   // ── Modal / Sheet
-  modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
+  modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     backgroundColor:      '#0D0E1C',
     borderTopLeftRadius:  28,

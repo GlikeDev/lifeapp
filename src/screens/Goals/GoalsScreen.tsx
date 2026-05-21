@@ -7,6 +7,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { useBudgetStore } from '../../store/useBudgetStore';
@@ -246,7 +247,9 @@ export function GoalsScreen() {
       {/* Add goal sheet */}
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowAdd(false)} />
+          <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowAdd(false)}>
+            <BlurView intensity={92} tint="dark" style={StyleSheet.absoluteFill} />
+          </TouchableOpacity>
           <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.handle} />
             <Text style={s.sheetTitle}>Новая цель</Text>
@@ -310,8 +313,8 @@ const s = StyleSheet.create({
   goalStatus:  { fontSize: Typography.sizeXS, color: Colors.textSecondary },
 
   // Sheet
-  backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:      { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
+  backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheet:      { backgroundColor: '#0D0E1C', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.lg },
   sheetTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
   label:      { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },

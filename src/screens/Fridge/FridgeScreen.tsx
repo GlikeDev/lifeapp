@@ -7,6 +7,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
@@ -279,7 +280,9 @@ export function FridgeScreen() {
       {/* Add product sheet */}
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setShowAdd(false); }} />
+          <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setShowAdd(false); }}>
+            <BlurView intensity={92} tint="dark" style={StyleSheet.absoluteFill} />
+          </TouchableOpacity>
           <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.handle} />
             <Text style={s.sheetTitle}>{t('fridge.add.title')}</Text>
@@ -323,7 +326,9 @@ export function FridgeScreen() {
 
       {/* AI Recipe sheet */}
       <Modal visible={showRecipe} transparent animationType="slide" onRequestClose={() => setShowRecipe(false)}>
-        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowRecipe(false)} />
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowRecipe(false)}>
+          <BlurView intensity={92} tint="dark" style={StyleSheet.absoluteFill} />
+        </TouchableOpacity>
         <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
           <View style={s.handle} />
           <Text style={s.sheetTitle}>{t('fridge.recipe.title')}</Text>
@@ -387,8 +392,8 @@ const s = StyleSheet.create({
   hint: { textAlign: 'center', color: Colors.textMuted, fontSize: Typography.sizeXS, marginTop: Spacing.md },
 
   // Sheet
-  backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:      { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Glass.border },
+  backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheet:      { backgroundColor: '#0D0E1C', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: Glass.border, alignSelf: 'center', marginBottom: Spacing.lg },
   sheetTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
   label:      { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
