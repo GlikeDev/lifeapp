@@ -28,7 +28,7 @@ import {
   View, Text, ScrollView, StyleSheet, RefreshControl,
   TouchableOpacity, Modal, FlatList, TextInput, Animated,
   KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator,
-  LayoutAnimation, UIManager,
+  LayoutAnimation, UIManager, ImageBackground,
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -42,6 +42,7 @@ import { Card, ProgressBar } from '../../components/common';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { useBudgetStore } from '../../store/useBudgetStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useWallpaperStore, WALLPAPERS } from '../../store/useWallpaperStore';
 import { formatCurrency, monthsLeft } from '../../utils/format';
 import { supabase } from '../../lib/supabase';
 import type { Transaction, Goal, FridgeItem } from '../../types';
@@ -409,6 +410,8 @@ function fridgeZoneColor(days: number) {
 
 export function DashboardScreen() {
   const { user, setUser } = useAuthStore();
+  const { wallpaperId } = useWallpaperStore();
+  const wallpaperSource = wallpaperId !== null ? WALLPAPERS[wallpaperId] : null;
   const {
     transactions, goals, monthlyBudget,
     setTransactions, setGoals, addGoal, setMonthlyBudget,
@@ -570,11 +573,20 @@ export function DashboardScreen() {
   const balanceDec = String(Math.round((Math.max(monthlyBudget - totalSpent, 0) % 1) * 100)).padStart(2, '0');
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Holographic blob background */}
-      <View style={styles.blobTR} pointerEvents="none" />
-      <View style={styles.blobCL} pointerEvents="none" />
-      <View style={styles.blobBR} pointerEvents="none" />
+    <View style={styles.safe}>
+      {wallpaperSource ? (
+        <ImageBackground source={wallpaperSource} style={StyleSheet.absoluteFill} resizeMode="cover">
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,5,18,0.58)' }]} pointerEvents="none" />
+        </ImageBackground>
+      ) : (
+        <>
+          {/* Holographic blob background */}
+          <View style={styles.blobTR} pointerEvents="none" />
+          <View style={styles.blobCL} pointerEvents="none" />
+          <View style={styles.blobBR} pointerEvents="none" />
+        </>
+      )}
+      <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={['top']}>
 
       <ScrollView
         style={styles.scroll}
@@ -1018,6 +1030,7 @@ export function DashboardScreen() {
 
       <CoachMark steps={DASHBOARD_TIPS} visible={tipsVisible} onDone={tipsDone} />
     </SafeAreaView>
+    </View>
   );
 }
 

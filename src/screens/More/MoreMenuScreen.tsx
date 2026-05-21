@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Animated, ActivityIndicator, Alert, Switch, Modal,
+  Animated, ActivityIndicator, Alert, Switch, Modal, Image,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -13,6 +14,7 @@ import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../consta
 import { useTranslation } from '../../i18n';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useBudgetStore } from '../../store/useBudgetStore';
+import { useWallpaperStore, WALLPAPERS } from '../../store/useWallpaperStore';
 import { supabase } from '../../lib/supabase';
 import type { Achievement, AchievementTier, MoreStackParamList } from '../../types';
 
@@ -108,6 +110,9 @@ export function MoreMenuScreen() {
   const [selectedAch, setSelectedAch]     = useState<Achievement|null>(null);
   const [notifOn, setNotifOn]             = useState(true);
   const [streak, setStreak]               = useState<boolean[]>(Array(14).fill(false));
+  const [showWallpaper, setShowWallpaper] = useState(false);
+  const { wallpaperId, setWallpaper } = useWallpaperStore();
+  const { width } = useWindowDimensions();
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -336,6 +341,17 @@ export function MoreMenuScreen() {
               />
               <View style={s.divider}/>
               <SettingRow
+                icon="🖼️"
+                label="Обои главного экрана"
+                onPress={() => setShowWallpaper(true)}
+                right={
+                  <Text style={s.settingVal}>
+                    {wallpaperId !== null ? `Обои ${wallpaperId + 1}` : 'Без обоев'}
+                  </Text>
+                }
+              />
+              <View style={s.divider}/>
+              <SettingRow
                 icon="📤"
                 label="Экспорт данных"
                 right={<Text style={s.settingVal}>CSV / PDF</Text>}
@@ -350,6 +366,52 @@ export function MoreMenuScreen() {
 
         </Animated.View>
       </ScrollView>
+
+      {/* ═══ WALLPAPER PICKER ═══════════════════════════════════════ */}
+      <Modal visible={showWallpaper} transparent animationType="slide" onRequestClose={() => setShowWallpaper(false)}>
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowWallpaper(false)}>
+          <Animated.View style={s.wallSheet}>
+            <TouchableOpacity activeOpacity={1}>
+              <View style={s.wallHandle} />
+              <Text style={s.wallTitle}>Обои главного экрана</Text>
+
+              {/* No wallpaper option */}
+              <TouchableOpacity
+                style={[s.wallNone, wallpaperId === null && s.wallSelected]}
+                onPress={() => { setWallpaper(null); setShowWallpaper(false); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                activeOpacity={0.8}
+              >
+                <Text style={s.wallNoneTxt}>✕  Без обоев</Text>
+                {wallpaperId === null && <Text style={s.wallCheck}>✓</Text>}
+              </TouchableOpacity>
+
+              {/* 2x2 Grid */}
+              <View style={s.wallGrid}>
+                {WALLPAPERS.map((src, idx) => {
+                  const thumbW = (width - Spacing.xl * 2 - Spacing.xl * 2 - Spacing.md) / 2;
+                  const isActive = wallpaperId === idx;
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[s.wallThumb, { width: thumbW, height: thumbW * 1.1 }, isActive && s.wallThumbActive]}
+                      onPress={() => { setWallpaper(idx); setShowWallpaper(false); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+                      activeOpacity={0.85}
+                    >
+                      <Image source={src} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                      {isActive && (
+                        <View style={s.wallCheckOverlay}>
+                          <Text style={s.wallCheckBig}>✓</Text>
+                        </View>
+                      )}
+                      <Text style={s.wallThumbLabel}>Обои {idx + 1}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ═══ ACH DETAIL MODAL ═══════════════════════════════════════ */}
       {selectedAch && (
@@ -459,6 +521,21 @@ const s = StyleSheet.create({
   // Sign out
   signOut:    { marginHorizontal:Spacing.xl, marginTop:Spacing.xl, backgroundColor:Colors.danger+'18', borderRadius:Radius.full, paddingVertical:Spacing.md, alignItems:'center', borderWidth:1, borderColor:Colors.danger+'40' },
   signOutTxt: { color:Colors.danger, fontWeight:Typography.weightSemiBold, fontSize:Typography.sizeMD },
+
+  // Wallpaper picker
+  wallSheet:        { backgroundColor: '#0D0E1C', borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.xl, paddingBottom: Spacing.xl * 2, marginTop: 'auto', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  wallHandle:       { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.20)', alignSelf: 'center', marginBottom: Spacing.lg },
+  wallTitle:        { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, marginBottom: Spacing.lg },
+  wallNone:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: Radius.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, marginBottom: Spacing.lg },
+  wallSelected:     { borderColor: Colors.accentTeal + '88', backgroundColor: Colors.accentTeal + '0D' },
+  wallNoneTxt:      { fontSize: Typography.sizeMD, color: Colors.textPrimary, fontWeight: Typography.weightMedium },
+  wallCheck:        { fontSize: Typography.sizeMD, color: Colors.accentTeal, fontWeight: Typography.weightBold },
+  wallGrid:         { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  wallThumb:        { borderRadius: Radius.lg, overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(255,255,255,0.10)' },
+  wallThumbActive:  { borderColor: Colors.accentTeal, borderWidth: 2.5 },
+  wallCheckOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  wallCheckBig:     { fontSize: 36, color: Colors.accentTeal, fontWeight: Typography.weightBold },
+  wallThumbLabel:   { position: 'absolute', bottom: 6, left: 8, fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: Typography.weightSemiBold, textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
 
   // Ach modal
   backdrop:      { flex:1, backgroundColor:'rgba(0,0,0,0.75)', alignItems:'center', justifyContent:'center', padding:Spacing.xl },
