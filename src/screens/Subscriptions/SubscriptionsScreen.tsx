@@ -249,14 +249,37 @@ export function SubscriptionsScreen() {
         {loading ? (
           <ActivityIndicator color={Colors.accentTeal} style={{ marginVertical: Spacing.xxl }} />
         ) : subs.length === 0 ? (
-          <View style={s.emptyCard}>
-            <Text style={{ fontSize: 52, marginBottom: Spacing.md }}>💳</Text>
-            <Text style={s.emptyTitle}>{t('sub.empty.title')}</Text>
-            <Text style={s.emptySub}>{t('sub.empty.sub')}</Text>
-            <TouchableOpacity style={s.emptyBtn} onPress={() => setShowPresets(true)}>
-              <Text style={s.emptyBtnTxt}>{t('sub.empty.btn')}</Text>
-            </TouchableOpacity>
-          </View>
+          <>
+            <View style={s.emptyCard}>
+              <Text style={{ fontSize: 52, marginBottom: Spacing.md }}>💳</Text>
+              <Text style={s.emptyTitle}>{t('sub.empty.title')}</Text>
+              <Text style={s.emptySub}>{t('sub.empty.sub')}</Text>
+            </View>
+
+            <Text style={s.presetsInlineTitle}>{t('sub.presetsTitle')}</Text>
+            {PRESETS.map(preset => {
+              const already = subs.some(sub => sub.name === preset.name);
+              return (
+                <TouchableOpacity
+                  key={preset.name}
+                  style={[s.presetRow, already && s.presetRowDone]}
+                  onPress={() => { if (!already) handlePreset(preset); }}
+                  activeOpacity={already ? 1 : 0.8}
+                >
+                  <Text style={{ fontSize: 24, width: 36 }}>{preset.emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.presetName}>{preset.name}</Text>
+                    <Text style={s.presetMeta}>{t('sub.cat.' + preset.category)} · {t('sub.cycle.' + preset.cycle)}</Text>
+                  </View>
+                  <Text style={s.presetAmt}>{currSymb}{preset.amount}</Text>
+                  {already
+                    ? <Text style={s.presetAdded}>✓</Text>
+                    : <View style={s.presetAddBtn}><IcoPlus c="#fff" n={14} /></View>
+                  }
+                </TouchableOpacity>
+              );
+            })}
+          </>
         ) : (
           <>
             {/* Upcoming renewals */}
@@ -483,11 +506,10 @@ const s = StyleSheet.create({
   catDot:      { width: 8, height: 8, borderRadius: 4 },
   catTotal:    { marginLeft: 'auto', fontSize: Typography.sizeXS, color: Colors.textMuted },
 
-  emptyCard:  { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
+  emptyCard:  { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border, marginBottom: Spacing.xl },
   emptyTitle: { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  emptySub:   { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: Spacing.lg },
-  emptyBtn:   { backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
-  emptyBtnTxt:{ color: Colors.bg, fontSize: Typography.sizeSM, fontWeight: Typography.weightBold },
+  emptySub:   { fontSize: Typography.sizeSM, color: Colors.textSecondary, textAlign: 'center', marginTop: 4 },
+  presetsInlineTitle: { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, color: Colors.textMuted, letterSpacing: 0.8, marginBottom: Spacing.md },
 
   backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheet:      { backgroundColor: Colors.surfaceElevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },
