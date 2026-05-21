@@ -365,7 +365,7 @@ function CollapsibleSection({
   const chevronRot = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
 
   return (
-    <View style={[cs.wrap, { borderColor: accentColor + '35', shadowColor: accentColor }]}>
+    <View style={[cs.wrap, { borderColor: accentColor + '30', shadowColor: accentColor, backgroundColor: accentColor + '08' }]}>
       <TouchableOpacity style={cs.header} onPress={onToggle} activeOpacity={0.7}>
         <Text style={cs.title}>{title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -383,7 +383,7 @@ function CollapsibleSection({
 }
 
 const cs = StyleSheet.create({
-  wrap: { borderRadius: Radius.xl, borderWidth: 1, marginBottom: Spacing.md, shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 0 }, elevation: 4 },
+  wrap: { borderRadius: Radius.xl, borderWidth: 1, marginBottom: Spacing.md, overflow: 'hidden', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md },
   title: { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2 },
   badge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderWidth: 1 },
@@ -681,13 +681,6 @@ export function DashboardScreen() {
             open={goalsOpen}
             onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setGoalsOpen(v => !v); }}
           >
-            <View style={styles.goalsSectionHeader}>
-              <View style={{ flex: 1 }} />
-              <TouchableOpacity style={styles.goalsAddBtn} onPress={() => openGoalModal()} activeOpacity={0.7}>
-                <Text style={styles.goalsAddBtnText}>{t('dash.goals.add')}</Text>
-              </TouchableOpacity>
-            </View>
-
             {goals.length === 0 ? (
               <TouchableOpacity style={styles.goalsEmpty} onPress={() => openGoalModal()} activeOpacity={0.8}>
                 <Text style={styles.emptyIcon}>🎯</Text>
@@ -1083,10 +1076,7 @@ const styles = StyleSheet.create({
   catEmpty:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg },
 
   // Goals section
-  goalsSectionHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginBottom: Spacing.md },
-  goalsAddBtn:          { backgroundColor: 'rgba(74,222,128,0.14)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(74,222,128,0.35)' },
-  goalsAddBtnText:      { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.success },
-  goalsEmpty:           { backgroundColor: Glass.surface, borderRadius: Radius.xl, padding: Spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: Glass.border, marginBottom: Spacing.md },
+  goalsEmpty:           { paddingVertical: Spacing.xl, alignItems: 'center' },
 
   // What-if simulator
   wiSub:        { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginBottom: Spacing.md },
