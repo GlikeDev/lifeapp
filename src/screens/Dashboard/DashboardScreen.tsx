@@ -445,7 +445,7 @@ export function DashboardScreen() {
     setGoalTitle('');
     setGoalTarget('');
     setGoalMonthly('');
-    openGoalModal();
+    setShowGoalModal(true);
   }
 
   function handlePickTemplate(tpl: GoalTemplate) {
@@ -598,37 +598,41 @@ export function DashboardScreen() {
           </View>
 
           {/* ── Hero Balance ── */}
-          <View style={styles.heroSection}>
+          <LinearGradient
+            colors={['rgba(34,211,238,0.09)', 'rgba(167,139,250,0.06)', 'rgba(11,12,27,0)']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={styles.heroCard}
+          >
             <Text style={styles.heroLabel}>{t('dash.availableBudget')}</Text>
-            <Animated.View style={[styles.neonBorder, { borderColor: neonBorderColor }]}>
-              <View style={styles.heroAmountRow}>
-                <Text style={styles.heroCurrency}>{currObj.symbol}</Text>
-                <Text style={styles.heroNumber}>{balanceInt.toLocaleString('ru-RU')}</Text>
-                <Text style={styles.heroDec}>.{balanceDec}</Text>
-              </View>
-            </Animated.View>
+            <View style={styles.heroAmountRow}>
+              <Text style={styles.heroCurrency}>{currObj.symbol}</Text>
+              <Text style={styles.heroNumber}>{balanceInt.toLocaleString('ru-RU')}</Text>
+              <Text style={styles.heroDec}>.{balanceDec}</Text>
+            </View>
 
-            {/* Gradient progress bar */}
             <View style={styles.barTrack}>
               <LinearGradient
-                colors={['#22D3EE', '#A78BFA']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                colors={spentPct > 1 ? ['#EF4444', '#F87171'] : ['#22D3EE', '#A78BFA']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={[styles.barFill, { width: `${Math.min(spentPct * 100, 100)}%` as any }]}
               />
             </View>
 
             <View style={styles.heroMeta}>
               <Text style={styles.heroMetaText}>
-                <Text style={{ color: Colors.accentTeal }}>{fmt(totalSpent)}</Text>
+                <Text style={{ color: spentPct > 1 ? Colors.danger : Colors.accentTeal }}>{fmt(totalSpent)}</Text>
                 <Text style={{ color: Colors.textMuted }}> {t('dash.spent')}</Text>
               </Text>
+              <View style={styles.healthBadge}>
+                <View style={[styles.healthDot, { backgroundColor: healthColor }]} />
+                <Text style={[styles.healthTxt, { color: healthColor }]}>{health}</Text>
+              </View>
               <Text style={styles.heroMetaText}>
                 <Text style={{ color: Colors.textMuted }}>{fmt(monthlyBudget)}</Text>
                 <Text style={{ color: Colors.textFaint }}> {t('dash.total')}</Text>
               </Text>
             </View>
-          </View>
+          </LinearGradient>
 
           {/* ── Categories ── */}
           {(() => {
@@ -648,21 +652,17 @@ export function DashboardScreen() {
                 {activeCats.length === 0 ? (
                   <Text style={styles.catEmpty}>{t('dash.cat.empty')}</Text>
                 ) : (
-                  <View style={styles.catBlocks}>
+                  <View style={{ gap: 8 }}>
                     {activeCats.map(({ key, cfg, amount }) => {
                       const pct = catTotal > 0 ? amount / catTotal : 0;
                       return (
-                        <View
-                          key={key}
-                          style={[styles.catBlock, {
-                            flex: Math.max(pct, 0.08),
-                            backgroundColor: cfg.color + '18',
-                            borderColor: cfg.color + '55',
-                            shadowColor: cfg.color,
-                          }]}
-                        >
-                          <Text style={[styles.catBlockLabel, { color: cfg.color }]} numberOfLines={1}>{t(cfg.key)}</Text>
-                          <Text style={[styles.catBlockAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(amount)}</Text>
+                        <View key={key} style={styles.catRow}>
+                          <View style={[styles.catDot, { backgroundColor: cfg.color }]} />
+                          <Text style={styles.catRowLabel} numberOfLines={1}>{t(cfg.key)}</Text>
+                          <View style={styles.catRowBar}>
+                            <View style={[styles.catRowBarFill, { width: `${Math.round(pct * 100)}%` as any, backgroundColor: cfg.color }]} />
+                          </View>
+                          <Text style={[styles.catRowAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(amount)}</Text>
                         </View>
                       );
                     })}
@@ -1046,52 +1046,37 @@ const styles = StyleSheet.create({
   currencyBtnText: { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.accentTeal },
   currencyChevron: { fontSize: 10, color: Colors.accentTeal },
 
-  // Hero
-  heroSection:   { marginBottom: Spacing.xxl },
-  heroLabel:     { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, marginBottom: Spacing.sm },
-  neonBorder: {
-    borderWidth: 2,
+  // Hero card
+  heroCard: {
     borderRadius: Radius.xl,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(34,211,238,0.18)',
+    padding: Spacing.xl,
     marginBottom: Spacing.lg,
-    alignSelf: 'flex-start',
-    shadowColor: '#A78BFA',
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
   },
-  heroAmountRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  heroCurrency:  { fontSize: 28, fontFamily: Typography.fontDisplay, color: Colors.textSecondary, marginBottom: 6, marginRight: 4 },
-  heroNumber:    { fontSize: 72, fontFamily: Typography.fontDisplay, color: Colors.textPrimary, lineHeight: 76, letterSpacing: -2 },
-  heroDec:       { fontSize: 22, fontFamily: Typography.fontDisplay, color: Colors.textMuted, marginBottom: 10, marginLeft: 2 },
+  heroLabel:     { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 0.8, marginBottom: Spacing.sm },
+  heroAmountRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: Spacing.lg },
+  heroCurrency:  { fontSize: 20, fontFamily: Typography.fontDisplay, color: Colors.textSecondary, marginBottom: 5, marginRight: 3 },
+  heroNumber:    { fontSize: 52, fontFamily: Typography.fontDisplay, color: Colors.textPrimary, lineHeight: 56, letterSpacing: -1.5 },
+  heroDec:       { fontSize: 18, fontFamily: Typography.fontDisplay, color: Colors.textMuted, marginBottom: 6, marginLeft: 2 },
 
   // Progress bar
-  barTrack: { height: 6, backgroundColor: Glass.elev, borderRadius: Radius.full, overflow: 'hidden', marginBottom: Spacing.sm },
-  barFill:  { height: '100%', borderRadius: Radius.full, shadowColor: '#22D3EE', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.7, shadowRadius: 8 },
+  barTrack: { height: 5, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: Radius.full, overflow: 'hidden', marginBottom: Spacing.md },
+  barFill:  { height: '100%', borderRadius: Radius.full },
 
-  heroMeta:     { flexDirection: 'row', justifyContent: 'space-between' },
+  heroMeta:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroMetaText: { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular },
+  healthBadge:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  healthDot:    { width: 6, height: 6, borderRadius: 3 },
+  healthTxt:    { fontSize: 11, fontFamily: Typography.fontSemiBold },
 
-  // Categories
-  catSection: { marginBottom: Spacing.xl },
-  catTitle:   { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2, marginBottom: Spacing.md },
-  catBlocks:  { flexDirection: 'row', gap: 6 },
-  catBlock: {
-    minWidth: 46,
-    height: 62,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    padding: Spacing.sm,
-    justifyContent: 'space-between',
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 3,
-  },
-  catBlockLabel:  { fontSize: 9, fontFamily: Typography.fontSemiBold, letterSpacing: 0.2 },
-  catBlockAmount: { fontSize: Typography.sizeSM, fontFamily: Typography.fontBold },
+  // Categories rows
+  catRow:         { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  catDot:         { width: 8, height: 8, borderRadius: 4 },
+  catRowLabel:    { width: 90, fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textSecondary },
+  catRowBar:      { flex: 1, height: 4, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: Radius.full, overflow: 'hidden' },
+  catRowBarFill:  { height: '100%', borderRadius: Radius.full },
+  catRowAmount:   { width: 64, fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, textAlign: 'right' },
   catEmpty:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg },
 
   // Goals section
