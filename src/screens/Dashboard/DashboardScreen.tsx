@@ -674,7 +674,7 @@ export function DashboardScreen() {
             return (
               <CollapsibleSection
                 title={t('dash.categories')}
-                accentColor={Colors.accentPurple}
+                accentColor={Colors.accentTeal}
                 badge={catTotal > 0 ? `${currObj.symbol}${Math.round(catTotal).toLocaleString('ru-RU')}` : undefined}
                 open={catsOpen}
                 onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setCatsOpen(v => !v); }}
