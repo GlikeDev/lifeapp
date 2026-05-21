@@ -28,8 +28,10 @@ import {
   View, Text, ScrollView, StyleSheet, RefreshControl,
   TouchableOpacity, Modal, FlatList, TextInput, Animated,
   KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator,
-  LayoutAnimation, UIManager, ImageBackground,
+  LayoutAnimation, UIManager, Image, Dimensions,
 } from 'react-native';
+
+const SCREEN_H = Dimensions.get('window').height;
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -575,9 +577,14 @@ export function DashboardScreen() {
   return (
     <View style={styles.safe}>
       {wallpaperSource ? (
-        <ImageBackground source={wallpaperSource} style={StyleSheet.absoluteFill} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,5,18,0.58)' }]} pointerEvents="none" />
-        </ImageBackground>
+        <>
+          <Image
+            source={wallpaperSource}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: SCREEN_H }}
+            resizeMode="cover"
+          />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,5,18,0.55)' }]} pointerEvents="none" />
+        </>
       ) : (
         <>
           {/* Holographic blob background */}

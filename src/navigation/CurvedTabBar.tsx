@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
-  View, TouchableOpacity, Text, StyleSheet, Animated, Dimensions,
+  View, TouchableOpacity, Text, StyleSheet, Animated, Dimensions, Image,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,8 +9,9 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Colors } from '../constants/tokens';
 import { GlyphIcon } from '../components/common/GlyphIcon';
 import type { GlyphName } from '../components/common/GlyphIcon';
+import { useWallpaperStore, WALLPAPERS } from '../store/useWallpaperStore';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const BAR_H      = 68;
 const NOTCH_R    = 30;
 const NOTCH_D    = 20;   // notch depth
@@ -54,9 +55,9 @@ function buildBarPath(w: number, h: number, cx: number): string {
 // ─── Animated bar SVG (no borders, no strokes) ───────────────────────────────
 
 function AnimatedBarSvg({
-  activeIndex, tabCount, barH,
+  activeIndex, tabCount, barH, fillColor = '#0B0C1B',
 }: {
-  activeIndex: Animated.Value; tabCount: number; barH: number;
+  activeIndex: Animated.Value; tabCount: number; barH: number; fillColor?: string;
 }) {
   const tabW = SCREEN_W / tabCount;
   const [cx, setCx] = useState(tabW / 2);
@@ -68,7 +69,7 @@ function AnimatedBarSvg({
 
   return (
     <Svg width={SCREEN_W} height={barH} style={StyleSheet.absoluteFill}>
-      <Path d={buildBarPath(SCREEN_W, barH, cx)} fill="#0B0C1B" />
+      <Path d={buildBarPath(SCREEN_W, barH, cx)} fill={fillColor} />
     </Svg>
   );
 }
@@ -76,9 +77,11 @@ function AnimatedBarSvg({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CurvedTabBar({ state, navigation }: BottomTabBarProps) {
-  const insets       = useSafeAreaInsets();
-  const bottomPad    = Math.max(insets.bottom, 8);
-  const totalH       = BAR_H + bottomPad;
+  const insets          = useSafeAreaInsets();
+  const bottomPad       = Math.max(insets.bottom, 8);
+  const totalH          = BAR_H + bottomPad;
+  const { wallpaperId } = useWallpaperStore();
+  const wallpaperSource = wallpaperId !== null ? WALLPAPERS[wallpaperId] : null;
   const tabCount     = state.routes.length;
   const tabW         = SCREEN_W / tabCount;
 
@@ -136,8 +139,25 @@ export function CurvedTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={{ width: SCREEN_W, height: totalH, backgroundColor: 'transparent' }} pointerEvents="box-none">
 
-      {/* ── Bar shape (no border) ── */}
-      <AnimatedBarSvg activeIndex={activeAnim} tabCount={tabCount} barH={totalH} />
+      {/* ── Wallpaper continuation: same Image at SCREEN_H, offset so it aligns with DashboardScreen ── */}
+      {wallpaperSource && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' }} pointerEvents="none">
+          <Image
+            source={wallpaperSource}
+            style={{ position: 'absolute', left: 0, right: 0, top: totalH - SCREEN_H, height: SCREEN_H }}
+            resizeMode="cover"
+          />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,5,18,0.55)' }]} />
+        </View>
+      )}
+
+      {/* ── Bar shape ── */}
+      <AnimatedBarSvg
+        activeIndex={activeAnim}
+        tabCount={tabCount}
+        barH={totalH}
+        fillColor={wallpaperSource ? 'transparent' : '#0B0C1B'}
+      />
 
       {/* ── Aurora shimmer line along the top edge ── */}
       <View style={styles.auroraClip} pointerEvents="none">
