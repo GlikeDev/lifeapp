@@ -368,19 +368,9 @@ function CollapsibleSection({
   const chevronRot = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
 
   return (
-    <View style={[cs.wrap, {
-      borderColor:   accentColor + '40',
-      shadowColor:   accentColor,
-      shadowOffset:  { width: 0, height: 0 },
-      shadowOpacity: 0.30,
-      shadowRadius:  14,
-      elevation:     8,
-    }]}>
-      {/* Blur + tint background clipped to border radius */}
-      <View style={[StyleSheet.absoluteFill, { borderRadius: Radius.xl, overflow: 'hidden' }]} pointerEvents="none">
-        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: accentColor + '0D' }]} />
-      </View>
+    <View style={[cs.wrap, { borderColor: accentColor + '40', overflow: 'hidden', elevation: 6 }]}>
+      <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: accentColor + '0D' }]} pointerEvents="none" />
       {/* Top shine line */}
       <View style={{ position: 'absolute', top: 0, left: Radius.xl, right: Radius.xl, height: 1, backgroundColor: accentColor + '55' }} pointerEvents="none" />
       <TouchableOpacity style={cs.header} onPress={onToggle} activeOpacity={0.7}>
