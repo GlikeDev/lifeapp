@@ -241,9 +241,6 @@ export function GoalsScreen() {
           );
         })}
 
-        {/* What-if simulator */}
-        {whatIfGoal && <WhatIfCard goal={whatIfGoal} />}
-
       </Animated.ScrollView>
 
       {/* Add goal sheet */}

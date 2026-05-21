@@ -28,7 +28,12 @@ import {
   View, Text, ScrollView, StyleSheet, RefreshControl,
   TouchableOpacity, Modal, FlatList, TextInput, Animated,
   KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator,
+  LayoutAnimation, UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, G, Circle, Text as SvgText } from 'react-native-svg';
@@ -38,7 +43,7 @@ import { useBudgetStore } from '../../store/useBudgetStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatCurrency, monthsLeft } from '../../utils/format';
 import { supabase } from '../../lib/supabase';
-import type { Transaction, Goal } from '../../types';
+import type { Transaction, Goal, FridgeItem } from '../../types';
 import { useTranslation } from '../../i18n';
 
 // ─── Currencies ───────────────────────────────────────────────────────────────
@@ -122,13 +127,38 @@ const CAT = {
 
 // ─── Goal constants ───────────────────────────────────────────────────────────
 
-const GOAL_EMOJIS = ['🏖️','🏠','🚗','💍','✈️','📱','🎓','🏋️','💰','🎯'];
 const GOAL_PALETTES: [string, string][] = [
   ['#1E2A3A','#0F1B26'],
   ['#1E1F38','#161727'],
   ['#1F2A1A','#141E0F'],
   ['#2A1F3E','#1A1228'],
   ['#2A2010','#1A1208'],
+];
+
+interface GoalTemplate {
+  emoji: string;
+  title: string;
+  target: number;
+  monthly: number;
+  color: string;
+  custom?: boolean;
+}
+
+const GOAL_TEMPLATES: GoalTemplate[] = [
+  { emoji: '🏖️', title: 'Отпуск',        target: 2000,  monthly: 200,  color: '#06B6D4' },
+  { emoji: '🏠', title: 'Жильё',          target: 50000, monthly: 1000, color: '#8B5CF6' },
+  { emoji: '🚗', title: 'Автомобиль',     target: 15000, monthly: 500,  color: '#F59E0B' },
+  { emoji: '💍', title: 'Свадьба',        target: 10000, monthly: 400,  color: '#EC4899' },
+  { emoji: '✈️', title: 'Путешествие',    target: 3000,  monthly: 300,  color: '#3B82F6' },
+  { emoji: '📱', title: 'Гаджет',         target: 800,   monthly: 150,  color: '#22D3EE' },
+  { emoji: '🎓', title: 'Образование',    target: 5000,  monthly: 300,  color: '#6366F1' },
+  { emoji: '🏋️', title: 'Фитнес',        target: 600,   monthly: 100,  color: '#4ADE80' },
+  { emoji: '💊', title: 'Здоровье',       target: 2000,  monthly: 200,  color: '#34D399' },
+  { emoji: '🛋️', title: 'Мебель',        target: 3000,  monthly: 250,  color: '#FB923C' },
+  { emoji: '🐾', title: 'Питомец',        target: 1500,  monthly: 150,  color: '#F97316' },
+  { emoji: '💡', title: 'Инвестиции',     target: 10000, monthly: 500,  color: '#EAB308' },
+  { emoji: '🎮', title: 'Развлечения',    target: 500,   monthly: 80,   color: '#A855F7' },
+  { emoji: '🎯', title: 'Своя цель',      target: 0,     monthly: 0,    color: '#94A3B8', custom: true },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -317,6 +347,63 @@ const ms = StyleSheet.create({
   currCode: { fontSize: Typography.sizeXS, color: Colors.textMuted, marginTop: 1 },
 });
 
+// ─── Collapsible Section ──────────────────────────────────────────────────────
+
+function CollapsibleSection({
+  title, children, accentColor = Colors.accentTeal, badge, open, onToggle,
+}: {
+  title: string; children: React.ReactNode; accentColor?: string;
+  badge?: string; open: boolean; onToggle: () => void;
+}) {
+  const rot = useRef(new Animated.Value(open ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(rot, { toValue: open ? 1 : 0, duration: 220, useNativeDriver: true }).start();
+  }, [open]);
+
+  const chevronRot = rot.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
+
+  return (
+    <View style={[cs.wrap, { borderColor: accentColor + '35', shadowColor: accentColor }]}>
+      <TouchableOpacity style={cs.header} onPress={onToggle} activeOpacity={0.7}>
+        <Text style={cs.title}>{title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {badge ? (
+            <View style={[cs.badge, { backgroundColor: accentColor + '18', borderColor: accentColor + '35' }]}>
+              <Text style={[cs.badgeTxt, { color: accentColor }]}>{badge}</Text>
+            </View>
+          ) : null}
+          <Animated.Text style={[cs.chevron, { transform: [{ rotate: chevronRot }] }]}>›</Animated.Text>
+        </View>
+      </TouchableOpacity>
+      {open && <View style={cs.body}>{children}</View>}
+    </View>
+  );
+}
+
+const cs = StyleSheet.create({
+  wrap: { borderRadius: Radius.xl, borderWidth: 1, marginBottom: Spacing.md, shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 0 }, elevation: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md },
+  title: { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2 },
+  badge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderWidth: 1 },
+  badgeTxt: { fontSize: Typography.sizeXS, fontFamily: Typography.fontSemiBold },
+  chevron: { fontSize: 20, color: Colors.textMuted },
+  body: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
+});
+
+// ─── Fridge helpers ───────────────────────────────────────────────────────────
+
+function fridgeDaysUntil(d: string) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.round((new Date(d).getTime() - today.getTime()) / 86400000);
+}
+function fridgeZoneColor(days: number) {
+  if (days < 0) return Colors.danger;
+  if (days <= 1) return Colors.danger;
+  if (days <= 3) return Colors.warning;
+  return Colors.success;
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function DashboardScreen() {
@@ -330,6 +417,13 @@ export function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currencyModal, setCurrencyModal] = useState(false);
   const [insightIdx, setInsightIdx] = useState(0);
+
+  // Collapsible sections
+  const [catsOpen, setCatsOpen] = useState(false);
+  const [goalsOpen, setGoalsOpen] = useState(false);
+  const [fridgeOpen, setFridgeOpen] = useState(false);
+  const [whatIfOpen, setWhatIfOpen] = useState(false);
+  const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const neonAnim = useRef(new Animated.Value(0)).current;
   const { visible: tipsVisible, complete: tipsDone } = useCoachMark('dashboard');
@@ -338,11 +432,29 @@ export function DashboardScreen() {
 
   // Goal modal state
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [goalStep, setGoalStep] = useState<'pick' | 'form'>('pick');
   const [goalEmoji, setGoalEmoji] = useState('🎯');
   const [goalTitle, setGoalTitle] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
   const [goalMonthly, setGoalMonthly] = useState('');
   const [goalSaving, setGoalSaving] = useState(false);
+
+  function openGoalModal() {
+    setGoalStep('pick');
+    setGoalEmoji('🎯');
+    setGoalTitle('');
+    setGoalTarget('');
+    setGoalMonthly('');
+    openGoalModal();
+  }
+
+  function handlePickTemplate(tpl: GoalTemplate) {
+    setGoalEmoji(tpl.emoji);
+    setGoalTitle(tpl.custom ? '' : tpl.title);
+    setGoalTarget(tpl.target > 0 ? String(tpl.target) : '');
+    setGoalMonthly(tpl.monthly > 0 ? String(tpl.monthly) : '');
+    setGoalStep('form');
+  }
 
   const totalSpent = getTotalSpent();
   const remaining = getRemaining();
@@ -365,10 +477,11 @@ export function DashboardScreen() {
     const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const to   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-    const [txRes, goalsRes, profileRes] = await Promise.all([
+    const [txRes, goalsRes, profileRes, fridgeRes] = await Promise.all([
       supabase.from('transactions').select('*').eq('user_id', user.id).gte('date', from).lte('date', to).order('date', { ascending: false }),
       supabase.from('goals').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
       supabase.from('profiles').select('monthly_budget, currency').eq('id', user.id).single(),
+      supabase.from('fridge_items').select('*').eq('user_id', user.id).order('expires_at', { ascending: true }),
     ]);
 
     if (txRes.data) setTransactions(txRes.data as Transaction[]);
@@ -379,6 +492,7 @@ export function DashboardScreen() {
         setUser({ ...user, currency: profileRes.data.currency });
       }
     }
+    if (fridgeRes.data) setFridgeItems(fridgeRes.data as FridgeItem[]);
   }
 
   useEffect(() => {
@@ -517,105 +631,236 @@ export function DashboardScreen() {
           </View>
 
           {/* ── Categories ── */}
-          <View style={styles.catSection}>
-            <Text style={styles.catTitle}>{t('dash.categories')}</Text>
-            {(() => {
-              const catTotal = Object.entries(CAT).reduce((s, [k]) => s + (byCategory[k] ?? 0), 0);
-              const activeCats = Object.entries(CAT)
-                .map(([k, cfg]) => ({ key: k, cfg, amount: byCategory[k] ?? 0 }))
-                .filter(c => c.amount > 0)
-                .sort((a, b) => b.amount - a.amount);
-              if (activeCats.length === 0) return (
-                <Text style={styles.catEmpty}>{t('dash.cat.empty')}</Text>
-              );
-              return (
-                <View style={styles.catBlocks}>
-                  {activeCats.map(({ key, cfg, amount }) => {
-                    const pct = catTotal > 0 ? amount / catTotal : 0;
+          {(() => {
+            const catTotal = Object.entries(CAT).reduce((s, [k]) => s + (byCategory[k] ?? 0), 0);
+            const activeCats = Object.entries(CAT)
+              .map(([k, cfg]) => ({ key: k, cfg, amount: byCategory[k] ?? 0 }))
+              .filter(c => c.amount > 0)
+              .sort((a, b) => b.amount - a.amount);
+            return (
+              <CollapsibleSection
+                title={t('dash.categories')}
+                accentColor={Colors.accentPurple}
+                badge={catTotal > 0 ? `${currObj.symbol}${Math.round(catTotal).toLocaleString('ru-RU')}` : undefined}
+                open={catsOpen}
+                onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setCatsOpen(v => !v); }}
+              >
+                {activeCats.length === 0 ? (
+                  <Text style={styles.catEmpty}>{t('dash.cat.empty')}</Text>
+                ) : (
+                  <View style={styles.catBlocks}>
+                    {activeCats.map(({ key, cfg, amount }) => {
+                      const pct = catTotal > 0 ? amount / catTotal : 0;
+                      return (
+                        <View
+                          key={key}
+                          style={[styles.catBlock, {
+                            flex: Math.max(pct, 0.08),
+                            backgroundColor: cfg.color + '18',
+                            borderColor: cfg.color + '55',
+                            shadowColor: cfg.color,
+                          }]}
+                        >
+                          <Text style={[styles.catBlockLabel, { color: cfg.color }]} numberOfLines={1}>{t(cfg.key)}</Text>
+                          <Text style={[styles.catBlockAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(amount)}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </CollapsibleSection>
+            );
+          })()}
+
+          {/* ── Goals Section ── */}
+          <CollapsibleSection
+            title={t('dash.goals')}
+            accentColor={Colors.accentPurple}
+            badge={goals.length > 0 ? `${goals.length}` : undefined}
+            open={goalsOpen}
+            onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setGoalsOpen(v => !v); }}
+          >
+            <View style={styles.goalsSectionHeader}>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={styles.goalsAddBtn} onPress={() => openGoalModal()} activeOpacity={0.7}>
+                <Text style={styles.goalsAddBtnText}>{t('dash.goals.add')}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {goals.length === 0 ? (
+              <TouchableOpacity style={styles.goalsEmpty} onPress={() => openGoalModal()} activeOpacity={0.8}>
+                <Text style={styles.emptyIcon}>🎯</Text>
+                <Text style={styles.emptyTitle}>{t('dash.goals.emptyTitle')}</Text>
+                <Text style={styles.emptyText}>{t('dash.goals.emptyDesc')}</Text>
+              </TouchableOpacity>
+            ) : (
+              goals.map((goal, idx) => {
+                const progress = goal.target_amount > 0 ? goal.current_amount / goal.target_amount : 0;
+                const pct = Math.round(Math.min(progress * 100, 100));
+                const months = monthsLeft(goal.current_amount, goal.target_amount, goal.monthly_contribution);
+                const palette = GOAL_PALETTES[idx % GOAL_PALETTES.length];
+                return (
+                  <LinearGradient key={goal.id} colors={palette} style={styles.goalCard} start={{x:0,y:0}} end={{x:1,y:1}}>
+                    <View style={styles.goalCardTop}>
+                      <View style={styles.goalEmojiWrap}>
+                        <Text style={{ fontSize: 22 }}>{goal.emoji}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
+                        <Text style={styles.goalCardAmts}>
+                          {fmt(goal.current_amount)}
+                          <Text style={styles.goalCardAmtMuted}> / {fmt(goal.target_amount)}</Text>
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                        <View style={styles.goalPctBadge}>
+                          <Text style={styles.goalPctTxt}>{pct}%</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => handleDeleteGoal(goal.id)} style={styles.goalTrashBtn}>
+                          <Text style={styles.goalTrashTxt}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <View style={styles.goalBarTrack}>
+                      <LinearGradient
+                        colors={['#4ADE80', '#22D3EE']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={[styles.goalBarFill, { width: `${pct}%` as any }]}
+                      />
+                    </View>
+                    {months > 0 && (
+                      <Text style={styles.goalCardSub}>
+                        +{fmt(goal.monthly_contribution)}{t('dash.goals.perMonth')} {months} {t('dash.goals.months')}
+                      </Text>
+                    )}
+                    {goal.current_amount >= goal.target_amount && (
+                      <Text style={[styles.goalCardSub, { color: Colors.success }]}>{t('dash.goals.done')}</Text>
+                    )}
+                  </LinearGradient>
+                );
+              })
+            )}
+          </CollapsibleSection>
+
+          {/* ── Fridge Section ── */}
+          {(() => {
+            const urgentItems = fridgeItems.filter(i => fridgeDaysUntil(i.expires_at) <= 3);
+            const expiredCount = fridgeItems.filter(i => fridgeDaysUntil(i.expires_at) < 0).length;
+            const soonCount = fridgeItems.filter(i => { const d = fridgeDaysUntil(i.expires_at); return d >= 0 && d <= 3; }).length;
+            const badgeParts: string[] = [];
+            if (expiredCount > 0) badgeParts.push(`${expiredCount} просрочено`);
+            else if (soonCount > 0) badgeParts.push(`${soonCount} скоро`);
+            else if (fridgeItems.length > 0) badgeParts.push(`${fridgeItems.length} продуктов`);
+            return (
+              <CollapsibleSection
+                title="ХОЛОДИЛЬНИК"
+                accentColor={expiredCount > 0 ? Colors.danger : soonCount > 0 ? Colors.warning : Colors.accentTeal}
+                badge={badgeParts[0]}
+                open={fridgeOpen}
+                onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setFridgeOpen(v => !v); }}
+              >
+                {fridgeItems.length === 0 ? (
+                  <Text style={styles.catEmpty}>Холодильник пуст</Text>
+                ) : (
+                  <View style={{ gap: 6 }}>
+                    <View style={styles.fridgeStats}>
+                      <View style={[styles.fridgeStat, { borderColor: Colors.accentTeal + '35' }]}>
+                        <Text style={[styles.fridgeStatNum, { color: Colors.accentTeal }]}>{fridgeItems.length}</Text>
+                        <Text style={styles.fridgeStatLabel}>всего</Text>
+                      </View>
+                      <View style={[styles.fridgeStat, { borderColor: Colors.warning + '35' }]}>
+                        <Text style={[styles.fridgeStatNum, { color: Colors.warning }]}>{soonCount}</Text>
+                        <Text style={styles.fridgeStatLabel}>скоро</Text>
+                      </View>
+                      <View style={[styles.fridgeStat, { borderColor: Colors.danger + '35' }]}>
+                        <Text style={[styles.fridgeStatNum, { color: Colors.danger }]}>{expiredCount}</Text>
+                        <Text style={styles.fridgeStatLabel}>просрочено</Text>
+                      </View>
+                    </View>
+                    {urgentItems.slice(0, 5).map(item => {
+                      const days = fridgeDaysUntil(item.expires_at);
+                      const col = fridgeZoneColor(days);
+                      const label = days < 0 ? 'просрочено' : days === 0 ? 'сегодня' : days === 1 ? '1 день' : `${days} дня`;
+                      return (
+                        <View key={item.id} style={[styles.fridgeRow, { borderColor: col + '25' }]}>
+                          <Text style={styles.fridgeRowName} numberOfLines={1}>{item.name}</Text>
+                          <Text style={styles.fridgeRowQty}>{item.quantity} {item.unit}</Text>
+                          <View style={[styles.fridgeRowBadge, { backgroundColor: col + '18', borderColor: col + '40' }]}>
+                            <Text style={[styles.fridgeRowBadgeTxt, { color: col }]}>{label}</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                    {urgentItems.length > 5 && (
+                      <Text style={styles.catEmpty}>+{urgentItems.length - 5} ещё</Text>
+                    )}
+                  </View>
+                )}
+              </CollapsibleSection>
+            );
+          })()}
+
+          {/* ── What-if Simulator ── */}
+          {(() => {
+            const wiGoal = goals.find(g => g.monthly_contribution > 0 && g.target_amount > g.current_amount);
+            if (!wiGoal) return null;
+            const remaining = wiGoal.target_amount - wiGoal.current_amount;
+            const base = Math.ceil(remaining / wiGoal.monthly_contribution);
+            const scenarios = [
+              { label: 'Кофе навынос', saving: 47, emoji: '☕' },
+              { label: 'Доставка еды', saving: 80, emoji: '🍕' },
+              { label: 'Такси',        saving: 60, emoji: '🚕' },
+            ];
+            return (
+              <CollapsibleSection
+                title="ЧТО ЕСЛИ"
+                accentColor={Colors.warning}
+                badge={wiGoal.emoji + ' ' + wiGoal.title}
+                open={whatIfOpen}
+                onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setWhatIfOpen(v => !v); }}
+              >
+                <Text style={styles.wiSub}>Откажись от привычки — цель станет ближе</Text>
+                <View style={{ gap: 8, marginBottom: Spacing.md }}>
+                  {scenarios.map(sc => {
+                    const newMos = Math.ceil(remaining / (wiGoal.monthly_contribution + sc.saving));
+                    const diff = base - newMos;
                     return (
-                      <View
-                        key={key}
-                        style={[styles.catBlock, {
-                          flex: Math.max(pct, 0.08),
-                          backgroundColor: cfg.color + '18',
-                          borderColor: cfg.color + '55',
-                          shadowColor: cfg.color,
-                        }]}
-                      >
-                        <Text style={[styles.catBlockLabel, { color: cfg.color }]} numberOfLines={1}>{t(cfg.key)}</Text>
-                        <Text style={[styles.catBlockAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(amount)}</Text>
+                      <View key={sc.label} style={styles.wiRow}>
+                        <Text style={{ fontSize: 20 }}>{sc.emoji}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.wiLabel}>{sc.label}</Text>
+                          <Text style={styles.wiEffect}>
+                            {'На '}
+                            <Text style={{ color: Colors.success, fontWeight: Typography.weightBold }}>
+                              {diff > 0 ? `${diff} мес.` : 'чуть'} ближе
+                            </Text>
+                          </Text>
+                        </View>
+                        <View style={styles.wiSavingBadge}>
+                          <Text style={styles.wiSavingTxt}>+{sc.saving}/мес</Text>
+                        </View>
                       </View>
                     );
                   })}
                 </View>
-              );
-            })()}
-          </View>
-
-          {/* ── Goals Section ── */}
-          <View style={styles.goalsSection}>
-          <View style={styles.goalsSectionHeader}>
-            <Text style={styles.goalsSectionTitle}>{t('dash.goals')}</Text>
-            <TouchableOpacity style={styles.goalsAddBtn} onPress={() => setShowGoalModal(true)} activeOpacity={0.7}>
-              <Text style={styles.goalsAddBtnText}>{t('dash.goals.add')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {goals.length === 0 ? (
-            <TouchableOpacity style={styles.goalsEmpty} onPress={() => setShowGoalModal(true)} activeOpacity={0.8}>
-              <Text style={styles.emptyIcon}>🎯</Text>
-              <Text style={styles.emptyTitle}>{t('dash.goals.emptyTitle')}</Text>
-              <Text style={styles.emptyText}>{t('dash.goals.emptyDesc')}</Text>
-            </TouchableOpacity>
-          ) : (
-            goals.map((goal, idx) => {
-              const progress = goal.target_amount > 0 ? goal.current_amount / goal.target_amount : 0;
-              const pct = Math.round(Math.min(progress * 100, 100));
-              const months = monthsLeft(goal.current_amount, goal.target_amount, goal.monthly_contribution);
-              const palette = GOAL_PALETTES[idx % GOAL_PALETTES.length];
-              return (
-                <LinearGradient key={goal.id} colors={palette} style={styles.goalCard} start={{x:0,y:0}} end={{x:1,y:1}}>
-                  <View style={styles.goalCardTop}>
-                    <View style={styles.goalEmojiWrap}>
-                      <Text style={{ fontSize: 22 }}>{goal.emoji}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
-                      <Text style={styles.goalCardAmts}>
-                        {fmt(goal.current_amount)}
-                        <Text style={styles.goalCardAmtMuted}> / {fmt(goal.target_amount)}</Text>
-                      </Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                      <View style={styles.goalPctBadge}>
-                        <Text style={styles.goalPctTxt}>{pct}%</Text>
+                <View style={styles.wiScenSection}>
+                  <Text style={styles.wiScenTitle}>Сколько откладывать в месяц:</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {[
+                      { label: 'Минимум',  val: remaining / Math.max(base + 3, 1) },
+                      { label: 'Реалист.', val: wiGoal.monthly_contribution },
+                      { label: 'Оптим.',   val: remaining / Math.max(base - 2, 1) },
+                    ].map(sc => (
+                      <View key={sc.label} style={styles.wiScenCard}>
+                        <Text style={styles.wiScenAmt}>{fmt(Math.round(sc.val))}</Text>
+                        <Text style={styles.wiScenLabel}>{sc.label}</Text>
                       </View>
-                      <TouchableOpacity onPress={() => handleDeleteGoal(goal.id)} style={styles.goalTrashBtn}>
-                        <Text style={styles.goalTrashTxt}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
+                    ))}
                   </View>
-                  <View style={styles.goalBarTrack}>
-                    <LinearGradient
-                      colors={['#4ADE80', '#22D3EE']}
-                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                      style={[styles.goalBarFill, { width: `${pct}%` as any }]}
-                    />
-                  </View>
-                  {months > 0 && (
-                    <Text style={styles.goalCardSub}>
-                      +{fmt(goal.monthly_contribution)}{t('dash.goals.perMonth')} {months} {t('dash.goals.months')}
-                    </Text>
-                  )}
-                  {goal.current_amount >= goal.target_amount && (
-                    <Text style={[styles.goalCardSub, { color: Colors.success }]}>{t('dash.goals.done')}</Text>
-                  )}
-                </LinearGradient>
-              );
-            })
-          )}
-
-          </View>
+                </View>
+              </CollapsibleSection>
+            );
+          })()}
 
           {/* ── AI Insight card ── */}
           <TouchableOpacity style={styles.aiCard} onPress={() => setInsightIdx(i => (i + 1) % 3)} activeOpacity={0.9}>
@@ -638,30 +883,130 @@ export function DashboardScreen() {
           <TouchableOpacity style={gm.backdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setShowGoalModal(false); }} />
           <View style={[gm.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={gm.handle} />
-            <Text style={gm.title}>{t('dash.goals.new')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
-              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                {GOAL_EMOJIS.map(e => (
-                  <TouchableOpacity key={e} style={[gm.emojiBtn, goalEmoji === e && gm.emojiBtnOn]} onPress={() => setGoalEmoji(e)}>
-                    <Text style={{ fontSize: 22 }}>{e}</Text>
+
+            {goalStep === 'pick' ? (
+              /* ── Step 1: Template picker ── */
+              <>
+                <View style={gm.pickHeader}>
+                  <Text style={gm.title}>Новая цель</Text>
+                  <Text style={gm.pickSub}>Выбери шаблон или создай свою</Text>
+                </View>
+                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+                  <View style={gm.tplGrid}>
+                    {GOAL_TEMPLATES.map(tpl => (
+                      <TouchableOpacity
+                        key={tpl.title}
+                        style={[gm.tplCard, { borderColor: tpl.color + '55' }]}
+                        onPress={() => handlePickTemplate(tpl)}
+                        activeOpacity={0.75}
+                      >
+                        <LinearGradient
+                          colors={[tpl.color + '1E', tpl.color + '08']}
+                          style={gm.tplInner}
+                        >
+                          <Text style={gm.tplEmoji}>{tpl.emoji}</Text>
+                          <Text style={gm.tplName} numberOfLines={1}>{tpl.title}</Text>
+                          {tpl.target > 0 ? (
+                            <Text style={[gm.tplHint, { color: tpl.color }]}>
+                              {tpl.target.toLocaleString('ru-RU')} {currObj.symbol}
+                            </Text>
+                          ) : (
+                            <Text style={[gm.tplHint, { color: tpl.color }]}>Произвольно</Text>
+                          )}
+                          {tpl.monthly > 0 && (
+                            <Text style={gm.tplMonthly}>
+                              {tpl.monthly} {currObj.symbol}/мес
+                            </Text>
+                          )}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </>
+            ) : (
+              /* ── Step 2: Form ── */
+              <>
+                <View style={gm.formHeader}>
+                  <TouchableOpacity style={gm.backBtn} onPress={() => setGoalStep('pick')} activeOpacity={0.7}>
+                    <Text style={gm.backTxt}>← Шаблоны</Text>
                   </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-            <Text style={gm.label}>{t('dash.goals.name')}</Text>
-            <TextInput style={gm.input} value={goalTitle} onChangeText={setGoalTitle} placeholder={t('dash.goals.namePh')} placeholderTextColor={Colors.textMuted} />
-            <Text style={gm.label}>{t('dash.goals.target')}</Text>
-            <TextInput style={gm.input} value={goalTarget} onChangeText={setGoalTarget} keyboardType="decimal-pad" placeholder="2 000" placeholderTextColor={Colors.textMuted} />
-            <Text style={gm.label}>{t('dash.goals.monthly')}</Text>
-            <TextInput style={gm.input} value={goalMonthly} onChangeText={setGoalMonthly} keyboardType="decimal-pad" placeholder="150" placeholderTextColor={Colors.textMuted} />
-            <View style={gm.btns}>
-              <TouchableOpacity style={gm.cancel} onPress={() => setShowGoalModal(false)}>
-                <Text style={gm.cancelTxt}>{t('dash.goals.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[gm.save, { backgroundColor: Colors.success }]} onPress={handleAddGoal} disabled={goalSaving}>
-                {goalSaving ? <ActivityIndicator color={Colors.bg} /> : <Text style={gm.saveTxt}>{t('dash.goals.save')}</Text>}
-              </TouchableOpacity>
-            </View>
+                  <Text style={gm.title}>Настрой цель</Text>
+                </View>
+
+                {/* Emoji picker */}
+                <View style={gm.emojiRow}>
+                  <View style={gm.emojiSelected}>
+                    <Text style={{ fontSize: 32 }}>{goalEmoji}</Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', gap: Spacing.sm, paddingLeft: Spacing.sm }}>
+                      {GOAL_TEMPLATES.filter(t => !t.custom).map(tpl => (
+                        <TouchableOpacity
+                          key={tpl.emoji}
+                          style={[gm.emojiBtn, goalEmoji === tpl.emoji && gm.emojiBtnOn]}
+                          onPress={() => setGoalEmoji(tpl.emoji)}
+                        >
+                          <Text style={{ fontSize: 20 }}>{tpl.emoji}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+
+                <Text style={gm.label}>{t('dash.goals.name')}</Text>
+                <TextInput
+                  style={gm.input}
+                  value={goalTitle}
+                  onChangeText={setGoalTitle}
+                  placeholder={t('dash.goals.namePh')}
+                  placeholderTextColor={Colors.textMuted}
+                  autoFocus={!goalTitle}
+                />
+
+                <View style={gm.row2}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={gm.label}>{t('dash.goals.target')}</Text>
+                    <TextInput
+                      style={gm.input}
+                      value={goalTarget}
+                      onChangeText={setGoalTarget}
+                      keyboardType="decimal-pad"
+                      placeholder="2 000"
+                      placeholderTextColor={Colors.textMuted}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={gm.label}>{t('dash.goals.monthly')}</Text>
+                    <TextInput
+                      style={gm.input}
+                      value={goalMonthly}
+                      onChangeText={setGoalMonthly}
+                      keyboardType="decimal-pad"
+                      placeholder="150"
+                      placeholderTextColor={Colors.textMuted}
+                    />
+                  </View>
+                </View>
+
+                {goalTarget && goalMonthly && parseFloat(goalTarget) > 0 && parseFloat(goalMonthly) > 0 && (
+                  <View style={gm.estimate}>
+                    <Text style={gm.estimateTxt}>
+                      ~{Math.ceil(parseFloat(goalTarget) / parseFloat(goalMonthly))} мес до цели
+                    </Text>
+                  </View>
+                )}
+
+                <View style={gm.btns}>
+                  <TouchableOpacity style={gm.cancel} onPress={() => setShowGoalModal(false)}>
+                    <Text style={gm.cancelTxt}>{t('dash.goals.cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[gm.save, { backgroundColor: Colors.success }]} onPress={handleAddGoal} disabled={goalSaving}>
+                    {goalSaving ? <ActivityIndicator color={Colors.bg} /> : <Text style={gm.saveTxt}>{t('dash.goals.save')}</Text>}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -750,24 +1095,34 @@ const styles = StyleSheet.create({
   catEmpty:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg },
 
   // Goals section
-  section:              { marginBottom: Spacing.md },
-  goalsSection: {
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.accentPurple + '35',
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    shadowColor: Colors.accentPurple,
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
-  },
-  goalsSectionHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
-  goalsSectionTitle:    { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2 },
+  goalsSectionHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginBottom: Spacing.md },
   goalsAddBtn:          { backgroundColor: 'rgba(74,222,128,0.14)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(74,222,128,0.35)' },
   goalsAddBtnText:      { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.success },
   goalsEmpty:           { backgroundColor: Glass.surface, borderRadius: Radius.xl, padding: Spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: Glass.border, marginBottom: Spacing.md },
+
+  // What-if simulator
+  wiSub:        { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginBottom: Spacing.md },
+  wiRow:        { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  wiLabel:      { fontSize: Typography.sizeSM, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold },
+  wiEffect:     { fontSize: Typography.sizeXS, color: Colors.textSecondary },
+  wiSavingBadge:{ backgroundColor: Colors.success+'18', borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3 },
+  wiSavingTxt:  { fontSize: Typography.sizeXS, color: Colors.success, fontWeight: Typography.weightBold },
+  wiScenSection:{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', paddingTop: Spacing.md },
+  wiScenTitle:  { fontSize: Typography.sizeXS, color: Colors.textMuted, marginBottom: Spacing.sm },
+  wiScenCard:   { flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center' },
+  wiScenAmt:    { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, color: Colors.textPrimary },
+  wiScenLabel:  { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginTop: 2, textAlign: 'center' },
+
+  // Fridge widget
+  fridgeStats:        { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  fridgeStat:         { flex: 1, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.sm, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)' },
+  fridgeStatNum:      { fontSize: Typography.sizeLG, fontFamily: Typography.fontBold },
+  fridgeStatLabel:    { fontSize: 9, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 0.5 },
+  fridgeRow:          { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.sm, paddingVertical: 7 },
+  fridgeRowName:      { flex: 1, fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textPrimary },
+  fridgeRowQty:       { fontSize: Typography.sizeXS, fontFamily: Typography.fontRegular, color: Colors.textMuted },
+  fridgeRowBadge:     { borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
+  fridgeRowBadgeTxt:  { fontSize: 10, fontFamily: Typography.fontSemiBold },
 
   goalCard:       { borderRadius: Radius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Glass.border },
   goalCardTop:    { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
@@ -809,10 +1164,37 @@ const gm = StyleSheet.create({
   backdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheet:     { backgroundColor: '#0D0E1C', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: Spacing.xl, borderTopWidth: 1, borderColor: Glass.border },
   handle:    { width: 40, height: 4, borderRadius: 2, backgroundColor: Glass.border, alignSelf: 'center', marginBottom: Spacing.lg },
-  title:     { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg },
+
+  // Step 1 – picker
+  pickHeader: { marginBottom: Spacing.lg },
+  pickSub:    { fontSize: Typography.sizeSM, color: Colors.textMuted, textAlign: 'center', marginTop: 2 },
+
+  tplGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: Spacing.md },
+  tplCard:    { width: '47.5%', borderRadius: Radius.lg, borderWidth: 1, overflow: 'hidden' },
+  tplInner:   { paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, alignItems: 'center', gap: 3 },
+  tplEmoji:   { fontSize: 30, marginBottom: 2 },
+  tplName:    { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary, textAlign: 'center' },
+  tplHint:    { fontSize: 11, fontFamily: Typography.fontSemiBold },
+  tplMonthly: { fontSize: 10, fontFamily: Typography.fontRegular, color: Colors.textMuted },
+
+  // Step 2 – form
+  formHeader: { marginBottom: Spacing.md },
+  backBtn:    { alignSelf: 'flex-start', marginBottom: Spacing.sm },
+  backTxt:    { fontSize: Typography.sizeSM, color: Colors.accentTeal, fontFamily: Typography.fontSemiBold },
+
+  emojiRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
+  emojiSelected: { width: 52, height: 52, borderRadius: Radius.md, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.accentTeal + '60', marginRight: Spacing.sm },
+
+  title:     { fontSize: Typography.sizeLG, fontWeight: Typography.weightBold, color: Colors.textPrimary, textAlign: 'center', marginBottom: 2 },
   label:     { fontSize: Typography.sizeSM, color: Colors.textSecondary, marginBottom: Spacing.xs, marginTop: Spacing.md },
   input:     { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, color: Colors.textPrimary, fontSize: Typography.sizeMD, borderWidth: 1, borderColor: Glass.border },
-  emojiBtn:  { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Glass.border },
+
+  row2:      { flexDirection: 'row', gap: Spacing.md },
+
+  estimate:  { backgroundColor: 'rgba(74,222,128,0.10)', borderRadius: Radius.md, paddingVertical: 8, paddingHorizontal: Spacing.md, marginTop: Spacing.md, borderWidth: 1, borderColor: 'rgba(74,222,128,0.25)', alignItems: 'center' },
+  estimateTxt: { fontSize: Typography.sizeSM, color: Colors.success, fontFamily: Typography.fontSemiBold },
+
+  emojiBtn:  { width: 40, height: 40, borderRadius: Radius.md, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Glass.border },
   emojiBtnOn:{ borderColor: Colors.accentTeal, borderWidth: 2 },
   btns:      { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xl },
   cancel:    { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingVertical: Spacing.md, alignItems: 'center' },

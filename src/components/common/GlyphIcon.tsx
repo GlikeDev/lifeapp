@@ -6,7 +6,8 @@ import { Colors } from '../../constants/tokens';
 export type GlyphName =
   | 'scan' | 'edit' | 'arrow-right' | 'arrow-left' | 'plus' | 'close' | 'check'
   | 'search' | 'home' | 'chart' | 'star' | 'bolt' | 'fire' | 'sparkle'
-  | 'cart' | 'groceries' | 'travel' | 'nutrition' | 'camera' | 'bell' | 'settings' | 'lock';
+  | 'cart' | 'groceries' | 'travel' | 'nutrition' | 'camera' | 'bell' | 'settings' | 'lock'
+  | 'fridge';
 
 function renderIcon(name: GlyphName, size: number, color: string) {
   const s = size;
@@ -109,6 +110,13 @@ function renderIcon(name: GlyphName, size: number, color: string) {
     <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="12" r="3" stroke={c} strokeWidth={1.8}/>
       <Path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke={c} strokeWidth={1.4} strokeLinecap="round"/>
+    </Svg>);
+  if (name === 'fridge') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Rect x="5" y="2" width="14" height="20" rx="2" stroke={c} strokeWidth={1.8}/>
+      <Line x1="5" y1="9" x2="19" y2="9" stroke={c} strokeWidth={1.8} strokeLinecap="round"/>
+      <Line x1="9" y1="5.5" x2="9" y2="7" stroke={c} strokeWidth={2} strokeLinecap="round"/>
+      <Line x1="9" y1="13" x2="9" y2="16" stroke={c} strokeWidth={2} strokeLinecap="round"/>
     </Svg>);
   if (name === 'lock') return (
     <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
