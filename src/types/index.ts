@@ -40,6 +40,7 @@ export interface Transaction {
   receipt_url?: string;
   date: string;
   created_at: string;
+  payment_method?: 'cash' | 'card';
 }
 
 // ─── Goals ───────────────────────────────────────────────────────────────────
@@ -169,6 +170,7 @@ export interface Achievement {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
+  FinanceDetail: undefined;
 };
 
 export type AuthStackParamList = {

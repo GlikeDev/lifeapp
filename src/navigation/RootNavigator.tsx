@@ -14,6 +14,7 @@ import { useBudgetStore } from '../store/useBudgetStore';
 import { AuthNavigator } from './AuthNavigator';
 import { MainNavigator } from './MainNavigator';
 import { OnboardingScreen } from '../screens/Auth/OnboardingScreen';
+import { FinanceDetailScreen } from '../screens/Dashboard/FinanceDetailScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -114,6 +115,11 @@ export function RootNavigator() {
         ) : (
           <Stack.Screen name="Main" component={MainNavigator} />
         )}
+        <Stack.Screen
+          name="FinanceDetail"
+          component={FinanceDetailScreen}
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

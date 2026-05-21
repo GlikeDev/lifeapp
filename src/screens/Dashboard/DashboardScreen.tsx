@@ -32,15 +32,18 @@ import {
 } from 'react-native';
 
 const SCREEN_H = Dimensions.get('window').height;
+const SCREEN_W = Dimensions.get('window').width;
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, G, Circle, Text as SvgText } from 'react-native-svg';
 import { Card, ProgressBar } from '../../components/common';
+import { FlowingBar } from '../../components/common/FlowingBar';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { useBudgetStore } from '../../store/useBudgetStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -421,6 +424,7 @@ function fridgeZoneColor(days: number) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function DashboardScreen() {
+  const navigation = useNavigation();
   const { user, setUser } = useAuthStore();
   const { wallpaperId } = useWallpaperStore();
   const wallpaperSource = wallpaperId !== null ? WALLPAPERS[wallpaperId] : null;
@@ -440,8 +444,8 @@ export function DashboardScreen() {
   const [fridgeOpen, setFridgeOpen] = useState(false);
   const [whatIfOpen, setWhatIfOpen] = useState(false);
   const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>([]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const neonAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim   = useRef(new Animated.Value(0)).current;
+  const neonAnim   = useRef(new Animated.Value(0)).current;
   const { visible: tipsVisible, complete: tipsDone } = useCoachMark('dashboard');
   const insets = useSafeAreaInsets();
   const { t, lang, setLang, locale } = useTranslation();
@@ -628,41 +632,45 @@ export function DashboardScreen() {
           </View>
 
           {/* ── Hero Balance ── */}
-          <LinearGradient
-            colors={['rgba(34,211,238,0.09)', 'rgba(167,139,250,0.06)', 'rgba(11,12,27,0)']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
+          <TouchableOpacity
+            activeOpacity={0.82}
+            onPress={() => (navigation as any).navigate('FinanceDetail')}
           >
-            <Text style={styles.heroLabel}>{t('dash.availableBudget')}</Text>
-            <View style={styles.heroAmountRow}>
-              <Text style={styles.heroCurrency}>{currObj.symbol}</Text>
-              <Text style={styles.heroNumber}>{balanceInt.toLocaleString('ru-RU')}</Text>
-              <Text style={styles.heroDec}>.{balanceDec}</Text>
-            </View>
-
-            <View style={styles.barTrack}>
-              <LinearGradient
-                colors={spentPct > 1 ? ['#EF4444', '#F87171'] : ['#22D3EE', '#A78BFA']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={[styles.barFill, { width: `${Math.min(spentPct * 100, 100)}%` as any }]}
-              />
-            </View>
-
-            <View style={styles.heroMeta}>
-              <Text style={styles.heroMetaText}>
-                <Text style={{ color: spentPct > 1 ? Colors.danger : Colors.accentTeal }}>{fmt(totalSpent)}</Text>
-                <Text style={{ color: Colors.textMuted }}> {t('dash.spent')}</Text>
-              </Text>
-              <View style={styles.healthBadge}>
-                <View style={[styles.healthDot, { backgroundColor: healthColor }]} />
-                <Text style={[styles.healthTxt, { color: healthColor }]}>{health}</Text>
+            <LinearGradient
+              colors={['rgba(34,211,238,0.09)', 'rgba(167,139,250,0.06)', 'rgba(11,12,27,0)']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.heroCard}
+            >
+              <View style={styles.heroLabelRow}>
+                <Text style={styles.heroLabel}>{t('dash.availableBudget')}</Text>
+                <Text style={styles.heroChevron}>›</Text>
               </View>
-              <Text style={styles.heroMetaText}>
-                <Text style={{ color: Colors.textMuted }}>{fmt(monthlyBudget)}</Text>
-                <Text style={{ color: Colors.textFaint }}> {t('dash.total')}</Text>
-              </Text>
-            </View>
-          </LinearGradient>
+              <View style={styles.heroAmountRow}>
+                <Text style={styles.heroCurrency}>{currObj.symbol}</Text>
+                <Text style={styles.heroNumber}>{balanceInt.toLocaleString('ru-RU')}</Text>
+                <Text style={styles.heroDec}>.{balanceDec}</Text>
+              </View>
+
+              <View style={{ marginBottom: Spacing.md }}>
+                <FlowingBar pct={spentPct} overBudget={spentPct > 1} height={5} borderRadius={999} trackColor="rgba(255,255,255,0.06)" />
+              </View>
+
+              <View style={styles.heroMeta}>
+                <Text style={styles.heroMetaText}>
+                  <Text style={{ color: spentPct > 1 ? Colors.danger : Colors.accentTeal }}>{fmt(totalSpent)}</Text>
+                  <Text style={{ color: Colors.textMuted }}> {t('dash.spent')}</Text>
+                </Text>
+                <View style={styles.healthBadge}>
+                  <View style={[styles.healthDot, { backgroundColor: healthColor }]} />
+                  <Text style={[styles.healthTxt, { color: healthColor }]}>{health}</Text>
+                </View>
+                <Text style={styles.heroMetaText}>
+                  <Text style={{ color: Colors.textMuted }}>{fmt(monthlyBudget)}</Text>
+                  <Text style={{ color: Colors.textFaint }}> {t('dash.total')}</Text>
+                </Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
 
           {/* ── Categories ── */}
           {(() => {
@@ -1085,7 +1093,9 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     marginBottom: Spacing.lg,
   },
-  heroLabel:     { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 0.8, marginBottom: Spacing.sm },
+  heroLabelRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
+  heroLabel:     { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 0.8 },
+  heroChevron:   { fontSize: 20, color: Colors.textMuted, marginRight: -4 },
   heroAmountRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: Spacing.lg },
   heroCurrency:  { fontSize: 20, fontFamily: Typography.fontDisplay, color: Colors.textSecondary, marginBottom: 5, marginRight: 3 },
   heroNumber:    { fontSize: 52, fontFamily: Typography.fontDisplay, color: Colors.textPrimary, lineHeight: 56, letterSpacing: -1.5 },
@@ -1096,7 +1106,7 @@ const styles = StyleSheet.create({
   barFill:  { height: '100%', borderRadius: Radius.full },
 
   heroMeta:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heroMetaText: { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular },
+  heroMetaText: { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium },
   healthBadge:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
   healthDot:    { width: 6, height: 6, borderRadius: 3 },
   healthTxt:    { fontSize: 11, fontFamily: Typography.fontSemiBold },
@@ -1108,7 +1118,7 @@ const styles = StyleSheet.create({
   catRowBar:      { flex: 1, height: 4, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: Radius.full, overflow: 'hidden' },
   catRowBarFill:  { height: '100%', borderRadius: Radius.full },
   catRowAmount:   { width: 64, fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, textAlign: 'right' },
-  catEmpty:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg },
+  catEmpty:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg },
 
   // Goals section
   goalsEmpty:           { paddingVertical: Spacing.xl, alignItems: 'center', backgroundColor: 'transparent' },
@@ -1145,7 +1155,7 @@ const styles = StyleSheet.create({
   goalCardTitle:  { fontSize: Typography.sizeMD, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
   goalCardAmts:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.success, marginTop: 2 },
   goalCardAmtMuted:{ color: Colors.textMuted, fontFamily: Typography.fontRegular },
-  goalCardSub:    { fontSize: Typography.sizeXS, fontFamily: Typography.fontRegular, color: Colors.textSecondary, marginTop: Spacing.sm },
+  goalCardSub:    { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textSecondary, marginTop: Spacing.sm },
   goalPctBadge:   { backgroundColor: 'rgba(74,222,128,0.18)', borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(74,222,128,0.4)' },
   goalPctTxt:     { fontSize: Typography.sizeXS, color: Colors.success, fontFamily: Typography.fontSemiBold },
   goalTrashBtn:   { padding: 2 },
@@ -1155,7 +1165,7 @@ const styles = StyleSheet.create({
 
   emptyIcon:  { fontSize: 36, marginBottom: Spacing.md },
   emptyTitle: { fontSize: Typography.sizeMD, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary, marginBottom: Spacing.xs },
-  emptyText:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  emptyText:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
 
   // AI card (goal emojis in gm stylesheet below)
   aiCard: {
@@ -1167,7 +1177,7 @@ const styles = StyleSheet.create({
   },
   aiShine: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(34,211,238,0.30)' },
   aiLabel: { fontSize: Typography.sizeXS, fontFamily: Typography.fontSemiBold, color: Colors.accentTeal, letterSpacing: 1, marginBottom: Spacing.sm },
-  aiText:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textSecondary, lineHeight: 20 },
+  aiText:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textSecondary, lineHeight: 20 },
   aiDots:  { flexDirection: 'row', gap: 6, marginTop: Spacing.sm },
   aiDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(34,211,238,0.25)' },
   aiDotActive: { backgroundColor: Colors.accentTeal, width: 16 },

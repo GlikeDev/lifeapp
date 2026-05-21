@@ -467,55 +467,55 @@ const s = StyleSheet.create({
   proBadge:   { position:'absolute', bottom:-4, right:-4, backgroundColor:Colors.warning, borderRadius:Radius.full, paddingHorizontal:5, paddingVertical:1 },
   proTxt:     { fontSize:8, fontWeight:Typography.weightBold, color:Colors.bg },
   heroName:   { fontSize:Typography.sizeLG, fontWeight:Typography.weightBold, color:Colors.textPrimary, marginTop:4 },
-  heroSub:    { fontSize:Typography.sizeXS, color:Colors.textMuted },
+  heroSub:    { fontSize:Typography.sizeXS, color:Colors.textMuted, fontFamily:Typography.fontMedium },
   levelRow:   { flexDirection:'row', alignItems:'center', gap:Spacing.sm, marginTop:4 },
   levelPill:  { backgroundColor:Colors.accentPurple+'30', borderRadius:Radius.full, paddingHorizontal:Spacing.md, paddingVertical:3 },
-  levelPillTxt:{ fontSize:Typography.sizeXS, fontWeight:Typography.weightBold, color:Colors.accentPurple },
-  levelName:  { fontSize:Typography.sizeXS, color:Colors.textSecondary },
+  levelPillTxt:{ fontSize:Typography.sizeXS, fontFamily:Typography.fontBold, color:Colors.accentPurple },
+  levelName:  { fontSize:Typography.sizeXS, color:Colors.textSecondary, fontFamily:Typography.fontMedium },
   xpWrap:     { width:'100%', gap:4, marginTop:4 },
   xpTrack:    { height:5, backgroundColor:'rgba(255,255,255,0.10)', borderRadius:Radius.full, overflow:'hidden' },
   xpFill:     { height:'100%', backgroundColor:Colors.accentPurple, borderRadius:Radius.full },
-  xpTxt:      { fontSize:Typography.sizeXS, color:Colors.textMuted, textAlign:'right' },
-  joinDate:   { fontSize:Typography.sizeXS, color:Colors.textMuted, marginTop:2 },
+  xpTxt:      { fontSize:Typography.sizeXS, color:Colors.textMuted, fontFamily:Typography.fontMedium, textAlign:'right' },
+  joinDate:   { fontSize:Typography.sizeXS, color:Colors.textMuted, fontFamily:Typography.fontMedium, marginTop:2 },
 
   // Stats
   statsRow:   { flexDirection:'row', gap:Spacing.sm, paddingHorizontal:Spacing.xl, marginTop:Spacing.lg },
   statCard:   { flex:1, backgroundColor:'rgba(255,255,255,0.04)', borderRadius:Radius.md, padding:Spacing.md, alignItems:'center', gap:2, borderWidth:1, borderColor:'rgba(255,255,255,0.06)' },
-  statVal:    { fontSize:Typography.sizeMD, fontWeight:Typography.weightBold },
-  statLbl:    { fontSize:8, color:Colors.textMuted, fontWeight:Typography.weightMedium, textAlign:'center' },
+  statVal:    { fontSize:Typography.sizeMD, fontFamily:Typography.fontBold },
+  statLbl:    { fontSize:Typography.sizeXS, color:Colors.textMuted, fontFamily:Typography.fontMedium, textAlign:'center' },
 
   // Section
   section:    { paddingHorizontal:Spacing.xl, marginTop:Spacing.xl },
   sectionHead:{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:Spacing.md },
-  sectionTitle:{ fontSize:Typography.sizeXS, fontWeight:Typography.weightSemiBold, color:Colors.textMuted, letterSpacing:1.2 },
-  sectionAction:{ fontSize:Typography.sizeXS, color:Colors.accentTeal, fontWeight:Typography.weightSemiBold },
+  sectionTitle:{ fontSize:Typography.sizeXS, fontFamily:Typography.fontSemiBold, color:Colors.textMuted, letterSpacing:1.2 },
+  sectionAction:{ fontSize:Typography.sizeXS, color:Colors.accentTeal, fontFamily:Typography.fontSemiBold },
 
   // Streak
   streakRow:  { flexDirection:'row', gap:5, flexWrap:'wrap' },
   streakDot:  { width:16, height:16, borderRadius:4 },
-  streakSub:  { fontSize:Typography.sizeXS, color:Colors.textMuted, marginTop:Spacing.xs },
+  streakSub:  { fontSize:Typography.sizeXS, color:Colors.textMuted, fontFamily:Typography.fontMedium, marginTop:Spacing.xs },
 
   // Achievements
   achBadge:   { width:80, alignItems:'center', borderRadius:Radius.md, borderWidth:1, paddingVertical:Spacing.sm, paddingHorizontal:Spacing.xs, gap:3 },
   achStar:    { fontSize:22 },
-  achName:    { fontSize:9, color:Colors.textPrimary, fontWeight:Typography.weightSemiBold, textAlign:'center' },
-  achXp:      { fontSize:9, fontWeight:Typography.weightBold },
+  achName:    { fontSize:Typography.sizeXS, color:Colors.textPrimary, fontFamily:Typography.fontSemiBold, textAlign:'center' },
+  achXp:      { fontSize:Typography.sizeXS, fontFamily:Typography.fontBold },
 
   // Finance
   finRow:     { flexDirection:'row', gap:Spacing.md },
   finCard:    { flex:1, borderRadius:Radius.xl, overflow:'hidden' },
   finGrad:    { padding:Spacing.lg, gap:4, minHeight:110 },
   finEmoji:   { fontSize:26, marginBottom:2 },
-  finTitle:   { fontSize:Typography.sizeMD, fontWeight:Typography.weightBold, color:Colors.textPrimary },
-  finSub:     { fontSize:Typography.sizeXS, color:Colors.textSecondary },
+  finTitle:   { fontSize:Typography.sizeMD, fontFamily:Typography.fontBold, color:Colors.textPrimary },
+  finSub:     { fontSize:Typography.sizeXS, color:Colors.textSecondary, fontFamily:Typography.fontMedium },
 
   // Settings
   settingsCard:{ backgroundColor:'rgba(255,255,255,0.04)', borderRadius:Radius.xl, borderWidth:1, borderColor:'rgba(255,255,255,0.06)', overflow:'hidden' },
   settingRow: { flexDirection:'row', alignItems:'center', paddingHorizontal:Spacing.lg, paddingVertical:Spacing.md, gap:Spacing.md },
   settingIcon:{ width:32, height:32, borderRadius:Radius.sm, backgroundColor:'rgba(255,255,255,0.06)', alignItems:'center', justifyContent:'center' },
-  settingLabel:{ flex:1, fontSize:Typography.sizeMD, color:Colors.textPrimary, fontWeight:Typography.weightMedium },
+  settingLabel:{ flex:1, fontSize:Typography.sizeMD, color:Colors.textPrimary, fontFamily:Typography.fontSemiBold },
   settingRight:{ flexDirection:'row', alignItems:'center' },
-  settingVal: { fontSize:Typography.sizeSM, color:Colors.textSecondary },
+  settingVal: { fontSize:Typography.sizeSM, color:Colors.textSecondary, fontFamily:Typography.fontMedium },
   divider:    { height:1, backgroundColor:'rgba(255,255,255,0.05)', marginLeft:Spacing.lg+32+Spacing.md },
 
   // Sign out
@@ -544,7 +544,7 @@ const s = StyleSheet.create({
   achModalStar:  { fontSize:36 },
   achModalXp:    { fontSize:Typography.sizeXS, fontWeight:Typography.weightBold, marginTop:2 },
   achModalTitle: { fontSize:Typography.sizeLG, fontWeight:Typography.weightBold, color:Colors.textPrimary, textAlign:'center', marginBottom:Spacing.xs },
-  achModalDesc:  { fontSize:Typography.sizeSM, color:Colors.textSecondary, textAlign:'center', lineHeight:20, marginBottom:Spacing.lg },
+  achModalDesc:  { fontSize:Typography.sizeSM, fontFamily:Typography.fontMedium, color:Colors.textSecondary, textAlign:'center', lineHeight:20, marginBottom:Spacing.lg },
   achModalBtn:   { width:'100%', borderRadius:Radius.full, paddingVertical:Spacing.md, alignItems:'center' },
   achModalBtnTxt:{ fontSize:Typography.sizeMD, fontWeight:Typography.weightBold },
 });

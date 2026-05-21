@@ -31,14 +31,14 @@ export const Colors = {
   HoloStops: ['#22D3EE', '#A78BFA', '#E879F9', '#FB7185'] as string[],
 
   textPrimary:   '#FFFFFF',
-  textSecondary: '#C7CADC',
-  textMuted:     '#7A7E9C',
-  textFaint:     '#44475F',
+  textSecondary: '#D8DBF0',
+  textMuted:     '#A8ABCA',
+  textFaint:     '#7275A0',
 
-  t1: '#F0F0FF',
-  t2: '#9FA3C7',
-  t3: '#6366A0',
-  t4: '#3E4070',
+  t1: '#F4F4FF',
+  t2: '#BFC2DE',
+  t3: '#8E91C4',
+  t4: '#6668A8',
 
   categoryFood:      '#4ADE80',
   categoryTransport: '#A78BFA',

@@ -130,12 +130,6 @@ export function CurvedTabBar({ state, navigation }: BottomTabBarProps) {
     outputRange: [0.25, 0.65],
   });
 
-  // Aurora line: slides right across the bar width
-  const auroraX = shimmerAnim.interpolate({
-    inputRange:  [0, 1],
-    outputRange: [-SCREEN_W, SCREEN_W],
-  });
-
   return (
     <View style={{ width: SCREEN_W, height: totalH, backgroundColor: 'transparent' }} pointerEvents="box-none">
 
@@ -159,16 +153,6 @@ export function CurvedTabBar({ state, navigation }: BottomTabBarProps) {
         fillColor={wallpaperSource ? 'transparent' : '#0B0C1B'}
       />
 
-      {/* ── Aurora shimmer line along the top edge ── */}
-      <View style={styles.auroraClip} pointerEvents="none">
-        <Animated.View style={{ transform: [{ translateX: auroraX }] }}>
-          <LinearGradient
-            colors={['transparent', '#22D3EE70', '#A78BFA90', '#E879F970', '#22D3EE70', 'transparent']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={{ width: SCREEN_W * 3, height: 1.5 }}
-          />
-        </Animated.View>
-      </View>
 
       {/* ── Tab buttons ── */}
       {state.routes.map((route, index) => {
@@ -252,14 +236,6 @@ export function CurvedTabBar({ state, navigation }: BottomTabBarProps) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  auroraClip: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: SCREEN_W,
-    height: 2,
-    overflow: 'hidden',
-  },
   tabBtn: {
     position: 'absolute',
     alignItems: 'center',
