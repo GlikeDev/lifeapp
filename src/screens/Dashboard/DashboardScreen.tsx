@@ -383,7 +383,7 @@ function CollapsibleSection({
 }
 
 const cs = StyleSheet.create({
-  wrap: { borderRadius: Radius.xl, borderWidth: 1, marginBottom: Spacing.md, overflow: 'hidden', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  wrap: { borderRadius: Radius.xl, borderWidth: 1, marginBottom: Spacing.md, shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md },
   title: { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2 },
   badge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderWidth: 1 },
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
   catEmpty:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontRegular, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg },
 
   // Goals section
-  goalsEmpty:           { paddingVertical: Spacing.xl, alignItems: 'center' },
+  goalsEmpty:           { paddingVertical: Spacing.xl, alignItems: 'center', backgroundColor: 'transparent' },
 
   // What-if simulator
   wiSub:        { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginBottom: Spacing.md },
@@ -1093,10 +1093,10 @@ const styles = StyleSheet.create({
 
   // Fridge widget
   fridgeStats:        { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  fridgeStat:         { flex: 1, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.sm, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)' },
+  fridgeStat:         { flex: 1, paddingVertical: Spacing.sm, alignItems: 'center' },
   fridgeStatNum:      { fontSize: Typography.sizeLG, fontFamily: Typography.fontBold },
   fridgeStatLabel:    { fontSize: 9, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 0.5 },
-  fridgeRow:          { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.sm, paddingVertical: 7 },
+  fridgeRow:          { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 0, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.07)' },
   fridgeRowName:      { flex: 1, fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textPrimary },
   fridgeRowQty:       { fontSize: Typography.sizeXS, fontFamily: Typography.fontRegular, color: Colors.textMuted },
   fridgeRowBadge:     { borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
