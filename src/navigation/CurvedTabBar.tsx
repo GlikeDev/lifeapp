@@ -23,7 +23,6 @@ const STREAK_W   = 18;   // shimmer streak width
 const ICON_NAMES: Record<string, GlyphName> = {
   Dashboard: 'home',
   Scan:      'scan',
-  Fridge:    'fridge',
   Nutrition: 'nutrition',
   More:      'star',
 };
@@ -31,7 +30,6 @@ const ICON_NAMES: Record<string, GlyphName> = {
 const TAB_LABELS: Record<string, string> = {
   Dashboard: 'Главная',
   Scan:      'Скан',
-  Fridge:    'Холодильник',
   Nutrition: 'Нутри',
   More:      'Профиль',
 };

@@ -30,6 +30,7 @@ function MoreNavigator() {
       <MoreStack.Screen name="Achievements"  component={AchievementsScreen} />
       <MoreStack.Screen name="Subscriptions" component={SubscriptionsScreen} />
       <MoreStack.Screen name="Debts"         component={DebtsScreen} />
+      <MoreStack.Screen name="Fridge"        component={FridgeScreen} />
     </MoreStack.Navigator>
   );
 }
@@ -45,7 +46,6 @@ export function MainNavigator() {
         initialRouteName="Dashboard"
       >
         <Tab.Screen name="Scan"      component={ScanScreen} />
-        <Tab.Screen name="Fridge"    component={FridgeScreen} />
         <Tab.Screen name="Dashboard" component={DashboardScreen} />
         <Tab.Screen name="Nutrition" component={NutritionScreen} />
         <Tab.Screen name="More"      component={MoreNavigator} />

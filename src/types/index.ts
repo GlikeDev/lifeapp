@@ -25,8 +25,10 @@ export interface User {
 // ─── Transactions ────────────────────────────────────────────────────────────
 
 export type TransactionCategory =
-  | 'food' | 'transport' | 'home' | 'health' | 'entertainment' | 'shopping'
-  | 'salary' | 'freelance' | 'transfer' | 'gift' | 'cashback' | 'other';
+  | 'food' | 'cafe' | 'transport' | 'home' | 'health' | 'entertainment' | 'shopping'
+  | 'education' | 'sport' | 'beauty' | 'travel' | 'pets'
+  | 'salary' | 'freelance' | 'transfer' | 'gift' | 'cashback'
+  | 'investment' | 'rental' | 'business' | 'bonus' | 'other';
 
 export type TransactionType = 'expense' | 'income';
 
@@ -182,8 +184,7 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Dashboard: undefined;
-  Scan: undefined;
-  Fridge: undefined;
+  Scan: { txType?: 'expense' | 'income'; mode?: 'manual' } | undefined;
   Nutrition: undefined;
   More: undefined;
 };
@@ -191,8 +192,10 @@ export type MainTabParamList = {
 export type MoreStackParamList = {
   MoreMenu: undefined;
   SmartShop: undefined;
+  Goals: undefined;
   Profile: undefined;
   Achievements: undefined;
   Subscriptions: undefined;
   Debts: undefined;
+  Fridge: undefined;
 };

@@ -124,11 +124,17 @@ const CURRENCIES = [
 
 const CAT = {
   food:          { key: 'cat.food',          color: Colors.categoryFood },
+  cafe:          { key: 'cat.cafe',          color: '#F97316' },
   transport:     { key: 'cat.transport',     color: Colors.categoryTransport },
   home:          { key: 'cat.home',          color: Colors.categoryHome },
   health:        { key: 'cat.health',        color: Colors.accentTeal },
   entertainment: { key: 'cat.entertainment', color: '#E879F9' },
   shopping:      { key: 'cat.shopping',      color: '#FB7185' },
+  education:     { key: 'cat.education',     color: '#60A5FA' },
+  sport:         { key: 'cat.sport',         color: '#4ADE80' },
+  beauty:        { key: 'cat.beauty',        color: '#F472B6' },
+  travel:        { key: 'cat.travel',        color: '#38BDF8' },
+  pets:          { key: 'cat.pets',          color: '#FBBF24' },
   other:         { key: 'cat.other',         color: Colors.categoryOther },
 };
 
@@ -672,6 +678,26 @@ export function DashboardScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
+          {/* ── Quick add buttons ── */}
+          <View style={styles.quickRow}>
+            <TouchableOpacity
+              style={[styles.quickBtn, styles.quickBtnExpense]}
+              onPress={() => (navigation as any).navigate('Scan', { mode: 'manual', txType: 'expense' })}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.quickSign}>−</Text>
+              <Text style={styles.quickBtnTxt}>{t('dash.addExpense')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickBtn, styles.quickBtnIncome]}
+              onPress={() => (navigation as any).navigate('Scan', { mode: 'manual', txType: 'income' })}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.quickSign, { color: Colors.success }]}>+</Text>
+              <Text style={[styles.quickBtnTxt, { color: Colors.success }]}>{t('dash.addIncome')}</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* ── Categories ── */}
           {(() => {
             const catTotal = Object.entries(CAT).reduce((s, [k]) => s + (byCategory[k] ?? 0), 0);
@@ -1091,8 +1117,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(34,211,238,0.18)',
     padding: Spacing.xl,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
+  quickRow:        { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
+  quickBtn:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: Spacing.md, borderRadius: Radius.full, borderWidth: 1.5 },
+  quickBtnExpense: { backgroundColor: Colors.danger + '12', borderColor: Colors.danger + '55' },
+  quickBtnIncome:  { backgroundColor: Colors.success + '12', borderColor: Colors.success + '55' },
+  quickSign:       { fontSize: 18, fontFamily: Typography.fontBold, color: Colors.danger, lineHeight: 22 },
+  quickBtnTxt:     { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.danger },
   heroLabelRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
   heroLabel:     { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 0.8 },
   heroChevron:   { fontSize: 20, color: Colors.textMuted, marginRight: -4 },

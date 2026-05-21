@@ -4,7 +4,8 @@ import {
   TextInput, Animated, KeyboardAvoidingView, Platform,
   ActivityIndicator, Alert, Dimensions,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { MainTabParamList } from '../../types';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -113,21 +114,31 @@ function IcoUp({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
 
 const EXPENSE_CATS = [
   { key: 'food',          tKey: 'cat.food',          color: Colors.categoryFood,      icon: '🍔' },
+  { key: 'cafe',          tKey: 'cat.cafe',          color: '#F97316',                icon: '☕' },
   { key: 'transport',     tKey: 'cat.transport',     color: Colors.categoryTransport, icon: '🚗' },
   { key: 'home',          tKey: 'cat.home',          color: Colors.categoryHome,      icon: '🏠' },
   { key: 'health',        tKey: 'cat.health',        color: Colors.accentTeal,        icon: '💊' },
   { key: 'entertainment', tKey: 'cat.entertainment', color: Colors.pink,              icon: '🎮' },
   { key: 'shopping',      tKey: 'cat.shopping',      color: '#FF8C42',                icon: '🛍️' },
+  { key: 'education',     tKey: 'cat.education',     color: '#60A5FA',                icon: '🎓' },
+  { key: 'sport',         tKey: 'cat.sport',         color: '#4ADE80',                icon: '🏋️' },
+  { key: 'beauty',        tKey: 'cat.beauty',        color: '#F472B6',                icon: '💅' },
+  { key: 'travel',        tKey: 'cat.travel',        color: '#38BDF8',                icon: '✈️' },
+  { key: 'pets',          tKey: 'cat.pets',          color: '#FBBF24',                icon: '🐾' },
   { key: 'other',         tKey: 'cat.other',         color: Colors.textMuted,         icon: '📦' },
 ];
 
 const INCOME_CATS = [
-  { key: 'salary',    tKey: 'cat.salary',    color: Colors.success,      icon: '💼' },
-  { key: 'freelance', tKey: 'cat.freelance', color: Colors.accentPurple, icon: '💻' },
-  { key: 'transfer',  tKey: 'cat.transfer',  color: Colors.accentTeal,   icon: '💸' },
-  { key: 'gift',      tKey: 'cat.gift',      color: Colors.pink,         icon: '🎁' },
-  { key: 'cashback',  tKey: 'cat.cashback',  color: Colors.categoryHome, icon: '🏷️' },
-  { key: 'other',     tKey: 'cat.other',     color: Colors.textMuted,    icon: '📦' },
+  { key: 'salary',     tKey: 'cat.salary',     color: Colors.success,      icon: '💼' },
+  { key: 'freelance',  tKey: 'cat.freelance',  color: Colors.accentPurple, icon: '💻' },
+  { key: 'business',   tKey: 'cat.business',   color: '#F59E0B',           icon: '🏢' },
+  { key: 'investment', tKey: 'cat.investment', color: '#4ADE80',           icon: '📈' },
+  { key: 'rental',     tKey: 'cat.rental',     color: '#60A5FA',           icon: '🏡' },
+  { key: 'bonus',      tKey: 'cat.bonus',      color: '#E879F9',           icon: '⭐' },
+  { key: 'transfer',   tKey: 'cat.transfer',   color: Colors.accentTeal,   icon: '💸' },
+  { key: 'gift',       tKey: 'cat.gift',       color: Colors.pink,         icon: '🎁' },
+  { key: 'cashback',   tKey: 'cat.cashback',   color: Colors.categoryHome, icon: '🏷️' },
+  { key: 'other',      tKey: 'cat.other',      color: Colors.textMuted,    icon: '📦' },
 ];
 
 const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS];
@@ -150,6 +161,7 @@ export function ScanScreen() {
   const currency = user?.currency ?? 'EUR';
   const { visible: tipsVisible, complete: tipsDone } = useCoachMark('scan');
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<MainTabParamList, 'Scan'>>();
 
   const { t } = useTranslation();
 
@@ -160,9 +172,12 @@ export function ScanScreen() {
     { icon: '✏️', title: t('scan.tip3.title'), body: t('scan.tip3.body') },
   ];
 
-  const [mode, setMode]             = useState<Mode>('hub');
+  const initType = (route.params as any)?.txType ?? 'expense';
+  const initMode = (route.params as any)?.mode ?? 'hub';
+
+  const [mode, setMode]             = useState<Mode>(initMode);
   const [permission, reqPerm]       = useCameraPermissions();
-  const [txType, setTxType]         = useState<TxType>('expense');
+  const [txType, setTxType]         = useState<TxType>(initType);
   const [amount, setAmount]         = useState('');
   const [category, setCategory]     = useState('food');
   const [store, setStore]           = useState('');
@@ -186,6 +201,15 @@ export function ScanScreen() {
   const hubAnim     = useRef(new Animated.Value(0)).current;
   const scanAnim    = useRef(new Animated.Value(0)).current;
   const successAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const p = (route.params as any);
+    if (p?.mode === 'manual') {
+      setTxType(p.txType ?? 'expense');
+      setCategory(p.txType === 'income' ? 'salary' : 'food');
+      setMode('manual');
+    }
+  }, [route.params]);
 
   useEffect(() => {
     if (mode === 'hub') {
@@ -755,7 +779,7 @@ export function ScanScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+  safe: { flex: 1, backgroundColor: 'transparent' },
 
   // Hub
   hubPad: { padding: Spacing.xl, paddingBottom: Layout.tabBarClearance + Spacing.xl },
