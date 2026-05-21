@@ -42,10 +42,11 @@ export function MainNavigator() {
       <Tab.Navigator
         tabBar={props => <CurvedTabBar {...props} />}
         screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}
+        initialRouteName="Dashboard"
       >
-        <Tab.Screen name="Dashboard" component={DashboardScreen} />
         <Tab.Screen name="Scan"      component={ScanScreen} />
         <Tab.Screen name="Fridge"    component={FridgeScreen} />
+        <Tab.Screen name="Dashboard" component={DashboardScreen} />
         <Tab.Screen name="Nutrition" component={NutritionScreen} />
         <Tab.Screen name="More"      component={MoreNavigator} />
       </Tab.Navigator>

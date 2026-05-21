@@ -167,10 +167,10 @@ export function CurvedTabBar({ state, navigation }: BottomTabBarProps) {
             style={[
               styles.tabBtn,
               {
-                left:  tabW * index,
-                width: tabW,
-                top:   isFocused ? NOTCH_D + 6 : 12,
-                height: BAR_H - (isFocused ? NOTCH_D + 6 : 12),
+                left:   tabW * index,
+                width:  tabW,
+                top:    0,
+                height: BAR_H,
               },
             ]}
             activeOpacity={0.7}
@@ -178,12 +178,6 @@ export function CurvedTabBar({ state, navigation }: BottomTabBarProps) {
             {!isFocused && (
               <GlyphIcon name={iconName} size={22} color={Colors.t3} />
             )}
-            <Text
-              style={[styles.label, isFocused && styles.labelActive]}
-              numberOfLines={1}
-            >
-              {label}
-            </Text>
           </TouchableOpacity>
         );
       })}
@@ -249,21 +243,7 @@ const styles = StyleSheet.create({
   tabBtn: {
     position: 'absolute',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 2,
-    gap: 3,
-  },
-  label: {
-    fontSize: 10,
-    color: Colors.t3,
-    fontFamily: 'Onest-Medium',
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  labelActive: {
-    color: Colors.accentTeal,
-    fontFamily: 'Onest-SemiBold',
-    fontWeight: '600',
+    justifyContent: 'center',
   },
   floatWrap: {
     position: 'absolute',
