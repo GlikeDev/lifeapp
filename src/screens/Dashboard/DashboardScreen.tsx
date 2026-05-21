@@ -700,7 +700,8 @@ export function DashboardScreen() {
                 <Text style={styles.emptyText}>{t('dash.goals.emptyDesc')}</Text>
               </TouchableOpacity>
             ) : (
-              goals.map((goal, idx) => {
+              <>
+              {goals.map((goal, idx) => {
                 const progress = goal.target_amount > 0 ? goal.current_amount / goal.target_amount : 0;
                 const pct = Math.round(Math.min(progress * 100, 100));
                 const months = monthsLeft(goal.current_amount, goal.target_amount, goal.monthly_contribution);
@@ -744,7 +745,11 @@ export function DashboardScreen() {
                     )}
                   </LinearGradient>
                 );
-              })
+              })}
+              <TouchableOpacity style={styles.goalsAddBtn} onPress={openGoalModal} activeOpacity={0.7}>
+                <Text style={styles.goalsAddTxt}>+ Добавить цель</Text>
+              </TouchableOpacity>
+              </>
             )}
           </CollapsibleSection>
 
@@ -1090,6 +1095,8 @@ const styles = StyleSheet.create({
 
   // Goals section
   goalsEmpty:           { paddingVertical: Spacing.xl, alignItems: 'center', backgroundColor: 'transparent' },
+  goalsAddBtn:          { marginTop: Spacing.sm, paddingVertical: Spacing.md, alignItems: 'center', borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.accentPurple + '40', backgroundColor: Colors.accentPurple + '0A' },
+  goalsAddTxt:          { fontSize: Typography.sizeSM, color: Colors.accentPurple, fontWeight: Typography.weightSemiBold },
 
   // What-if simulator
   wiSub:        { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginBottom: Spacing.md },
