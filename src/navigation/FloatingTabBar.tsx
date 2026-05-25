@@ -222,7 +222,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         pointerEvents="none"
       >
         <LinearGradient
-          colors={['#A78BFA', '#22D3EE']}
+          colors={['#7B6CF6', '#00D4C8']}
           start={{ x: 0.1, y: 0 }}
           end={{ x: 0.9, y: 1 }}
           style={styles.circleGrad}
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     height: CIRCLE,
     borderRadius: CIRCLE / 2,
     elevation: 14,
-    shadowColor: '#A78BFA',
+    shadowColor: '#7B6CF6',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.55,
     shadowRadius: 18,

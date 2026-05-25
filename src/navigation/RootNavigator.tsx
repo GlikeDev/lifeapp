@@ -26,8 +26,8 @@ const AppTheme = {
     card:         Colors.bg,
     text:         '#FFFFFF',
     border:       'rgba(255,255,255,0.08)',
-    primary:      '#22D3EE',
-    notification: '#22D3EE',
+    primary:      '#00D4C8',
+    notification: '#00D4C8',
   },
 };
 

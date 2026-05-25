@@ -41,7 +41,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, G, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, G, Circle, Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { Card, ProgressBar } from '../../components/common';
 import { FlowingBar } from '../../components/common/FlowingBar';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
@@ -128,11 +128,11 @@ const CAT = {
   transport:     { key: 'cat.transport',     color: Colors.categoryTransport },
   home:          { key: 'cat.home',          color: Colors.categoryHome },
   health:        { key: 'cat.health',        color: Colors.accentTeal },
-  entertainment: { key: 'cat.entertainment', color: '#E879F9' },
-  shopping:      { key: 'cat.shopping',      color: '#FB7185' },
+  entertainment: { key: 'cat.entertainment', color: '#FF6B9D' },
+  shopping:      { key: 'cat.shopping',      color: '#F5554A' },
   education:     { key: 'cat.education',     color: '#60A5FA' },
-  sport:         { key: 'cat.sport',         color: '#4ADE80' },
-  beauty:        { key: 'cat.beauty',        color: '#F472B6' },
+  sport:         { key: 'cat.sport',         color: '#39D98A' },
+  beauty:        { key: 'cat.beauty',        color: '#FF6B9D' },
   travel:        { key: 'cat.travel',        color: '#38BDF8' },
   pets:          { key: 'cat.pets',          color: '#FBBF24' },
   other:         { key: 'cat.other',         color: Colors.categoryOther },
@@ -146,6 +146,17 @@ const GOAL_PALETTES: [string, string][] = [
   ['#1F2A1A','#141E0F'],
   ['#2A1F3E','#1A1228'],
   ['#2A2010','#1A1208'],
+];
+
+const GOAL_BAR_COLORS = [
+  '#00D4C8',
+  '#7B6CF6',
+  '#FF6B9D',
+  '#39D98A',
+  '#FAAD14',
+  '#F5554A',
+  '#38BDF8',
+  '#F97316',
 ];
 
 interface GoalTemplate {
@@ -163,10 +174,10 @@ const GOAL_TEMPLATES: GoalTemplate[] = [
   { emoji: '🚗', title: 'Автомобиль',     target: 15000, monthly: 500,  color: '#F59E0B' },
   { emoji: '💍', title: 'Свадьба',        target: 10000, monthly: 400,  color: '#EC4899' },
   { emoji: '✈️', title: 'Путешествие',    target: 3000,  monthly: 300,  color: '#3B82F6' },
-  { emoji: '📱', title: 'Гаджет',         target: 800,   monthly: 150,  color: '#22D3EE' },
-  { emoji: '🎓', title: 'Образование',    target: 5000,  monthly: 300,  color: '#6366F1' },
-  { emoji: '🏋️', title: 'Фитнес',        target: 600,   monthly: 100,  color: '#4ADE80' },
-  { emoji: '💊', title: 'Здоровье',       target: 2000,  monthly: 200,  color: '#34D399' },
+  { emoji: '📱', title: 'Гаджет',         target: 800,   monthly: 150,  color: '#00D4C8' },
+  { emoji: '🎓', title: 'Образование',    target: 5000,  monthly: 300,  color: '#7B6CF6' },
+  { emoji: '🏋️', title: 'Фитнес',        target: 600,   monthly: 100,  color: '#39D98A' },
+  { emoji: '💊', title: 'Здоровье',       target: 2000,  monthly: 200,  color: '#39D98A' },
   { emoji: '🛋️', title: 'Мебель',        target: 3000,  monthly: 250,  color: '#FB923C' },
   { emoji: '🐾', title: 'Питомец',        target: 1500,  monthly: 150,  color: '#F97316' },
   { emoji: '💡', title: 'Инвестиции',     target: 10000, monthly: 500,  color: '#EAB308' },
@@ -212,21 +223,55 @@ function SpendingBarChart({ data, currency }: { data: { label: string; amount: n
   const gap = (W - barW * 7) / 8;
   const maxAmount = Math.max(...data.map(d => d.amount), 1);
 
+  const mkBar = (x: number, y: number, barH: number) =>
+    `M${x+4},${y+barH} L${x+4},${y+4} Q${x+4},${y} ${x+8},${y} L${x+barW-8},${y} Q${x+barW},${y} ${x+barW},${y+4} L${x+barW},${y+barH} Z`;
+
+  const mkGlow = (x: number, y: number, barH: number) => {
+    const sx = x - 4, sw = barW + 8, sy = y - 4;
+    return `M${sx+4},${sy+barH+5} L${sx+4},${sy+4} Q${sx+4},${sy} ${sx+8},${sy} L${sx+sw-8},${sy} Q${sx+sw},${sy} ${sx+sw},${sy+4} L${sx+sw},${sy+barH+5} Z`;
+  };
+
   return (
     <Svg width="100%" height={H + 24} viewBox={`0 0 ${W} ${H + 24}`}>
+      <Defs>
+        <SvgLinearGradient id="bcg_today" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0%" stopColor={Colors.accentTeal} stopOpacity="1" />
+          <Stop offset="100%" stopColor={Colors.accentTeal} stopOpacity="0.08" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="bcg_past" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0%" stopColor={Colors.accentPurple} stopOpacity="0.9" />
+          <Stop offset="100%" stopColor={Colors.accentPurple} stopOpacity="0.08" />
+        </SvgLinearGradient>
+      </Defs>
+
       {data.map((d, i) => {
         const x = gap + i * (barW + gap);
         const barH = Math.max(4, (d.amount / maxAmount) * H);
         const y = H - barH;
         const isToday = i === 6;
-        const color = isToday ? Colors.accentTeal : d.amount > 0 ? Colors.accentPurple : Colors.border;
+        const hasAmount = d.amount > 0;
+        const glowColor = isToday ? Colors.accentTeal : Colors.accentPurple;
+        const shineH = Math.min(10, barH);
+
         return (
           <G key={d.label}>
+            {/* outer glow */}
+            {hasAmount && (
+              <Path d={mkGlow(x, y, barH)} fill={glowColor} opacity={0.1} />
+            )}
+            {/* gradient bar */}
             <Path
-              d={`M${x + 4},${y + barH} L${x + 4},${y + 4} Q${x + 4},${y} ${x + 8},${y} L${x + barW - 8},${y} Q${x + barW},${y} ${x + barW},${y + 4} L${x + barW},${y + barH} Z`}
-              fill={color}
-              opacity={isToday ? 1 : 0.7}
+              d={mkBar(x, y, barH)}
+              fill={hasAmount ? `url(#bcg_${isToday ? 'today' : 'past'})` : Colors.border}
+              opacity={isToday ? 1 : hasAmount ? 0.88 : 0.4}
             />
+            {/* top shine */}
+            {hasAmount && (
+              <Path
+                d={`M${x+4},${y+shineH} L${x+4},${y+4} Q${x+4},${y} ${x+8},${y} L${x+barW-8},${y} Q${x+barW},${y} ${x+barW},${y+4} L${x+barW},${y+shineH} Z`}
+                fill="rgba(255,255,255,0.16)"
+              />
+            )}
             <SvgText
               x={x + barW / 2}
               y={H + 16}
@@ -456,6 +501,8 @@ export function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { t, lang, setLang, locale } = useTranslation();
 
+  const [showAddModal, setShowAddModal] = useState(false);
+
   // Goal modal state
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalStep, setGoalStep] = useState<'pick' | 'form'>('pick');
@@ -487,14 +534,12 @@ export function DashboardScreen() {
   const spentPct = monthlyBudget > 0 ? totalSpent / monthlyBudget : 0;
   const byCategory = getSpentByCategory();
   const currency = user?.currency ?? 'EUR';
-  const health = getBudgetHealth(spentPct, goals.length > 0);
-  const trend = getTrend(spentPct);
   const weekData = getLast7Days(transactions);
   const fmt = (n: number) => formatCurrency(n, currency);
 
   const neonBorderColor = neonAnim.interpolate({
     inputRange: [0, 0.33, 0.66, 1],
-    outputRange: ['#22D3EE', '#A78BFA', '#E879F9', '#22D3EE'],
+    outputRange: ['#00D4C8', '#7B6CF6', '#FF6B9D', '#00D4C8'],
   });
 
   async function loadData() {
@@ -577,7 +622,6 @@ export function DashboardScreen() {
   const monthName = new Date().toLocaleString(locale, { month: 'long', year: 'numeric' });
   const firstName = user?.full_name?.split(' ')[0] ?? 'Привет';
   const currObj = CURRENCIES.find(c => c.code === currency) ?? CURRENCIES[0];
-  const healthColor = health >= 70 ? Colors.success : health >= 40 ? Colors.warning : Colors.danger;
 
   const aiMessages = [
     spentPct > 0.85
@@ -643,13 +687,20 @@ export function DashboardScreen() {
             onPress={() => (navigation as any).navigate('FinanceDetail')}
           >
             <LinearGradient
-              colors={['rgba(34,211,238,0.09)', 'rgba(167,139,250,0.06)', 'rgba(11,12,27,0)']}
+              colors={['rgba(0,212,200,0.09)', 'rgba(123,108,246,0.06)', 'rgba(11,12,27,0)']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={styles.heroCard}
             >
               <View style={styles.heroLabelRow}>
                 <Text style={styles.heroLabel}>{t('dash.availableBudget')}</Text>
-                <Text style={styles.heroChevron}>›</Text>
+                <TouchableOpacity
+                  onPress={() => setShowAddModal(true)}
+                  activeOpacity={0.7}
+                  style={styles.heroAddBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.heroAddBtnTxt}>+</Text>
+                </TouchableOpacity>
               </View>
               <View style={styles.heroAmountRow}>
                 <Text style={styles.heroCurrency}>{currObj.symbol}</Text>
@@ -661,42 +712,53 @@ export function DashboardScreen() {
                 <FlowingBar pct={spentPct} overBudget={spentPct > 1} height={5} borderRadius={999} trackColor="rgba(255,255,255,0.06)" />
               </View>
 
-              <View style={styles.heroMeta}>
-                <Text style={styles.heroMetaText}>
-                  <Text style={{ color: spentPct > 1 ? Colors.danger : Colors.accentTeal }}>{fmt(totalSpent)}</Text>
-                  <Text style={{ color: Colors.textMuted }}> {t('dash.spent')}</Text>
-                </Text>
-                <View style={styles.healthBadge}>
-                  <View style={[styles.healthDot, { backgroundColor: healthColor }]} />
-                  <Text style={[styles.healthTxt, { color: healthColor }]}>{health}</Text>
+              <View style={styles.heroStats}>
+                <View style={styles.heroStat}>
+                  <Text style={styles.heroStatLabel}>{t('dash.spent').toUpperCase()}</Text>
+                  <Text style={[styles.heroStatValue, { color: spentPct > 1 ? Colors.danger : Colors.accentTeal }]}>
+                    {fmt(totalSpent)}
+                  </Text>
                 </View>
-                <Text style={styles.heroMetaText}>
-                  <Text style={{ color: Colors.textMuted }}>{fmt(monthlyBudget)}</Text>
-                  <Text style={{ color: Colors.textFaint }}> {t('dash.total')}</Text>
-                </Text>
+                <View style={styles.heroStatDivider} />
+                <View style={[styles.heroStat, { alignItems: 'flex-end' }]}>
+                  <Text style={styles.heroStatLabel}>{t('dash.total').toUpperCase()}</Text>
+                  <Text style={styles.heroStatValue}>{fmt(monthlyBudget)}</Text>
+                </View>
               </View>
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* ── Quick add buttons ── */}
-          <View style={styles.quickRow}>
-            <TouchableOpacity
-              style={[styles.quickBtn, styles.quickBtnExpense]}
-              onPress={() => (navigation as any).navigate('Scan', { mode: 'manual', txType: 'expense' })}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.quickSign}>−</Text>
-              <Text style={styles.quickBtnTxt}>{t('dash.addExpense')}</Text>
+          {/* ── Add transaction modal ── */}
+          <Modal visible={showAddModal} animationType="slide" transparent onRequestClose={() => setShowAddModal(false)}>
+            <TouchableOpacity style={styles.addModalOverlay} activeOpacity={1} onPress={() => setShowAddModal(false)}>
+              <TouchableOpacity activeOpacity={1} style={styles.addModalSheet} onPress={() => {}}>
+                <View style={styles.addModalHandle} />
+                <Text style={styles.addModalTitle}>Добавить операцию</Text>
+                <TouchableOpacity
+                  style={[styles.addModalBtn, styles.addModalBtnExpense]}
+                  activeOpacity={0.8}
+                  onPress={() => { setShowAddModal(false); (navigation as any).navigate('Scan', { mode: 'manual', txType: 'expense' }); }}
+                >
+                  <Text style={styles.addModalSign}>−</Text>
+                  <View>
+                    <Text style={[styles.addModalBtnLabel, { color: Colors.danger }]}>{t('dash.addExpense')}</Text>
+                    <Text style={styles.addModalBtnSub}>Списание средств</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.addModalBtn, styles.addModalBtnIncome]}
+                  activeOpacity={0.8}
+                  onPress={() => { setShowAddModal(false); (navigation as any).navigate('Scan', { mode: 'manual', txType: 'income' }); }}
+                >
+                  <Text style={[styles.addModalSign, { color: Colors.success }]}>+</Text>
+                  <View>
+                    <Text style={[styles.addModalBtnLabel, { color: Colors.success }]}>{t('dash.addIncome')}</Text>
+                    <Text style={styles.addModalBtnSub}>Пополнение баланса</Text>
+                  </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickBtn, styles.quickBtnIncome]}
-              onPress={() => (navigation as any).navigate('Scan', { mode: 'manual', txType: 'income' })}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.quickSign, { color: Colors.success }]}>+</Text>
-              <Text style={[styles.quickBtnTxt, { color: Colors.success }]}>{t('dash.addIncome')}</Text>
-            </TouchableOpacity>
-          </View>
+          </Modal>
 
           {/* ── Categories ── */}
           {(() => {
@@ -724,7 +786,12 @@ export function DashboardScreen() {
                           <View style={[styles.catDot, { backgroundColor: cfg.color }]} />
                           <Text style={styles.catRowLabel} numberOfLines={1}>{t(cfg.key)}</Text>
                           <View style={styles.catRowBar}>
-                            <View style={[styles.catRowBarFill, { width: `${Math.round(pct * 100)}%` as any, backgroundColor: cfg.color }]} />
+                            <LinearGradient
+                              colors={[cfg.color + '77', cfg.color]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={[styles.catRowBarFill, { width: `${Math.round(pct * 100)}%` as any }]}
+                            />
                           </View>
                           <Text style={[styles.catRowAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(amount)}</Text>
                         </View>
@@ -757,22 +824,30 @@ export function DashboardScreen() {
                 const pct = Math.round(Math.min(progress * 100, 100));
                 const months = monthsLeft(goal.current_amount, goal.target_amount, goal.monthly_contribution);
                 const palette = GOAL_PALETTES[idx % GOAL_PALETTES.length];
+                const barColor = GOAL_BAR_COLORS[idx % GOAL_BAR_COLORS.length];
                 return (
                   <LinearGradient key={goal.id} colors={palette} style={styles.goalCard} start={{x:0,y:0}} end={{x:1,y:1}}>
                     <View style={styles.goalCardTop}>
-                      <View style={styles.goalEmojiWrap}>
+                      <View style={[styles.goalEmojiWrap, { backgroundColor: barColor + '22', borderColor: barColor + '38' }]}>
+                        <LinearGradient
+                          colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0)']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFill}
+                          pointerEvents="none"
+                        />
                         <Text style={{ fontSize: 22 }}>{goal.emoji}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
-                        <Text style={styles.goalCardAmts}>
+                        <Text style={[styles.goalCardAmts, { color: barColor }]}>
                           {fmt(goal.current_amount)}
                           <Text style={styles.goalCardAmtMuted}> / {fmt(goal.target_amount)}</Text>
                         </Text>
                       </View>
                       <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                        <View style={styles.goalPctBadge}>
-                          <Text style={styles.goalPctTxt}>{pct}%</Text>
+                        <View style={[styles.goalPctBadge, { backgroundColor: barColor + '1A', borderColor: barColor + '40' }]}>
+                          <Text style={[styles.goalPctTxt, { color: barColor }]}>{pct}%</Text>
                         </View>
                         <TouchableOpacity onPress={() => handleDeleteGoal(goal.id)} style={styles.goalTrashBtn}>
                           <Text style={styles.goalTrashTxt}>✕</Text>
@@ -781,7 +856,7 @@ export function DashboardScreen() {
                     </View>
                     <View style={styles.goalBarTrack}>
                       <LinearGradient
-                        colors={['#4ADE80', '#22D3EE']}
+                        colors={[barColor + '77', barColor]}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                         style={[styles.goalBarFill, { width: `${pct}%` as any }]}
                       />
@@ -1098,16 +1173,16 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, paddingBottom: Layout.tabBarClearance },
 
   // Holographic blob background layers
-  blobTR: { position: 'absolute', width: 320, height: 200, top: -60, right: -80, borderRadius: 999, backgroundColor: 'rgba(34,211,238,0.20)', opacity: 0.6, transform: [{ scaleX: 1.4 }] },
-  blobCL: { position: 'absolute', width: 280, height: 220, top: '28%', left: -100, borderRadius: 999, backgroundColor: 'rgba(167,139,250,0.16)', opacity: 0.6, transform: [{ scaleY: 1.3 }] },
-  blobBR: { position: 'absolute', width: 300, height: 200, bottom: 120, right: -80, borderRadius: 999, backgroundColor: 'rgba(232,121,249,0.14)', opacity: 0.6, transform: [{ scaleX: 1.3 }] },
+  blobTR: { position: 'absolute', width: 320, height: 200, top: -60, right: -80, borderRadius: 999, backgroundColor: 'rgba(0,212,200,0.16)', opacity: 0.6, transform: [{ scaleX: 1.4 }] },
+  blobCL: { position: 'absolute', width: 280, height: 220, top: '28%', left: -100, borderRadius: 999, backgroundColor: 'rgba(123,108,246,0.14)', opacity: 0.6, transform: [{ scaleY: 1.3 }] },
+  blobBR: { position: 'absolute', width: 300, height: 200, bottom: 120, right: -80, borderRadius: 999, backgroundColor: 'rgba(255,107,157,0.10)', opacity: 0.6, transform: [{ scaleX: 1.3 }] },
 
   // Header
   header:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xl },
   monthLabel:      { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2 },
-  langBtn:         { backgroundColor: 'rgba(167,139,250,0.12)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(167,139,250,0.35)' },
+  langBtn:         { backgroundColor: 'rgba(123,108,246,0.12)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(123,108,246,0.35)' },
   langBtnText:     { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.accentPurple },
-  currencyBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(34,211,238,0.12)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(34,211,238,0.35)' },
+  currencyBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,212,200,0.12)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(0,212,200,0.35)' },
   currencyBtnText: { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.accentTeal },
   currencyChevron: { fontSize: 10, color: Colors.accentTeal },
 
@@ -1115,19 +1190,24 @@ const styles = StyleSheet.create({
   heroCard: {
     borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(34,211,238,0.18)',
+    borderColor: 'rgba(0,212,200,0.18)',
     padding: Spacing.xl,
     marginBottom: Spacing.md,
   },
-  quickRow:        { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
-  quickBtn:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: Spacing.md, borderRadius: Radius.full, borderWidth: 1.5 },
-  quickBtnExpense: { backgroundColor: Colors.danger + '12', borderColor: Colors.danger + '55' },
-  quickBtnIncome:  { backgroundColor: Colors.success + '12', borderColor: Colors.success + '55' },
-  quickSign:       { fontSize: 18, fontFamily: Typography.fontBold, color: Colors.danger, lineHeight: 22 },
-  quickBtnTxt:     { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.danger },
   heroLabelRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
   heroLabel:     { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 0.8 },
-  heroChevron:   { fontSize: 20, color: Colors.textMuted, marginRight: -4 },
+  heroAddBtn:    { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,212,200,0.15)', borderWidth: 1, borderColor: 'rgba(0,212,200,0.45)', alignItems: 'center', justifyContent: 'center' },
+  heroAddBtnTxt: { fontSize: 17, fontFamily: Typography.fontBold, color: Colors.accentTeal, lineHeight: 20, marginTop: Platform.OS === 'android' ? -1 : 0 },
+  addModalOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  addModalSheet:      { backgroundColor: '#1A1B2E', borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, paddingBottom: 36, gap: Spacing.md, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  addModalHandle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center', marginBottom: Spacing.sm },
+  addModalTitle:      { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textMuted, textAlign: 'center', letterSpacing: 0.5, marginBottom: Spacing.xs },
+  addModalBtn:        { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.lg, borderRadius: Radius.lg, borderWidth: 1 },
+  addModalBtnExpense: { backgroundColor: Colors.danger + '12', borderColor: Colors.danger + '33' },
+  addModalBtnIncome:  { backgroundColor: Colors.success + '12', borderColor: Colors.success + '33' },
+  addModalSign:       { fontSize: 28, fontFamily: Typography.fontBold, color: Colors.danger, width: 32, textAlign: 'center' },
+  addModalBtnLabel:   { fontSize: Typography.sizeMD, fontFamily: Typography.fontSemiBold },
+  addModalBtnSub:     { fontSize: Typography.sizeXS, fontFamily: Typography.fontRegular, color: Colors.textMuted, marginTop: 2 },
   heroAmountRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: Spacing.lg },
   heroCurrency:  { fontSize: 20, fontFamily: Typography.fontDisplay, color: Colors.textSecondary, marginBottom: 5, marginRight: 3 },
   heroNumber:    { fontSize: 52, fontFamily: Typography.fontDisplay, color: Colors.textPrimary, lineHeight: 56, letterSpacing: -1.5 },
@@ -1137,11 +1217,11 @@ const styles = StyleSheet.create({
   barTrack: { height: 5, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: Radius.full, overflow: 'hidden', marginBottom: Spacing.md },
   barFill:  { height: '100%', borderRadius: Radius.full },
 
-  heroMeta:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heroMetaText: { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium },
-  healthBadge:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  healthDot:    { width: 6, height: 6, borderRadius: 3 },
-  healthTxt:    { fontSize: 11, fontFamily: Typography.fontSemiBold },
+  heroStats:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroStat:        { gap: 3 },
+  heroStatLabel:   { fontSize: 10, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 0.8 },
+  heroStatValue:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textSecondary },
+  heroStatDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.08)' },
 
   // Categories rows
   catRow:         { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -1183,7 +1263,7 @@ const styles = StyleSheet.create({
 
   goalCard:       { borderRadius: Radius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Glass.border },
   goalCardTop:    { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
-  goalEmojiWrap:  { width: 46, height: 46, borderRadius: Radius.md, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
+  goalEmojiWrap:  { width: 46, height: 46, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1 },
   goalCardTitle:  { fontSize: Typography.sizeMD, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
   goalCardAmts:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.success, marginTop: 2 },
   goalCardAmtMuted:{ color: Colors.textMuted, fontFamily: Typography.fontRegular },
@@ -1202,16 +1282,16 @@ const styles = StyleSheet.create({
   // AI card (goal emojis in gm stylesheet below)
   aiCard: {
     borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md,
-    backgroundColor: 'rgba(34,211,238,0.06)',
-    borderWidth: 1, borderColor: 'rgba(34,211,238,0.25)',
+    backgroundColor: 'rgba(0,212,200,0.06)',
+    borderWidth: 1, borderColor: 'rgba(0,212,200,0.25)',
     overflow: 'hidden',
-    shadowColor: '#22D3EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 16,
+    shadowColor: '#00D4C8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 16,
   },
-  aiShine: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(34,211,238,0.30)' },
+  aiShine: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(0,212,200,0.30)' },
   aiLabel: { fontSize: Typography.sizeXS, fontFamily: Typography.fontSemiBold, color: Colors.accentTeal, letterSpacing: 1, marginBottom: Spacing.sm },
   aiText:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textSecondary, lineHeight: 20 },
   aiDots:  { flexDirection: 'row', gap: 6, marginTop: Spacing.sm },
-  aiDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(34,211,238,0.25)' },
+  aiDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(0,212,200,0.25)' },
   aiDotActive: { backgroundColor: Colors.accentTeal, width: 16 },
 });
 

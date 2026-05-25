@@ -34,9 +34,8 @@ export function CalorieRing({ consumed, goal, size = 180 }: CalorieRingProps) {
       <Svg width={size} height={size}>
         <Defs>
           <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor={Colors.cyan}/>
-            <Stop offset="50%" stopColor={Colors.purple}/>
-            <Stop offset="100%" stopColor={Colors.coral}/>
+            <Stop offset="0%" stopColor={Colors.accentTeal}/>
+            <Stop offset="100%" stopColor={Colors.accentPurple}/>
           </LinearGradient>
         </Defs>
         <Circle

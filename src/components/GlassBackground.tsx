@@ -27,32 +27,31 @@ const s = StyleSheet.create({
     borderRadius: 999,
     opacity: 0.55,
   },
-  // cyan — top right (~90% x, 8% y)
+  // teal — top right
   blobTR: {
     width: 320,
     height: 200,
     top: -60,
     right: -80,
-    backgroundColor: 'rgba(34,211,238,0.22)',
+    backgroundColor: 'rgba(0,212,200,0.18)',
     transform: [{ scaleX: 1.4 }],
-    // Soft edge via nested view trick
   },
-  // purple — center left (~-5% x, 35% y)
+  // purple — center left
   blobCL: {
     width: 280,
     height: 220,
     top: '28%',
     left: -100,
-    backgroundColor: 'rgba(167,139,250,0.18)',
+    backgroundColor: 'rgba(123,108,246,0.14)',
     transform: [{ scaleY: 1.3 }],
   },
-  // magenta — bottom right
+  // pink — bottom right
   blobBR: {
     width: 300,
     height: 200,
     bottom: 80,
     right: -80,
-    backgroundColor: 'rgba(232,121,249,0.16)',
+    backgroundColor: 'rgba(255,107,157,0.10)',
     transform: [{ scaleX: 1.3 }],
   },
 });

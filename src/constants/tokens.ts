@@ -1,55 +1,55 @@
 import { Platform } from 'react-native';
 
 export const Colors = {
-  bg:      '#0A0B14',
+  bg:      '#0D0E1A',
   bgDeep:  '#05060C',
 
-  surface:         'rgba(255,255,255,0.035)',
-  surfaceElevated: 'rgba(255,255,255,0.06)',
+  surface:         'rgba(255,255,255,0.06)',
+  surfaceElevated: 'rgba(255,255,255,0.09)',
   border:          'rgba(255,255,255,0.08)',
   border2:         'rgba(255,255,255,0.14)',
 
-  accentTeal:   '#22D3EE',
-  accentPurple: '#A78BFA',
-  accent2:      '#E879F9',
-  accent3:      '#A78BFA',
-  pink:         '#F472B6',
+  accentTeal:   '#00D4C8',
+  accentPurple: '#7B6CF6',
+  accent2:      '#FF6B9D',
+  accent3:      '#7B6CF6',
+  pink:         '#FF6B9D',
   coral:        '#FB7185',
-  success:      '#4ADE80',
-  warning:      '#F59E0B',
-  danger:       '#FB7185',
+  success:      '#39D98A',
+  warning:      '#FAAD14',
+  danger:       '#F5554A',
   gold:         '#FBBF24',
   silver:       '#CBD5E1',
   bronze:       '#D97706',
   platinum:     '#E2E8F0',
 
-  cyan:    '#22D3EE',
-  purple:  '#A78BFA',
-  magenta: '#E879F9',
-  green:   '#34D399',
+  cyan:    '#00D4C8',
+  purple:  '#7B6CF6',
+  magenta: '#FF6B9D',
+  green:   '#39D98A',
 
-  HoloStops: ['#22D3EE', '#A78BFA', '#E879F9', '#FB7185'] as string[],
+  HoloStops: ['#00D4C8', '#7B6CF6', '#FF6B9D', '#00D4C8'] as string[],
 
   textPrimary:   '#FFFFFF',
-  textSecondary: '#D8DBF0',
-  textMuted:     '#A8ABCA',
-  textFaint:     '#7275A0',
+  textSecondary: '#8E8FA8',
+  textMuted:     '#5A5B72',
+  textFaint:     '#3E3F58',
 
   t1: '#F4F4FF',
-  t2: '#BFC2DE',
-  t3: '#8E91C4',
-  t4: '#6668A8',
+  t2: '#C8CADF',
+  t3: '#8E8FA8',
+  t4: '#5A5B72',
 
-  categoryFood:      '#4ADE80',
-  categoryTransport: '#A78BFA',
-  categoryHome:      '#F59E0B',
-  categoryOther:     '#F472B6',
+  categoryFood:      '#39D98A',
+  categoryTransport: '#7B6CF6',
+  categoryHome:      '#FAAD14',
+  categoryOther:     '#FF6B9D',
 
   tierBronze:   '#D97706',
   tierSilver:   '#CBD5E1',
   tierGold:     '#FBBF24',
   tierPlatinum: '#E2E8F0',
-  tierLegend:   '#F472B6',
+  tierLegend:   '#FF6B9D',
 };
 
 export const CATEGORIES = [
@@ -140,21 +140,29 @@ export const Shadow = {
 };
 
 export const Glass = {
-  surface:      'rgba(255,255,255,0.025)',
-  surfaceMid:   'rgba(255,255,255,0.045)',
-  surface2:     'rgba(255,255,255,0.06)',
-  elev:         'rgba(255,255,255,0.08)',
+  surface:      'rgba(15,18,32,0.55)',
+  surfaceMid:   'rgba(15,18,32,0.62)',
+  surface2:     'rgba(15,18,32,0.68)',
+  elev:         'rgba(13,14,26,0.72)',
   border:       'rgba(255,255,255,0.08)',
   borderStrong: 'rgba(255,255,255,0.14)',
   borderBright: 'rgba(255,255,255,0.22)',
-  highlight:    'rgba(255,255,255,0.10)',
+  highlight:    'rgba(255,255,255,0.06)',
   shadow:       'rgba(0,0,0,0.55)',
 };
 
+export const Gradient = {
+  primaryColors: ['#00D4C8', '#7B6CF6'] as const,
+  fabColors:     ['#7B6CF6', '#00D4C8'] as const,
+  holoColors:    ['#00D4C8', '#7B6CF6', '#FF6B9D', '#00D4C8'] as const,
+  strokeTeal:    'rgba(0,212,200,0.55)',
+  strokePurple:  'rgba(123,108,246,0.55)',
+};
+
 export const Holo = {
-  blob1: 'rgba(34,211,238,0.18)',
-  blob2: 'rgba(167,139,250,0.14)',
-  blob3: 'rgba(232,121,249,0.14)',
+  blob1: 'rgba(0,212,200,0.18)',
+  blob2: 'rgba(123,108,246,0.14)',
+  blob3: 'rgba(255,107,157,0.10)',
 };
 
 export const fontMono = Platform.select({ ios: 'Courier New', android: 'monospace' }) ?? 'monospace';

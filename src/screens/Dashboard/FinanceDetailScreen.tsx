@@ -22,8 +22,8 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const JAR_COLORS = [
-  '#22D3EE', '#A78BFA', '#E879F9', '#4ADE80',
-  '#FBBF24', '#FB7185', '#60A5FA', '#F97316',
+  '#00D4C8', '#7B6CF6', '#FF6B9D', '#39D98A',
+  '#FBBF24', '#F5554A', '#60A5FA', '#F97316',
 ];
 
 // ─── Category config ──────────────────────────────────────────────────────────
@@ -32,12 +32,12 @@ const CAT_CONFIG: Record<string, { label: string; color: string; emoji: string }
   transport:     { label: 'Транспорт',   color: Colors.categoryTransport, emoji: '🚗' },
   home:          { label: 'Дом',         color: Colors.categoryHome,      emoji: '🏠' },
   health:        { label: 'Здоровье',    color: Colors.accentTeal,        emoji: '💊' },
-  entertainment: { label: 'Развлечения', color: '#E879F9',                emoji: '🎮' },
-  shopping:      { label: 'Покупки',     color: '#FB7185',                emoji: '🛍️' },
-  salary:        { label: 'Зарплата',    color: '#4ADE80',                emoji: '💰' },
-  freelance:     { label: 'Фриланс',     color: '#34D399',                emoji: '💻' },
+  entertainment: { label: 'Развлечения', color: '#FF6B9D',                emoji: '🎮' },
+  shopping:      { label: 'Покупки',     color: '#F5554A',                emoji: '🛍️' },
+  salary:        { label: 'Зарплата',    color: '#39D98A',                emoji: '💰' },
+  freelance:     { label: 'Фриланс',     color: '#39D98A',                emoji: '💻' },
   transfer:      { label: 'Перевод',     color: '#60A5FA',                emoji: '🔄' },
-  gift:          { label: 'Подарок',     color: '#F472B6',                emoji: '🎁' },
+  gift:          { label: 'Подарок',     color: '#FF6B9D',                emoji: '🎁' },
   cashback:      { label: 'Кэшбэк',      color: '#FBBF24',                emoji: '💸' },
   other:         { label: 'Прочее',      color: Colors.categoryOther,     emoji: '📦' },
 };
@@ -422,7 +422,7 @@ function SavingsJar({ goal, color, delay, currency, onPress }: {
             stroke="rgba(255,255,255,0.07)" strokeWidth={SW} fill="none" />
           <AnimatedCircle
             cx={SIZE / 2} cy={SIZE / 2} r={R}
-            stroke={done ? '#4ADE80' : color}
+            stroke={done ? '#39D98A' : color}
             strokeWidth={SW}
             fill="none"
             strokeDasharray={circ}
@@ -437,7 +437,7 @@ function SavingsJar({ goal, color, delay, currency, onPress }: {
         </View>
       </View>
       <Text numberOfLines={1} style={sj.title}>{goal.title}</Text>
-      <Text style={[sj.pct, { color: done ? '#4ADE80' : color }]}>
+      <Text style={[sj.pct, { color: done ? '#39D98A' : color }]}>
         {done ? 'Готово!' : `${Math.round(pct * 100)}%`}
       </Text>
       <Text style={sj.amounts}>
@@ -789,7 +789,7 @@ export function FinanceDetailScreen() {
           {/* ── Бюджет ── */}
           <GlassCard accent={Colors.accentTeal}>
             <LinearGradient
-              colors={['rgba(34,211,238,0.10)', 'rgba(167,139,250,0.06)', 'rgba(11,12,27,0)']}
+              colors={['rgba(0,212,200,0.10)', 'rgba(123,108,246,0.06)', 'rgba(11,12,27,0)']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
@@ -933,8 +933,8 @@ export function FinanceDetailScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   blob:   { position: 'absolute', borderRadius: 999 },
-  blobTR: { width: 300, height: 200, top: -60, right: -80, backgroundColor: 'rgba(34,211,238,0.18)', transform: [{ scaleX: 1.4 }] },
-  blobCL: { width: 250, height: 200, top: '30%', left: -80, backgroundColor: 'rgba(167,139,250,0.14)', transform: [{ scaleY: 1.3 }] },
+  blobTR: { width: 300, height: 200, top: -60, right: -80, backgroundColor: 'rgba(0,212,200,0.16)', transform: [{ scaleX: 1.4 }] },
+  blobCL: { width: 250, height: 200, top: '30%', left: -80, backgroundColor: 'rgba(123,108,246,0.12)', transform: [{ scaleY: 1.3 }] },
 
   header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
   backBtn:      { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },

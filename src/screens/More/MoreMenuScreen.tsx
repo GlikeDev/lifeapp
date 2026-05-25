@@ -469,9 +469,9 @@ const s = StyleSheet.create({
 
   // Hero
   hero:       { marginHorizontal:Spacing.xl, marginTop:Spacing.md, borderRadius:Radius.xl, padding:Spacing.xl, alignItems:'center', gap:Spacing.sm, overflow:'hidden' },
-  heroBlobL:  { position:'absolute', width:160, height:160, borderRadius:80, backgroundColor:'rgba(167,139,250,0.20)', top:-40, left:-40 },
-  heroBlobR:  { position:'absolute', width:120, height:120, borderRadius:60, backgroundColor:'rgba(34,211,238,0.12)', bottom:-20, right:-20 },
-  avatar:     { width:72, height:72, borderRadius:36, backgroundColor:'rgba(167,139,250,0.22)', alignItems:'center', justifyContent:'center' },
+  heroBlobL:  { position:'absolute', width:160, height:160, borderRadius:80, backgroundColor:'rgba(123,108,246,0.18)', top:-40, left:-40 },
+  heroBlobR:  { position:'absolute', width:120, height:120, borderRadius:60, backgroundColor:'rgba(0,212,200,0.12)', bottom:-20, right:-20 },
+  avatar:     { width:72, height:72, borderRadius:36, backgroundColor:'rgba(123,108,246,0.22)', alignItems:'center', justifyContent:'center' },
   avatarInitials: { fontSize:Typography.sizeLG, fontWeight:Typography.weightBold, color:Colors.accentPurple },
   proBadge:   { position:'absolute', bottom:-4, right:-4, backgroundColor:Colors.warning, borderRadius:Radius.full, paddingHorizontal:5, paddingVertical:1 },
   proTxt:     { fontSize:8, fontWeight:Typography.weightBold, color:Colors.bg },

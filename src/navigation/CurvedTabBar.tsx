@@ -203,7 +203,7 @@ export function CurvedTabBar({ state, navigation }: BottomTabBarProps) {
         >
           {/* Holo gradient base */}
           <LinearGradient
-            colors={['#22D3EE', '#A78BFA', '#E879F9']}
+            colors={['#00D4C8', '#7B6CF6', '#FF6B9D']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     width:  FLOAT + 20,
     height: FLOAT + 20,
     borderRadius: (FLOAT + 20) / 2,
-    backgroundColor: '#A78BFA',
+    backgroundColor: '#7B6CF6',
   },
   floatBtn: {
     width: FLOAT,

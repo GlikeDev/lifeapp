@@ -12,8 +12,8 @@ interface Props {
 }
 
 // Seamless loop: last color = first color so the gradient tiles perfectly
-const FLOW_COLORS = ['#22D3EE', '#A78BFA', '#E879F9', '#22D3EE'] as const;
-const OVER_COLORS = ['#EF4444', '#F87171', '#EF4444']             as const;
+const FLOW_COLORS = ['#00D4C8', '#7B6CF6', '#FF6B9D', '#00D4C8'] as const;
+const OVER_COLORS = ['#F5554A', '#FB7185', '#F5554A']             as const;
 
 export function FlowingBar({
   pct,

@@ -57,8 +57,8 @@ const styles = StyleSheet.create({
     borderColor: Glass.borderStrong,
   },
   accent: {
-    borderColor: 'rgba(34,211,238,0.45)',
-    backgroundColor: 'rgba(34,211,238,0.06)',
+    borderColor: 'rgba(0,212,200,0.45)',
+    backgroundColor: 'rgba(0,212,200,0.06)',
   },
   // inset 0 1px 0 rgba(255,255,255,0.10) — top highlight line
   shine: {
