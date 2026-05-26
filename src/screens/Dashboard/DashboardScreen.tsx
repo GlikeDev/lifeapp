@@ -617,6 +617,7 @@ export function DashboardScreen() {
   async function handleDeleteTx(id: string) {
     await supabase.from('transactions').delete().eq('id', id);
     setTransactions(transactions.filter(tx => tx.id !== id));
+    setChartAnimKey(k => k + 1);
   }
 
   async function handleCurrencySelect(code: string) {
@@ -792,13 +793,13 @@ export function DashboardScreen() {
 
             const totalWeekExp = weekTxs.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
 
+            const localStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             const dayLabel = (iso: string) => {
-              const d = new Date(iso + 'T12:00:00');
-              const t = new Date(); t.setHours(0,0,0,0);
-              const y = new Date(t); y.setDate(t.getDate()-1);
-              if (iso === t.toISOString().slice(0,10)) return 'Сегодня';
-              if (iso === y.toISOString().slice(0,10)) return 'Вчера';
-              return d.toLocaleDateString('ru-RU', { weekday:'long', day:'numeric', month:'short' });
+              const now = new Date(); now.setHours(0,0,0,0);
+              const yest = new Date(now); yest.setDate(now.getDate()-1);
+              if (iso === localStr(now))  return 'Сегодня';
+              if (iso === localStr(yest)) return 'Вчера';
+              return new Date(iso + 'T12:00:00').toLocaleDateString('ru-RU', { weekday:'long', day:'numeric', month:'short' });
             };
 
             const TX_COLOR: Record<string, string> = {
