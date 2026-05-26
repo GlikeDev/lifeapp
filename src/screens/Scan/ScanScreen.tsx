@@ -278,6 +278,7 @@ export function ScanScreen() {
     try {
       const { data, error } = await supabase.from('transactions').insert({
         user_id: user.id,
+        type: txType,
         amount: storedAmt,
         category: category as any,
         store: txType === 'income' ? 'Доход' : 'Не указан',

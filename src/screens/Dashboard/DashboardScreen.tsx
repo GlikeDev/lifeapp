@@ -784,7 +784,7 @@ export function DashboardScreen() {
             });
             const days = Object.keys(byDay).sort((a, b) => b.localeCompare(a));
 
-            const totalWeekExp = weekTxs.filter(t => t.type !== 'income').reduce((s, t) => s + t.amount, 0);
+            const totalWeekExp = weekTxs.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
 
             const dayLabel = (iso: string) => {
               const d = new Date(iso + 'T12:00:00');
@@ -845,7 +845,7 @@ export function DashboardScreen() {
                         <Text style={styles.whEmpty}>Нет транзакций за последние 7 дней</Text>
                       ) : days.map(day => {
                         const txs = byDay[day];
-                        const dayTotal = txs.filter(t => t.type !== 'income').reduce((s,t) => s + t.amount, 0);
+                        const dayTotal = txs.filter(t => t.amount > 0).reduce((s,t) => s + t.amount, 0);
                         return (
                           <View key={day}>
                             {/* Day header */}
@@ -857,7 +857,7 @@ export function DashboardScreen() {
                             </View>
                             {/* Transactions */}
                             {txs.map(tx => {
-                              const isIncome = tx.type === 'income';
+                              const isIncome = tx.amount < 0;
                               const color = TX_COLOR[tx.category] ?? Colors.textMuted;
                               const emoji = TX_EMOJI[tx.category] ?? '📦';
                               const label = tx.note || tx.store || t(`cat.${tx.category}`) || tx.category;
@@ -871,7 +871,7 @@ export function DashboardScreen() {
                                     <Text style={styles.whTxCat}>{t(`cat.${tx.category}`)}</Text>
                                   </View>
                                   <Text style={[styles.whTxAmount, { color: isIncome ? Colors.success : Colors.textPrimary }]}>
-                                    {isIncome ? '+' : '−'}{fmt(tx.amount)}
+                                    {isIncome ? '+' : '−'}{fmt(Math.abs(tx.amount))}
                                   </Text>
                                 </View>
                               );
