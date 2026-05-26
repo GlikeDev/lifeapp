@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Animated, KeyboardAvoidingView, Platform,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, FlatList,
+  TextInput, Animated, KeyboardAvoidingView, Platform, Modal,
   ActivityIndicator, Alert, Dimensions,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -115,16 +115,24 @@ function IcoUp({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
 const EXPENSE_CATS = [
   { key: 'food',          tKey: 'cat.food',          color: Colors.categoryFood,      icon: '🍔' },
   { key: 'cafe',          tKey: 'cat.cafe',          color: '#F97316',                icon: '☕' },
+  { key: 'restaurant',    tKey: 'cat.restaurant',    color: '#FB923C',                icon: '🍽️' },
   { key: 'transport',     tKey: 'cat.transport',     color: Colors.categoryTransport, icon: '🚗' },
+  { key: 'auto',          tKey: 'cat.auto',          color: '#94A3B8',                icon: '⛽' },
   { key: 'home',          tKey: 'cat.home',          color: Colors.categoryHome,      icon: '🏠' },
-  { key: 'health',        tKey: 'cat.health',        color: Colors.accentTeal,        icon: '💊' },
+  { key: 'health',        tKey: 'cat.health',        color: Colors.accentTeal,        icon: '🩺' },
+  { key: 'pharmacy',      tKey: 'cat.pharmacy',      color: '#34D399',                icon: '💊' },
   { key: 'entertainment', tKey: 'cat.entertainment', color: Colors.pink,              icon: '🎮' },
-  { key: 'shopping',      tKey: 'cat.shopping',      color: '#FF8C42',                icon: '🛍️' },
+  { key: 'shopping',      tKey: 'cat.shopping',      color: '#F5554A',                icon: '🛍️' },
+  { key: 'clothing',      tKey: 'cat.clothing',      color: '#A78BFA',                icon: '👗' },
   { key: 'education',     tKey: 'cat.education',     color: '#60A5FA',                icon: '🎓' },
   { key: 'sport',         tKey: 'cat.sport',         color: '#39D98A',                icon: '🏋️' },
   { key: 'beauty',        tKey: 'cat.beauty',        color: '#FF6B9D',                icon: '💅' },
   { key: 'travel',        tKey: 'cat.travel',        color: '#38BDF8',                icon: '✈️' },
+  { key: 'subscriptions', tKey: 'cat.subscriptions', color: Colors.accentPurple,      icon: '🔄' },
   { key: 'pets',          tKey: 'cat.pets',          color: '#FBBF24',                icon: '🐾' },
+  { key: 'kids',          tKey: 'cat.kids',          color: '#FCA5A5',                icon: '👶' },
+  { key: 'gifts',         tKey: 'cat.gifts',         color: '#F472B6',                icon: '🎁' },
+  { key: 'alcohol',       tKey: 'cat.alcohol',       color: '#C084FC',                icon: '🍷' },
   { key: 'other',         tKey: 'cat.other',         color: Colors.textMuted,         icon: '📦' },
 ];
 
@@ -138,6 +146,8 @@ const INCOME_CATS = [
   { key: 'transfer',   tKey: 'cat.transfer',   color: Colors.accentTeal,   icon: '💸' },
   { key: 'gift',       tKey: 'cat.gift',       color: Colors.pink,         icon: '🎁' },
   { key: 'cashback',   tKey: 'cat.cashback',   color: Colors.categoryHome, icon: '🏷️' },
+  { key: 'pension',    tKey: 'cat.pension',    color: '#94A3B8',            icon: '🏦' },
+  { key: 'refund',     tKey: 'cat.refund',     color: '#34D399',            icon: '↩️' },
   { key: 'other',      tKey: 'cat.other',      color: Colors.textMuted,    icon: '📦' },
 ];
 
@@ -185,6 +195,7 @@ export function ScanScreen() {
   const [dateOffset, setDateOffset] = useState(0);
   const [saving, setSaving]         = useState(false);
   const [showNote, setShowNote]     = useState(false);
+  const [catSheetOpen, setCatSheetOpen] = useState(false);
 
   // PDF
   const [pdfName, setPdfName]       = useState<string | null>(null);
@@ -365,7 +376,7 @@ export function ScanScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity style={s.halfCard} onPress={() => setMode('pdf')} activeOpacity={0.82}>
-              <LinearGradient colors={['#00C9A7', '#008F7A']} style={s.halfGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+              <LinearGradient colors={[Colors.accentTeal, '#007A72']} style={s.halfGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <View style={s.cardIcon}>
                   <IcoDoc c="#fff" n={26} />
                 </View>
@@ -444,7 +455,18 @@ export function ScanScreen() {
             <View style={[s.corner, s.cBL]} />
             <View style={[s.corner, s.cBR]} />
             {/* Scan line */}
-            <Animated.View style={[s.scanLine, { transform: [{ translateY: scanY }] }]} />
+            <Animated.View style={[s.scanLineWrap, { transform: [{ translateY: scanY }] }]}>
+              <LinearGradient
+                colors={['transparent', Colors.accentTeal, 'transparent']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={s.scanLineBar}
+              />
+              <LinearGradient
+                colors={[Colors.accentTeal + '44', 'transparent']}
+                start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                style={s.scanLineGlow}
+              />
+            </Animated.View>
           </View>
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.62)' }} />
         </View>
@@ -514,7 +536,13 @@ export function ScanScreen() {
             </View>
 
             {/* Amount */}
-            <View style={s.amtWrap}>
+            <LinearGradient
+              colors={isIncome
+                ? [Colors.success + '20', Colors.success + '06']
+                : [Colors.danger + '1A', Colors.accentTeal + '0A']}
+              style={[s.amtCard, { borderColor: (isIncome ? Colors.success : Colors.danger) + '30' }]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            >
               <Text style={[s.amtSign, { color: isIncome ? Colors.success : Colors.danger }]}>
                 {isIncome ? '+' : '−'}
               </Text>
@@ -528,28 +556,56 @@ export function ScanScreen() {
                 autoFocus
               />
               <Text style={s.amtCur}>{currency}</Text>
-            </View>
+            </LinearGradient>
 
-            {/* Categories */}
+            {/* Category selector */}
             <Text style={s.secLabel}>{t('scan.form.category')}</Text>
-            <View style={s.catWrap}>
-              {cats.map(c => {
-                const active = category === c.key;
-                return (
-                  <TouchableOpacity
-                    key={c.key}
-                    style={[s.catChip, active && { borderColor: c.color, backgroundColor: c.color + '1A' }]}
-                    onPress={() => { setCategory(c.key); Haptics.selectionAsync(); }}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={s.catEmoji}>{c.icon}</Text>
-                    <Text style={[s.catLabel, active && { color: c.color, fontWeight: Typography.weightBold }]}>
-                      {t(c.tKey)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {(() => {
+              const sel = cats.find(c => c.key === category) ?? cats[0];
+              return (
+                <TouchableOpacity
+                  style={[s.catSelector, { borderColor: sel.color + '70', backgroundColor: sel.color + '12' }]}
+                  onPress={() => setCatSheetOpen(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.catSelectorEmoji}>{sel.icon}</Text>
+                  <Text style={[s.catSelectorName, { color: sel.color }]}>{t(sel.tKey)}</Text>
+                  <Text style={[s.catSelectorChevron, { color: sel.color }]}>▾</Text>
+                </TouchableOpacity>
+              );
+            })()}
+
+            {/* Category bottom sheet */}
+            <Modal visible={catSheetOpen} transparent animationType="slide" onRequestClose={() => setCatSheetOpen(false)}>
+              <TouchableOpacity style={s.catOverlay} activeOpacity={1} onPress={() => setCatSheetOpen(false)}>
+                <TouchableOpacity activeOpacity={1} style={s.catSheet}>
+                  <View style={s.catSheetHandle} />
+                  <Text style={s.catSheetTitle}>{t('scan.form.category')}</Text>
+                  <FlatList
+                    data={cats}
+                    numColumns={2}
+                    keyExtractor={c => c.key}
+                    columnWrapperStyle={s.catGridRow}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 8 }}
+                    renderItem={({ item: c }) => {
+                      const active = category === c.key;
+                      return (
+                        <TouchableOpacity
+                          style={[s.catGridItem, active && { borderColor: c.color, backgroundColor: c.color + '1E' }]}
+                          onPress={() => { setCategory(c.key); Haptics.selectionAsync(); setCatSheetOpen(false); }}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={s.catGridEmoji}>{c.icon}</Text>
+                          <Text style={[s.catGridLabel, active && { color: c.color, fontFamily: Typography.fontSemiBold }]}>{t(c.tKey)}</Text>
+                          {active && <View style={[s.catGridDot, { backgroundColor: c.color }]} />}
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </Modal>
 
             {/* Store / Source */}
             <Text style={s.secLabel}>{isIncome ? t('scan.form.source') : t('scan.form.store')}</Text>
@@ -579,8 +635,13 @@ export function ScanScreen() {
             </View>
 
             {/* Note toggle */}
-            <TouchableOpacity style={s.noteToggle} onPress={() => setShowNote(!showNote)}>
-              <Text style={s.noteToggleTxt}>{showNote ? t('scan.form.noteHide') : t('scan.form.noteShow')}</Text>
+            <TouchableOpacity style={s.noteToggle} onPress={() => setShowNote(!showNote)} activeOpacity={0.75}>
+              <View style={[s.noteChip, showNote && s.noteChipOn]}>
+                <Text style={s.noteChipIcon}>{showNote ? '✕' : '✎'}</Text>
+                <Text style={[s.noteToggleTxt, showNote && { color: Colors.accentTeal }]}>
+                  {showNote ? t('scan.form.noteHide') : t('scan.form.noteShow')}
+                </Text>
+              </View>
             </TouchableOpacity>
             {showNote && (
               <View style={[s.inputBox, { marginBottom: Spacing.sm }]}>
@@ -597,15 +658,23 @@ export function ScanScreen() {
 
             {/* Save button */}
             <TouchableOpacity
-              style={[s.saveBtn, { backgroundColor: isIncome ? Colors.success : Colors.accentTeal }, saving && s.dimmed]}
+              style={[s.saveBtn, saving && s.dimmed]}
               onPress={handleSave}
               disabled={saving}
               activeOpacity={0.85}
             >
-              {saving
-                ? <ActivityIndicator color={Colors.bg} />
-                : <Text style={s.saveTxt}>{t('scan.form.save')}</Text>
-              }
+              <LinearGradient
+                colors={isIncome
+                  ? [Colors.success, '#2AB070']
+                  : [Colors.accentTeal, Colors.accentPurple]}
+                style={s.saveBtnGrad}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              >
+                {saving
+                  ? <ActivityIndicator color={Colors.bg} />
+                  : <Text style={s.saveTxt}>{t('scan.form.save')}</Text>
+                }
+              </LinearGradient>
             </TouchableOpacity>
 
           </ScrollView>
@@ -739,14 +808,17 @@ export function ScanScreen() {
     return (
       <SafeAreaView style={[s.safe, { justifyContent: 'center' }]} edges={['top', 'bottom']}>
         <View style={s.successWrap}>
-          <Animated.View style={{ transform: [{ scale: successAnim }] }}>
-            <LinearGradient
-              colors={isInc ? [Colors.success, '#2AB070'] : [Colors.accentTeal, '#00A89E']}
-              style={s.checkCircle}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            >
-              <IcoCheck c="#fff" n={44} />
-            </LinearGradient>
+          <Animated.View style={{ transform: [{ scale: successAnim }], alignItems: 'center', justifyContent: 'center' }}>
+            {/* outer glow ring */}
+            <View style={[s.checkGlow, { backgroundColor: (isInc ? Colors.success : Colors.accentTeal) + '12', borderColor: (isInc ? Colors.success : Colors.accentTeal) + '25' }]}>
+              <LinearGradient
+                colors={isInc ? [Colors.success, '#2AB070'] : [Colors.accentTeal, Colors.accentPurple]}
+                style={s.checkCircle}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              >
+                <IcoCheck c="#fff" n={44} />
+              </LinearGradient>
+            </View>
           </Animated.View>
 
           <Animated.View style={{ alignItems: 'center', opacity: successAnim }}>
@@ -754,9 +826,12 @@ export function ScanScreen() {
             <Text style={[s.successAmt, { color: isInc ? Colors.success : Colors.textPrimary }]}>
               {isInc ? '+' : '−'}{formatCurrency(lastAmt, currency)}
             </Text>
-            <View style={s.successBadge}>
+            <View style={[s.successBadge, {
+              borderColor: (catInfo?.color ?? Colors.textMuted) + '50',
+              backgroundColor: (catInfo?.color ?? Colors.textMuted) + '15',
+            }]}>
               <Text style={{ fontSize: 16 }}>{catInfo?.icon ?? '📦'}</Text>
-              <Text style={s.successBadgeTxt}>{catInfo ? t(catInfo.tKey) : t('cat.other')}</Text>
+              <Text style={[s.successBadgeTxt, { color: catInfo?.color ?? Colors.textSecondary }]}>{catInfo ? t(catInfo.tKey) : t('cat.other')}</Text>
             </View>
           </Animated.View>
 
@@ -811,11 +886,9 @@ const s = StyleSheet.create({
   cTR: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0 },
   cBL: { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0 },
   cBR: { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0 },
-  scanLine: {
-    position: 'absolute', left: 0, right: 0, height: 2,
-    backgroundColor: Colors.accentTeal,
-    shadowColor: Colors.accentTeal, shadowOpacity: 1, shadowRadius: 8, elevation: 4,
-  },
+  scanLineWrap: { position: 'absolute', left: 0, right: 0 },
+  scanLineBar:  { height: 2, width: '100%' },
+  scanLineGlow: { height: 20, width: '100%' },
   scanHint: { marginTop: Spacing.xl, textAlign: 'center', color: 'rgba(255,255,255,0.75)', fontSize: Typography.sizeSM },
 
   camControls: {
@@ -844,22 +917,34 @@ const s = StyleSheet.create({
   typeBtnIncome: { borderColor: Colors.success, backgroundColor: Colors.success + '12' },
   typeBtnTxt:    { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textSecondary },
 
-  amtWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xl, gap: Spacing.sm },
+  amtCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.xl, gap: Spacing.sm,
+    borderRadius: Radius.xl, paddingVertical: Spacing.xl, paddingHorizontal: Spacing.lg,
+    borderWidth: 1,
+  },
   amtSign: { fontSize: 32, fontWeight: Typography.weightBold, marginBottom: 6 },
   amtInput:{ fontSize: 52, fontWeight: Typography.weightBold, color: Colors.textPrimary, minWidth: 80, textAlign: 'center' },
   amtCur:  { fontSize: Typography.sizeSM, color: Colors.textMuted, alignSelf: 'flex-end', marginBottom: 14 },
 
   secLabel: { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textSecondary, marginBottom: Spacing.sm, marginTop: Spacing.md },
 
-  catWrap:  { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.xs },
-  catChip:  {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    backgroundColor: Colors.surface, borderRadius: Radius.full,
-    borderWidth: 1.5, borderColor: Glass.border,
-  },
-  catEmoji: { fontSize: 15 },
-  catLabel: { fontSize: Typography.sizeSM, color: Colors.textSecondary },
+  // Category selector pill
+  catSelector:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: Spacing.lg, borderRadius: Radius.full, borderWidth: 1.5, marginBottom: Spacing.xl },
+  catSelectorEmoji:  { fontSize: 20 },
+  catSelectorName:   { flex: 1, fontSize: Typography.sizeMD, fontFamily: Typography.fontSemiBold },
+  catSelectorChevron:{ fontSize: 13 },
+
+  // Category bottom sheet
+  catOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  catSheet:      { backgroundColor: '#0D0E1C', borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, paddingHorizontal: Spacing.lg, paddingBottom: 36, maxHeight: SH * 0.72 },
+  catSheetHandle:{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center', marginTop: Spacing.md, marginBottom: Spacing.lg },
+  catSheetTitle: { fontSize: Typography.sizeLG, fontFamily: Typography.fontBold, color: Colors.textPrimary, marginBottom: Spacing.md },
+  catGridRow:    { gap: Spacing.sm, marginBottom: Spacing.sm },
+  catGridItem:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1.5, borderColor: Glass.border, backgroundColor: Colors.surface },
+  catGridEmoji:  { fontSize: 20 },
+  catGridLabel:  { flex: 1, fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textSecondary },
+  catGridDot:    { width: 7, height: 7, borderRadius: 4 },
 
   inputBox: {
     backgroundColor: Colors.surface, borderRadius: Radius.md,
@@ -874,11 +959,15 @@ const s = StyleSheet.create({
   datePillTxt:  { fontSize: Typography.sizeSM, color: Colors.textSecondary },
   datePillTxtOn:{ color: Colors.accentTeal, fontWeight: Typography.weightSemiBold },
 
-  noteToggle:    { paddingVertical: Spacing.sm, marginBottom: Spacing.xs },
+  noteToggle:    { paddingVertical: Spacing.sm, marginBottom: Spacing.xs, alignSelf: 'flex-start' },
+  noteChip:      { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.full, borderWidth: 1, borderColor: Glass.border, backgroundColor: Colors.surface },
+  noteChipOn:    { borderColor: Colors.accentTeal + '60', backgroundColor: Colors.accentTeal + '10' },
+  noteChipIcon:  { fontSize: 13, color: Colors.textMuted },
   noteToggleTxt: { fontSize: Typography.sizeSM, color: Colors.textMuted },
 
-  saveBtn:  { backgroundColor: Colors.accentTeal, borderRadius: Radius.full, paddingVertical: Spacing.lg, alignItems: 'center', marginTop: Spacing.xl },
-  saveTxt:  { color: Colors.bg, fontSize: Typography.sizeMD, fontWeight: Typography.weightBold },
+  saveBtn:     { borderRadius: Radius.full, overflow: 'hidden', marginTop: Spacing.xl },
+  saveBtnGrad: { paddingVertical: Spacing.lg, alignItems: 'center' },
+  saveTxt:     { color: Colors.bg, fontSize: Typography.sizeMD, fontWeight: Typography.weightBold },
   dimmed:   { opacity: 0.45 },
 
   // PDF
@@ -914,6 +1003,7 @@ const s = StyleSheet.create({
 
   // Success
   successWrap:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.xl, padding: Spacing.xl },
+  checkGlow:        { width: 140, height: 140, borderRadius: 70, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   checkCircle:      { width: 108, height: 108, borderRadius: 54, alignItems: 'center', justifyContent: 'center' },
   successTitle:     { fontSize: 30, fontWeight: Typography.weightBold, color: Colors.textPrimary, marginTop: Spacing.md },
   successAmt:       { fontSize: 40, fontWeight: Typography.weightBold, marginTop: 4 },
