@@ -26,7 +26,7 @@ const DASHBOARD_TIPS: TipStep[] = [
 ];
 import {
   View, Text, ScrollView, StyleSheet, RefreshControl,
-  TouchableOpacity, Modal, FlatList, TextInput, Animated,
+  TouchableOpacity, Modal, FlatList, TextInput, Animated, Easing,
   KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator,
   LayoutAnimation, UIManager, Image, Dimensions,
 } from 'react-native';
@@ -39,7 +39,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, G, Circle, Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { Card, ProgressBar } from '../../components/common';
@@ -216,76 +216,74 @@ function getTrend(spentPct: number): { label: string; positive: boolean } {
 
 // ─── Bar Chart ────────────────────────────────────────────────────────────────
 
-function SpendingBarChart({ data, currency }: { data: { label: string; amount: number }[]; currency: string }) {
-  const W = 320;
-  const H = 100;
-  const barW = 32;
-  const gap = (W - barW * 7) / 8;
+const BAR_MAX_H = 96;
+
+function SpendingBarChart({ data, animTrigger }: { data: { label: string; amount: number }[]; animTrigger: number }) {
   const maxAmount = Math.max(...data.map(d => d.amount), 1);
+  const anims = useRef(data.map(() => new Animated.Value(0))).current;
 
-  const mkBar = (x: number, y: number, barH: number) =>
-    `M${x+4},${y+barH} L${x+4},${y+4} Q${x+4},${y} ${x+8},${y} L${x+barW-8},${y} Q${x+barW},${y} ${x+barW},${y+4} L${x+barW},${y+barH} Z`;
-
-  const mkGlow = (x: number, y: number, barH: number) => {
-    const sx = x - 4, sw = barW + 8, sy = y - 4;
-    return `M${sx+4},${sy+barH+5} L${sx+4},${sy+4} Q${sx+4},${sy} ${sx+8},${sy} L${sx+sw-8},${sy} Q${sx+sw},${sy} ${sx+sw},${sy+4} L${sx+sw},${sy+barH+5} Z`;
-  };
+  useEffect(() => {
+    anims.forEach(a => a.setValue(0));
+    Animated.stagger(
+      45,
+      anims.map((a, i) =>
+        Animated.timing(a, {
+          toValue: 1,
+          duration: 420,
+          delay: i * 10,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: false,
+        })
+      )
+    ).start();
+  }, [animTrigger]);
 
   return (
-    <Svg width="100%" height={H + 24} viewBox={`0 0 ${W} ${H + 24}`}>
-      <Defs>
-        <SvgLinearGradient id="bcg_today" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0%" stopColor={Colors.accentTeal} stopOpacity="1" />
-          <Stop offset="100%" stopColor={Colors.accentTeal} stopOpacity="0.08" />
-        </SvgLinearGradient>
-        <SvgLinearGradient id="bcg_past" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0%" stopColor={Colors.accentPurple} stopOpacity="0.9" />
-          <Stop offset="100%" stopColor={Colors.accentPurple} stopOpacity="0.08" />
-        </SvgLinearGradient>
-      </Defs>
-
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: BAR_MAX_H + 22, paddingTop: 4 }}>
       {data.map((d, i) => {
-        const x = gap + i * (barW + gap);
-        const barH = Math.max(4, (d.amount / maxAmount) * H);
-        const y = H - barH;
-        const isToday = i === 6;
+        const isToday = i === data.length - 1;
         const hasAmount = d.amount > 0;
-        const glowColor = isToday ? Colors.accentTeal : Colors.accentPurple;
-        const shineH = Math.min(10, barH);
+        const targetH = hasAmount ? Math.max(6, (d.amount / maxAmount) * BAR_MAX_H) : 4;
+        const animH = anims[i].interpolate({ inputRange: [0, 1], outputRange: [0, targetH] });
+        const teal   = Colors.accentTeal;
+        const purple = Colors.accentPurple;
 
         return (
-          <G key={d.label}>
-            {/* outer glow */}
+          <View key={d.label} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: BAR_MAX_H + 22 }}>
+            {/* glow layer */}
             {hasAmount && (
-              <Path d={mkGlow(x, y, barH)} fill={glowColor} opacity={0.1} />
+              <Animated.View style={{
+                position: 'absolute', bottom: 18,
+                width: 36, height: animH,
+                borderRadius: 8,
+                backgroundColor: isToday ? teal : purple,
+                opacity: 0.18,
+                transform: [{ scaleX: 1.4 }],
+              }}/>
             )}
-            {/* gradient bar */}
-            <Path
-              d={mkBar(x, y, barH)}
-              fill={hasAmount ? `url(#bcg_${isToday ? 'today' : 'past'})` : Colors.border}
-              opacity={isToday ? 1 : hasAmount ? 0.88 : 0.4}
-            />
-            {/* top shine */}
-            {hasAmount && (
-              <Path
-                d={`M${x+4},${y+shineH} L${x+4},${y+4} Q${x+4},${y} ${x+8},${y} L${x+barW-8},${y} Q${x+barW},${y} ${x+barW},${y+4} L${x+barW},${y+shineH} Z`}
-                fill="rgba(255,255,255,0.16)"
+            {/* bar */}
+            <Animated.View style={{ width: 26, height: animH, borderRadius: 7, overflow: 'hidden', marginBottom: 4 }}>
+              <LinearGradient
+                colors={hasAmount
+                  ? (isToday ? [teal, teal + '18'] : [purple, purple + '18'])
+                  : [Colors.border, Colors.border + '44']}
+                start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                style={{ flex: 1 }}
               />
-            )}
-            <SvgText
-              x={x + barW / 2}
-              y={H + 16}
-              textAnchor="middle"
-              fontSize={10}
-              fill={isToday ? Colors.accentTeal : Colors.textMuted}
-              fontWeight={isToday ? '700' : '400'}
-            >
-              {d.label}
-            </SvgText>
-          </G>
+              {/* top shine */}
+              {hasAmount && (
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 8, borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.18)' }}/>
+              )}
+            </Animated.View>
+            <Text style={{
+              fontSize: 10,
+              color: isToday ? teal : Colors.textMuted,
+              fontFamily: isToday ? Typography.fontSemiBold : Typography.fontMedium,
+            }}>{d.label}</Text>
+          </View>
         );
       })}
-    </Svg>
+    </View>
   );
 }
 
@@ -508,6 +506,11 @@ export function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currencyModal, setCurrencyModal] = useState(false);
   const [insightIdx, setInsightIdx] = useState(0);
+  const [chartAnimKey, setChartAnimKey] = useState(0);
+
+  useFocusEffect(useCallback(() => {
+    setChartAnimKey(k => k + 1);
+  }, []));
 
   // Collapsible sections
   const [catsOpen, setCatsOpen] = useState(false);
@@ -755,7 +758,7 @@ export function DashboardScreen() {
           {/* ── Weekly spending chart ── */}
           <View style={styles.chartCard}>
             <Text style={styles.chartLabel}>РАСХОДЫ ЗА 7 ДНЕЙ</Text>
-            <SpendingBarChart data={weekData} currency={currency} />
+            <SpendingBarChart data={weekData} animTrigger={chartAnimKey} />
           </View>
 
           {/* ── Add transaction modal ── */}
