@@ -62,6 +62,10 @@ function IcoUp({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
   );
 }
 
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 type CatDef = { key: string; tKey: string; color: string; glyph: GradientGlyphName };
@@ -283,7 +287,7 @@ export function ScanScreen() {
         category: category as any,
         store: txType === 'income' ? 'Доход' : 'Не указан',
         note: note || null,
-        date: selectedDate.toISOString().slice(0, 10),
+        date: localDateStr(selectedDate),
       }).select().single();
       if (error) throw error;
       addTransaction(data as Transaction);
@@ -299,7 +303,7 @@ export function ScanScreen() {
     if (!user || selected.size === 0) return;
     setSaving(true);
     const items = pdfItems.filter(i => selected.has(i.id));
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateStr(new Date());
     try {
       for (const item of items) {
         await supabase.from('transactions').insert({

@@ -219,6 +219,16 @@ function getTrend(spentPct: number): { label: string; positive: boolean } {
 
 const BAR_MAX_H = 96;
 
+const BAR_PALETTE: [string, string][] = [
+  ['#7B6CF6', '#B06CF6'],
+  ['#FF6B9D', '#FF9BD0'],
+  ['#38BDF8', '#60A5FA'],
+  ['#39D98A', '#34D399'],
+  ['#F97316', '#FBBF24'],
+  ['#A78BFA', '#C4B5FD'],
+  ['#00D4C8', '#38BDF8'],
+];
+
 function SpendingBarChart({ data, animTrigger }: { data: { label: string; amount: number }[]; animTrigger: number }) {
   const maxAmount = Math.max(...data.map(d => d.amount), 1);
   const anims = useRef(data.map(() => new Animated.Value(0))).current;
@@ -246,8 +256,7 @@ function SpendingBarChart({ data, animTrigger }: { data: { label: string; amount
         const hasAmount = d.amount > 0;
         const targetH = hasAmount ? Math.max(6, (d.amount / maxAmount) * BAR_MAX_H) : 4;
         const animH = anims[i].interpolate({ inputRange: [0, 1], outputRange: [0, targetH] });
-        const teal   = Colors.accentTeal;
-        const purple = Colors.accentPurple;
+        const [colTop, colBot] = BAR_PALETTE[i % BAR_PALETTE.length];
 
         return (
           <View key={d.label} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: BAR_MAX_H + 22 }}>
@@ -257,7 +266,7 @@ function SpendingBarChart({ data, animTrigger }: { data: { label: string; amount
                 position: 'absolute', bottom: 18,
                 width: 36, height: animH,
                 borderRadius: 8,
-                backgroundColor: isToday ? teal : purple,
+                backgroundColor: colTop,
                 opacity: 0.18,
                 transform: [{ scaleX: 1.4 }],
               }}/>
@@ -265,20 +274,17 @@ function SpendingBarChart({ data, animTrigger }: { data: { label: string; amount
             {/* bar */}
             <Animated.View style={{ width: 26, height: animH, borderRadius: 7, overflow: 'hidden', marginBottom: 4 }}>
               <LinearGradient
-                colors={hasAmount
-                  ? (isToday ? [teal, teal + '18'] : [purple, purple + '18'])
-                  : [Colors.border, Colors.border + '44']}
+                colors={hasAmount ? [colTop, colBot] : [Colors.border, Colors.border + '44']}
                 start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                 style={{ flex: 1 }}
               />
-              {/* top shine */}
               {hasAmount && (
                 <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 8, borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.18)' }}/>
               )}
             </Animated.View>
             <Text style={{
               fontSize: 10,
-              color: isToday ? teal : Colors.textMuted,
+              color: isToday ? colTop : Colors.textMuted,
               fontFamily: isToday ? Typography.fontSemiBold : Typography.fontMedium,
             }}>{d.label}</Text>
           </View>
