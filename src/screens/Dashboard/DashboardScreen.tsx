@@ -260,17 +260,6 @@ function SpendingBarChart({ data, animTrigger }: { data: { label: string; amount
 
         return (
           <View key={d.label} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: BAR_MAX_H + 22 }}>
-            {/* glow layer */}
-            {hasAmount && (
-              <Animated.View style={{
-                position: 'absolute', bottom: 18,
-                width: 36, height: animH,
-                borderRadius: 8,
-                backgroundColor: colTop,
-                opacity: 0.18,
-                transform: [{ scaleX: 1.4 }],
-              }}/>
-            )}
             {/* bar */}
             <Animated.View style={{ width: 26, height: animH, borderRadius: 7, overflow: 'hidden', marginBottom: 4 }}>
               <LinearGradient
