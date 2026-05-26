@@ -21,6 +21,8 @@ import type { Transaction } from '../../types';
 import { CoachMark, TipStep } from '../../components/CoachMark';
 import { useCoachMark } from '../../hooks/useCoachMark';
 import { useTranslation } from '../../i18n';
+import { GradientGlyphIcon } from '../../components/common/GlyphIcon';
+import type { GradientGlyphName } from '../../components/common/GlyphIcon';
 
 // SCAN_TIPS built dynamically inside component using t()
 
@@ -112,43 +114,45 @@ function IcoUp({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-const EXPENSE_CATS = [
-  { key: 'food',          tKey: 'cat.food',          color: Colors.categoryFood,      icon: '🍔' },
-  { key: 'cafe',          tKey: 'cat.cafe',          color: '#F97316',                icon: '☕' },
-  { key: 'restaurant',    tKey: 'cat.restaurant',    color: '#FB923C',                icon: '🍽️' },
-  { key: 'transport',     tKey: 'cat.transport',     color: Colors.categoryTransport, icon: '🚗' },
-  { key: 'auto',          tKey: 'cat.auto',          color: '#94A3B8',                icon: '⛽' },
-  { key: 'home',          tKey: 'cat.home',          color: Colors.categoryHome,      icon: '🏠' },
-  { key: 'health',        tKey: 'cat.health',        color: Colors.accentTeal,        icon: '🩺' },
-  { key: 'pharmacy',      tKey: 'cat.pharmacy',      color: '#34D399',                icon: '💊' },
-  { key: 'entertainment', tKey: 'cat.entertainment', color: Colors.pink,              icon: '🎮' },
-  { key: 'shopping',      tKey: 'cat.shopping',      color: '#F5554A',                icon: '🛍️' },
-  { key: 'clothing',      tKey: 'cat.clothing',      color: '#A78BFA',                icon: '👗' },
-  { key: 'education',     tKey: 'cat.education',     color: '#60A5FA',                icon: '🎓' },
-  { key: 'sport',         tKey: 'cat.sport',         color: '#39D98A',                icon: '🏋️' },
-  { key: 'beauty',        tKey: 'cat.beauty',        color: '#FF6B9D',                icon: '💅' },
-  { key: 'travel',        tKey: 'cat.travel',        color: '#38BDF8',                icon: '✈️' },
-  { key: 'subscriptions', tKey: 'cat.subscriptions', color: Colors.accentPurple,      icon: '🔄' },
-  { key: 'pets',          tKey: 'cat.pets',          color: '#FBBF24',                icon: '🐾' },
-  { key: 'kids',          tKey: 'cat.kids',          color: '#FCA5A5',                icon: '👶' },
-  { key: 'gifts',         tKey: 'cat.gifts',         color: '#F472B6',                icon: '🎁' },
-  { key: 'alcohol',       tKey: 'cat.alcohol',       color: '#C084FC',                icon: '🍷' },
-  { key: 'other',         tKey: 'cat.other',         color: Colors.textMuted,         icon: '📦' },
+type CatDef = { key: string; tKey: string; color: string; glyph: GradientGlyphName };
+
+const EXPENSE_CATS: CatDef[] = [
+  { key: 'food',          tKey: 'cat.food',          color: Colors.categoryFood,      glyph: 'grad-salad'      },
+  { key: 'cafe',          tKey: 'cat.cafe',          color: '#F97316',                glyph: 'grad-coffee'     },
+  { key: 'restaurant',    tKey: 'cat.restaurant',    color: '#FB923C',                glyph: 'grad-pizza'      },
+  { key: 'transport',     tKey: 'cat.transport',     color: Colors.categoryTransport, glyph: 'grad-taxi'       },
+  { key: 'auto',          tKey: 'cat.auto',          color: '#94A3B8',                glyph: 'grad-car'        },
+  { key: 'home',          tKey: 'cat.home',          color: Colors.categoryHome,      glyph: 'grad-bolt'       },
+  { key: 'health',        tKey: 'cat.health',        color: Colors.accentTeal,        glyph: 'grad-salad'      },
+  { key: 'pharmacy',      tKey: 'cat.pharmacy',      color: '#34D399',                glyph: 'grad-coins'      },
+  { key: 'entertainment', tKey: 'cat.entertainment', color: Colors.pink,              glyph: 'grad-confetti'   },
+  { key: 'shopping',      tKey: 'cat.shopping',      color: '#F5554A',                glyph: 'grad-cart'       },
+  { key: 'clothing',      tKey: 'cat.clothing',      color: '#A78BFA',                glyph: 'grad-sparkle'    },
+  { key: 'education',     tKey: 'cat.education',     color: '#60A5FA',                glyph: 'grad-graduation' },
+  { key: 'sport',         tKey: 'cat.sport',         color: '#39D98A',                glyph: 'grad-dumbbell'   },
+  { key: 'beauty',        tKey: 'cat.beauty',        color: '#FF6B9D',                glyph: 'grad-ring'       },
+  { key: 'travel',        tKey: 'cat.travel',        color: '#38BDF8',                glyph: 'grad-beach'      },
+  { key: 'subscriptions', tKey: 'cat.subscriptions', color: Colors.accentPurple,      glyph: 'grad-phone'      },
+  { key: 'pets',          tKey: 'cat.pets',          color: '#FBBF24',                glyph: 'grad-sparkle'    },
+  { key: 'kids',          tKey: 'cat.kids',          color: '#FCA5A5',                glyph: 'grad-confetti'   },
+  { key: 'gifts',         tKey: 'cat.gifts',         color: '#F472B6',                glyph: 'grad-star'       },
+  { key: 'alcohol',       tKey: 'cat.alcohol',       color: '#C084FC',                glyph: 'grad-coffee'     },
+  { key: 'other',         tKey: 'cat.other',         color: Colors.textMuted,         glyph: 'grad-sparkle'    },
 ];
 
-const INCOME_CATS = [
-  { key: 'salary',     tKey: 'cat.salary',     color: Colors.success,      icon: '💼' },
-  { key: 'freelance',  tKey: 'cat.freelance',  color: Colors.accentPurple, icon: '💻' },
-  { key: 'business',   tKey: 'cat.business',   color: '#FAAD14',           icon: '🏢' },
-  { key: 'investment', tKey: 'cat.investment', color: '#39D98A',           icon: '📈' },
-  { key: 'rental',     tKey: 'cat.rental',     color: '#60A5FA',           icon: '🏡' },
-  { key: 'bonus',      tKey: 'cat.bonus',      color: '#FF6B9D',           icon: '⭐' },
-  { key: 'transfer',   tKey: 'cat.transfer',   color: Colors.accentTeal,   icon: '💸' },
-  { key: 'gift',       tKey: 'cat.gift',       color: Colors.pink,         icon: '🎁' },
-  { key: 'cashback',   tKey: 'cat.cashback',   color: Colors.categoryHome, icon: '🏷️' },
-  { key: 'pension',    tKey: 'cat.pension',    color: '#94A3B8',            icon: '🏦' },
-  { key: 'refund',     tKey: 'cat.refund',     color: '#34D399',            icon: '↩️' },
-  { key: 'other',      tKey: 'cat.other',      color: Colors.textMuted,    icon: '📦' },
+const INCOME_CATS: CatDef[] = [
+  { key: 'salary',     tKey: 'cat.salary',     color: Colors.success,      glyph: 'grad-coins'   },
+  { key: 'freelance',  tKey: 'cat.freelance',  color: Colors.accentPurple, glyph: 'grad-bolt'    },
+  { key: 'business',   tKey: 'cat.business',   color: '#FAAD14',           glyph: 'grad-coins'   },
+  { key: 'investment', tKey: 'cat.investment', color: '#39D98A',           glyph: 'grad-bolt'    },
+  { key: 'rental',     tKey: 'cat.rental',     color: '#60A5FA',           glyph: 'grad-coins'   },
+  { key: 'bonus',      tKey: 'cat.bonus',      color: '#FF6B9D',           glyph: 'grad-star'    },
+  { key: 'transfer',   tKey: 'cat.transfer',   color: Colors.accentTeal,   glyph: 'grad-coins'   },
+  { key: 'gift',       tKey: 'cat.gift',       color: Colors.pink,         glyph: 'grad-star'    },
+  { key: 'cashback',   tKey: 'cat.cashback',   color: Colors.categoryHome, glyph: 'grad-bolt'    },
+  { key: 'pension',    tKey: 'cat.pension',    color: '#94A3B8',           glyph: 'grad-coins'   },
+  { key: 'refund',     tKey: 'cat.refund',     color: '#34D399',           glyph: 'grad-bolt'    },
+  { key: 'other',      tKey: 'cat.other',      color: Colors.textMuted,    glyph: 'grad-sparkle' },
 ];
 
 const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS];
@@ -583,7 +587,7 @@ export function ScanScreen() {
                   onPress={() => setCatSheetOpen(true)}
                   activeOpacity={0.8}
                 >
-                  <Text style={s.catSelectorEmoji}>{sel.icon}</Text>
+                  <GradientGlyphIcon name={sel.glyph} size={22} />
                   <Text style={[s.catSelectorName, { color: sel.color }]}>{t(sel.tKey)}</Text>
                   <Text style={[s.catSelectorChevron, { color: sel.color }]}>▾</Text>
                 </TouchableOpacity>
@@ -611,7 +615,7 @@ export function ScanScreen() {
                           onPress={() => { setCategory(c.key); Haptics.selectionAsync(); setCatSheetOpen(false); }}
                           activeOpacity={0.75}
                         >
-                          <Text style={s.catGridEmoji}>{c.icon}</Text>
+                          <GradientGlyphIcon name={c.glyph} size={26} />
                           <Text style={[s.catGridLabel, active && { color: c.color, fontFamily: Typography.fontSemiBold }]}>{t(c.tKey)}</Text>
                           {active && <View style={[s.catGridDot, { backgroundColor: c.color }]} />}
                         </TouchableOpacity>
