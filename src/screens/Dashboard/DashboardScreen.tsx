@@ -822,8 +822,9 @@ export function DashboardScreen() {
 
             return (
               <Modal visible={showWeekHistory} transparent animationType="slide" onRequestClose={() => setShowWeekHistory(false)}>
-                <TouchableOpacity style={styles.addModalOverlay} activeOpacity={1} onPress={() => setShowWeekHistory(false)}>
-                  <TouchableOpacity activeOpacity={1} style={styles.whSheet}>
+                <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                  <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowWeekHistory(false)}/>
+                  <View style={styles.whSheet}>
                     <View style={styles.addModalHandle}/>
 
                     {/* Header */}
@@ -880,8 +881,8 @@ export function DashboardScreen() {
                       })}
                       <View style={{ height: 24 }}/>
                     </ScrollView>
-                  </TouchableOpacity>
-                </TouchableOpacity>
+                  </View>
+                </View>
               </Modal>
             );
           })()}
