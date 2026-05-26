@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, FlatList,
   TextInput, Animated, KeyboardAvoidingView, Platform, Modal,
-  ActivityIndicator, Alert, Dimensions,
+  ActivityIndicator, Alert, Dimensions, Image,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { MainTabParamList } from '../../types';
@@ -21,6 +21,7 @@ import type { Transaction } from '../../types';
 import { CoachMark, TipStep } from '../../components/CoachMark';
 import { useCoachMark } from '../../hooks/useCoachMark';
 import { useTranslation } from '../../i18n';
+import { useWallpaperStore, WALLPAPERS } from '../../store/useWallpaperStore';
 import { GradientGlyphIcon, GlyphIcon } from '../../components/common/GlyphIcon';
 import type { GradientGlyphName } from '../../components/common/GlyphIcon';
 
@@ -142,6 +143,8 @@ export function ScanScreen() {
   const currency = user?.currency ?? 'EUR';
   const { visible: tipsVisible, complete: tipsDone } = useCoachMark('scan');
   const navigation = useNavigation<any>();
+  const { wallpaperId } = useWallpaperStore();
+  const wallpaperSource = wallpaperId !== null ? WALLPAPERS[wallpaperId] : null;
   const route = useRoute<RouteProp<MainTabParamList, 'Scan'>>();
 
   const { t } = useTranslation();
@@ -470,6 +473,22 @@ export function ScanScreen() {
   if (mode === 'manual') {
     const isIncome = txType === 'income';
     return (
+      <View style={{ flex: 1, backgroundColor: Colors.bg }}>
+        {wallpaperSource ? (
+          <>
+            <Image
+              source={wallpaperSource}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: SH }}
+              resizeMode="cover"
+            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,5,18,0.62)' }]} pointerEvents="none" />
+          </>
+        ) : (
+          <>
+            <View style={s.blobTR} pointerEvents="none" />
+            <View style={s.blobCL} pointerEvents="none" />
+          </>
+        )}
       <SafeAreaView style={s.safe} edges={['top']}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={s.formPad} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -786,6 +805,7 @@ export function ScanScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      </View>
     );
   }
 
@@ -961,6 +981,9 @@ export function ScanScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
+
+  blobTR: { position: 'absolute', width: 320, height: 200, top: -60, right: -80, borderRadius: 999, backgroundColor: 'rgba(0,212,200,0.16)', opacity: 0.6, transform: [{ scaleX: 1.4 }] },
+  blobCL: { position: 'absolute', width: 280, height: 220, top: '28%' as any, left: -100, borderRadius: 999, backgroundColor: 'rgba(123,108,246,0.14)', opacity: 0.6, transform: [{ scaleY: 1.3 }] },
 
   // Hub
   hubPad: { padding: Spacing.xl, paddingBottom: Layout.tabBarClearance + Spacing.xl },
