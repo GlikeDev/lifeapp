@@ -527,34 +527,38 @@ export function ScanScreen() {
             {/* Expense / Income toggle */}
             <View style={s.typeRow}>
               <TouchableOpacity
-                style={[s.typeBtn, !isIncome && { borderColor: Colors.danger + '70' }]}
+                style={[s.typeBtn, !isIncome ? s.typeBtnActive : s.typeBtnGhost]}
                 onPress={() => switchType('expense')}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 {!isIncome && (
                   <LinearGradient
-                    colors={[Colors.danger + '22', Colors.danger + '08']}
+                    colors={[Colors.danger, '#C0392B']}
                     style={StyleSheet.absoluteFill}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   />
                 )}
-                <IcoDown c={!isIncome ? Colors.danger : Colors.textMuted} n={14} />
-                <Text style={[s.typeBtnTxt, !isIncome && { color: Colors.danger }]}>{t('scan.form.expense')}</Text>
+                <IcoDown c={!isIncome ? '#fff' : Colors.textMuted} n={15} />
+                <Text style={[s.typeBtnTxt, { color: !isIncome ? '#fff' : Colors.textMuted }]}>
+                  {t('scan.form.expense')}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.typeBtn, isIncome && { borderColor: Colors.success + '70' }]}
+                style={[s.typeBtn, isIncome ? s.typeBtnActive : s.typeBtnGhost]}
                 onPress={() => switchType('income')}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 {isIncome && (
                   <LinearGradient
-                    colors={[Colors.success + '22', Colors.success + '08']}
+                    colors={[Colors.success, '#1FA060']}
                     style={StyleSheet.absoluteFill}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   />
                 )}
-                <IcoUp c={isIncome ? Colors.success : Colors.textMuted} n={14} />
-                <Text style={[s.typeBtnTxt, isIncome && { color: Colors.success }]}>{t('scan.form.income')}</Text>
+                <IcoUp c={isIncome ? '#fff' : Colors.textMuted} n={15} />
+                <Text style={[s.typeBtnTxt, { color: isIncome ? '#fff' : Colors.textMuted }]}>
+                  {t('scan.form.income')}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -1060,11 +1064,13 @@ const s = StyleSheet.create({
 
   typeRow:       { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
   typeBtn:       {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: Spacing.md, borderRadius: Radius.full,
-    borderWidth: 1.5, borderColor: Glass.border, backgroundColor: Colors.surface,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    paddingVertical: 14, borderRadius: Radius.full,
+    borderWidth: 1.5, overflow: 'hidden',
   },
-  typeBtnTxt:    { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textSecondary },
+  typeBtnActive: { borderColor: 'transparent' },
+  typeBtnGhost:  { borderColor: Glass.border, backgroundColor: 'transparent' },
+  typeBtnTxt:    { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
 
   amtCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
