@@ -18,6 +18,10 @@ import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function toMonthly(amount: number, cycle: SubscriptionCycle): number {
   if (cycle === 'weekly')  return (amount * 52) / 12;
   if (cycle === 'yearly')  return amount / 12;
@@ -135,6 +139,21 @@ export function SubscriptionsScreen() {
     Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
   }
 
+  async function createSubExpense(userId: string, subName: string, subAmount: number, subCycle: SubscriptionCycle) {
+    const cycleLabel: Record<SubscriptionCycle, string> = {
+      weekly: 'Еженедельно', monthly: 'Ежемесячно', yearly: 'Ежегодно',
+    };
+    await supabase.from('transactions').insert({
+      user_id: userId,
+      type: 'expense',
+      amount: subAmount,
+      category: 'subscriptions',
+      store: subName,
+      note: cycleLabel[subCycle],
+      date: localDateStr(new Date()),
+    });
+  }
+
   async function handleSave() {
     const num = parseFloat(amount.replace(',', '.'));
     if (!name.trim() || isNaN(num) || num <= 0) { Alert.alert(t('sub.err.nameAmount')); return; }
@@ -144,13 +163,14 @@ export function SubscriptionsScreen() {
     setSaving(true);
     const { data, error } = await supabase.from('subscriptions').insert({
       user_id: user.id, name: name.trim(), emoji, amount: num,
-      currency, cycle, next_billing: nextDate.toISOString().slice(0, 10),
+      currency, cycle, next_billing: localDateStr(nextDate),
       category, is_active: true,
     }).select().single();
     if (error) { Alert.alert(t('scan.err.title'), error.message); setSaving(false); return; }
     setSubs(prev => [...prev, data as Subscription].sort((a, b) =>
       new Date(a.next_billing).getTime() - new Date(b.next_billing).getTime()
     ));
+    await createSubExpense(user.id, name.trim(), num, cycle);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSaving(false); setShowAdd(false);
     resetForm();
@@ -158,15 +178,19 @@ export function SubscriptionsScreen() {
 
   async function handlePreset(preset: typeof PRESETS[0]) {
     if (!user) return;
-    const nextDate = new Date(); nextDate.setMonth(nextDate.getMonth() + 1);
+    const nextDate = new Date();
+    if (preset.cycle === 'monthly') nextDate.setMonth(nextDate.getMonth() + 1);
+    else if (preset.cycle === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
+    else nextDate.setFullYear(nextDate.getFullYear() + 1);
     const { data, error } = await supabase.from('subscriptions').insert({
       user_id: user.id, ...preset, currency, is_active: true,
-      next_billing: nextDate.toISOString().slice(0, 10),
+      next_billing: localDateStr(nextDate),
     }).select().single();
     if (error) { Alert.alert(t('scan.err.title'), error.message); return; }
     setSubs(prev => [...prev, data as Subscription].sort((a, b) =>
       new Date(a.next_billing).getTime() - new Date(b.next_billing).getTime()
     ));
+    await createSubExpense(user.id, preset.name, preset.amount, preset.cycle);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
