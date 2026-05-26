@@ -815,9 +815,7 @@ export function ScanScreen() {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={isIncome
-                  ? [Colors.success, '#2AB070']
-                  : [Colors.accentTeal, Colors.accentPurple]}
+                colors={[Colors.accentTeal, Colors.accentPurple]}
                 style={s.saveBtnGrad}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               >
