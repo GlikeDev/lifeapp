@@ -50,7 +50,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useWallpaperStore, WALLPAPERS } from '../../store/useWallpaperStore';
 import { formatCurrency, monthsLeft } from '../../utils/format';
 import { supabase } from '../../lib/supabase';
-import type { Transaction, Goal, FridgeItem } from '../../types';
+import type { Transaction, Goal, FridgeItem, Subscription } from '../../types';
 import { useTranslation } from '../../i18n';
 
 // ─── Currencies ───────────────────────────────────────────────────────────────
@@ -472,6 +472,26 @@ function fridgeZoneColor(days: number) {
   return Colors.success;
 }
 
+// ─── Subscription helpers ─────────────────────────────────────────────────────
+
+const SUB_CAT_CFG = [
+  { key: 'entertainment', aliases: ['streaming'], emoji: '🎬', label: 'Развлечения', color: '#E50914' },
+  { key: 'cloud',         aliases: [],            emoji: '☁️',  label: 'Облако',      color: Colors.accentTeal },
+  { key: 'ai',            aliases: [],            emoji: '🤖', label: 'ИИ',          color: Colors.accentPurple },
+  { key: 'hosting',       aliases: [],            emoji: '🖥️', label: 'Хостинги',    color: Colors.warning },
+  { key: 'music',         aliases: [],            emoji: '🎵', label: 'Музыка',       color: '#1DB954' },
+  { key: 'fitness',       aliases: [],            emoji: '💪', label: 'Фитнес',       color: Colors.success },
+  { key: 'finance',       aliases: [],            emoji: '💼', label: 'Финансы',      color: Colors.pink },
+  { key: 'software',      aliases: [],            emoji: '⚙️',  label: 'Сервисы',     color: '#38BDF8' },
+  { key: 'other',         aliases: [],            emoji: '📦', label: 'Другое',       color: Colors.textMuted },
+];
+
+function toMonthly(amount: number, cycle: string) {
+  if (cycle === 'weekly')  return (amount * 52) / 12;
+  if (cycle === 'yearly')  return amount / 12;
+  return amount;
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function DashboardScreen() {
@@ -492,9 +512,11 @@ export function DashboardScreen() {
   // Collapsible sections
   const [catsOpen, setCatsOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
+  const [subOpen, setSubOpen] = useState(false);
   const [fridgeOpen, setFridgeOpen] = useState(false);
   const [whatIfOpen, setWhatIfOpen] = useState(false);
   const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const fadeAnim   = useRef(new Animated.Value(0)).current;
   const neonAnim   = useRef(new Animated.Value(0)).current;
   const { visible: tipsVisible, complete: tipsDone } = useCoachMark('dashboard');
@@ -548,11 +570,12 @@ export function DashboardScreen() {
     const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const to   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-    const [txRes, goalsRes, profileRes, fridgeRes] = await Promise.all([
+    const [txRes, goalsRes, profileRes, fridgeRes, subRes] = await Promise.all([
       supabase.from('transactions').select('*').eq('user_id', user.id).gte('date', from).lte('date', to).order('date', { ascending: false }),
       supabase.from('goals').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
       supabase.from('profiles').select('monthly_budget, currency').eq('id', user.id).single(),
       supabase.from('fridge_items').select('*').eq('user_id', user.id).order('expires_at', { ascending: true }),
+      supabase.from('subscriptions').select('*').eq('user_id', user.id).eq('is_active', true).order('next_billing', { ascending: true }),
     ]);
 
     if (txRes.data) setTransactions(txRes.data as Transaction[]);
@@ -564,6 +587,7 @@ export function DashboardScreen() {
       }
     }
     if (fridgeRes.data) setFridgeItems(fridgeRes.data as FridgeItem[]);
+    if (subRes.data) setSubscriptions(subRes.data as Subscription[]);
   }
 
   useEffect(() => {
@@ -878,6 +902,73 @@ export function DashboardScreen() {
               </>
             )}
           </CollapsibleSection>
+
+          {/* ── Subscriptions Section ── */}
+          {(() => {
+            const activeSubs = subscriptions.filter(s => s.is_active);
+            const totalMonthly = activeSubs.reduce((acc, s) => acc + toMonthly(s.amount, s.cycle), 0);
+
+            // Group by category config
+            const grouped = SUB_CAT_CFG.map(cfg => {
+              const matches = activeSubs.filter(s =>
+                s.category === cfg.key || cfg.aliases.includes(s.category as string)
+              );
+              return { cfg, monthly: matches.reduce((sum, s) => sum + toMonthly(s.amount, s.cycle), 0), count: matches.length };
+            }).filter(g => g.count > 0);
+
+            const maxMonthly = grouped.reduce((m, g) => Math.max(m, g.monthly), 1);
+
+            return (
+              <CollapsibleSection
+                title="ПОДПИСКИ"
+                accentColor={Colors.accentPurple}
+                badge={activeSubs.length > 0 ? `${currObj.symbol}${Math.round(totalMonthly)}/мес` : undefined}
+                open={subOpen}
+                onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSubOpen(v => !v); }}
+              >
+                {activeSubs.length === 0 ? (
+                  <TouchableOpacity style={styles.goalsEmpty} onPress={() => (navigation as any).navigate('More', { screen: 'Subscriptions' })} activeOpacity={0.8}>
+                    <Text style={styles.emptyIcon}>💳</Text>
+                    <Text style={styles.emptyTitle}>Нет активных подписок</Text>
+                    <Text style={styles.emptyText}>Добавьте подписки в разделе Профиль → Подписки</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ gap: 8 }}>
+                    {grouped.map(({ cfg, monthly, count }) => {
+                      const pct = monthly / maxMonthly;
+                      const countLabel = count === 1 ? '1 сервис' : count < 5 ? `${count} сервиса` : `${count} сервисов`;
+                      return (
+                        <View key={cfg.key} style={styles.catRow}>
+                          <View style={[styles.subCatDot, { backgroundColor: cfg.color + '22', borderColor: cfg.color + '50' }]}>
+                            <Text style={{ fontSize: 13 }}>{cfg.emoji}</Text>
+                          </View>
+                          <Text style={styles.subCatLabel} numberOfLines={1}>{cfg.label}</Text>
+                          <View style={{ flex: 1, gap: 3 }}>
+                            <View style={styles.catRowBar}>
+                              <LinearGradient
+                                colors={[cfg.color + '77', cfg.color]}
+                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                style={[styles.catRowBarFill, { width: `${Math.round(pct * 100)}%` as any }]}
+                              />
+                            </View>
+                            <Text style={styles.subCatCount}>{countLabel}</Text>
+                          </View>
+                          <Text style={[styles.catRowAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(monthly)}/м</Text>
+                        </View>
+                      );
+                    })}
+                    <TouchableOpacity
+                      style={styles.subManageBtn}
+                      onPress={() => (navigation as any).navigate('More', { screen: 'Subscriptions' })}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={styles.subManageTxt}>Управлять подписками →</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </CollapsibleSection>
+            );
+          })()}
 
           {/* ── Fridge Section ── */}
           {(() => {
@@ -1278,6 +1369,13 @@ const styles = StyleSheet.create({
   emptyIcon:  { fontSize: 36, marginBottom: Spacing.md },
   emptyTitle: { fontSize: Typography.sizeMD, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary, marginBottom: Spacing.xs },
   emptyText:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
+
+  // Subscriptions
+  subCatDot:    { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  subCatLabel:  { width: 86, fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textSecondary },
+  subCatCount:  { fontSize: 10, fontFamily: Typography.fontMedium, color: Colors.textMuted },
+  subManageBtn: { marginTop: Spacing.md, alignItems: 'center', paddingVertical: Spacing.sm },
+  subManageTxt: { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.accentPurple },
 
   // AI card (goal emojis in gm stylesheet below)
   aiCard: {

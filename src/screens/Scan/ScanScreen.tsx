@@ -554,7 +554,7 @@ export function ScanScreen() {
                 shadowOpacity: 0.4,
                 shadowRadius: 18,
                 shadowOffset: { width: 0, height: 0 },
-                elevation: 10,
+                elevation: Platform.OS === 'android' ? 0 : 10,
               }]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             >

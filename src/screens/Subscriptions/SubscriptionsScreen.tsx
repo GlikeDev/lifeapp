@@ -49,37 +49,47 @@ function urgencyColor(dateStr: string): string {
   return Colors.textMuted;
 }
 
-const CAT_INFO: Record<SubscriptionCategory, { color: string }> = {
-  streaming: { color: '#E50914' },
-  music:     { color: Colors.accentPurple },
-  fitness:   { color: Colors.success },
-  software:  { color: Colors.accentTeal },
-  finance:   { color: Colors.warning },
-  other:     { color: Colors.textMuted },
+const CAT_INFO: Record<SubscriptionCategory, { color: string; label: string }> = {
+  entertainment: { color: '#E50914',            label: 'Развлечения' },
+  streaming:     { color: '#E50914',            label: 'Стриминг'   },
+  cloud:         { color: Colors.accentTeal,    label: 'Облако'     },
+  ai:            { color: Colors.accentPurple,  label: 'ИИ'         },
+  hosting:       { color: Colors.warning,       label: 'Хостинги'   },
+  music:         { color: '#1DB954',            label: 'Музыка'     },
+  fitness:       { color: Colors.success,       label: 'Фитнес'     },
+  software:      { color: '#38BDF8',            label: 'Сервисы'    },
+  finance:       { color: Colors.pink,          label: 'Финансы'    },
+  other:         { color: Colors.textMuted,     label: 'Другое'     },
 };
 
 const CYCLE_MULTS: Record<SubscriptionCycle, number> = {
   weekly: 52, monthly: 12, yearly: 1,
 };
 
-const ALL_CATS: SubscriptionCategory[] = ['streaming','music','fitness','software','finance','other'];
+const ALL_CATS: SubscriptionCategory[] = ['entertainment','cloud','ai','hosting','music','fitness','software','finance','other'];
 const ALL_CYCLES: SubscriptionCycle[] = ['monthly','yearly','weekly'];
 
 // ─── Presets ──────────────────────────────────────────────────────────────────
 
 const PRESETS: Omit<Subscription,'id'|'user_id'|'created_at'|'is_active'|'currency'|'next_billing'>[] = [
-  { name:'Netflix',           emoji:'🎬', amount:15.99, cycle:'monthly', category:'streaming' },
-  { name:'Spotify',           emoji:'🎵', amount:9.99,  cycle:'monthly', category:'music'     },
-  { name:'YouTube Premium',   emoji:'▶️', amount:13.99, cycle:'monthly', category:'streaming' },
-  { name:'Apple Music',       emoji:'🍎', amount:10.99, cycle:'monthly', category:'music'     },
-  { name:'iCloud+',           emoji:'☁️', amount:2.99,  cycle:'monthly', category:'software'  },
-  { name:'ChatGPT Plus',      emoji:'🤖', amount:20,    cycle:'monthly', category:'software'  },
-  { name:'Gym',               emoji:'💪', amount:30,    cycle:'monthly', category:'fitness'   },
-  { name:'Adobe CC',          emoji:'🎨', amount:54.99, cycle:'monthly', category:'software'  },
-  { name:'Google One',        emoji:'🔵', amount:2.99,  cycle:'monthly', category:'software'  },
-  { name:'Amazon Prime',      emoji:'📦', amount:8.99,  cycle:'monthly', category:'streaming' },
-  { name:'Disney+',           emoji:'✨', amount:8.99,  cycle:'monthly', category:'streaming' },
-  { name:'Notion',            emoji:'📝', amount:10,    cycle:'monthly', category:'software'  },
+  { name:'Netflix',           emoji:'🎬', amount:15.99, cycle:'monthly', category:'entertainment' },
+  { name:'Spotify',           emoji:'🎵', amount:9.99,  cycle:'monthly', category:'music'         },
+  { name:'YouTube Premium',   emoji:'▶️', amount:13.99, cycle:'monthly', category:'entertainment' },
+  { name:'Apple Music',       emoji:'🍎', amount:10.99, cycle:'monthly', category:'music'         },
+  { name:'iCloud+',           emoji:'☁️', amount:2.99,  cycle:'monthly', category:'cloud'         },
+  { name:'Google One',        emoji:'🔵', amount:2.99,  cycle:'monthly', category:'cloud'         },
+  { name:'Dropbox',           emoji:'📦', amount:11.99, cycle:'monthly', category:'cloud'         },
+  { name:'ChatGPT Plus',      emoji:'🤖', amount:20,    cycle:'monthly', category:'ai'            },
+  { name:'Claude Pro',        emoji:'🧠', amount:20,    cycle:'monthly', category:'ai'            },
+  { name:'Midjourney',        emoji:'🎨', amount:10,    cycle:'monthly', category:'ai'            },
+  { name:'GitHub',            emoji:'🐙', amount:4,     cycle:'monthly', category:'hosting'       },
+  { name:'Vercel',            emoji:'▲',  amount:20,    cycle:'monthly', category:'hosting'       },
+  { name:'Amazon AWS',        emoji:'⚡', amount:10,    cycle:'monthly', category:'hosting'       },
+  { name:'Gym',               emoji:'💪', amount:30,    cycle:'monthly', category:'fitness'       },
+  { name:'Amazon Prime',      emoji:'🛍️', amount:8.99,  cycle:'monthly', category:'entertainment' },
+  { name:'Disney+',           emoji:'✨', amount:8.99,  cycle:'monthly', category:'entertainment' },
+  { name:'Adobe CC',          emoji:'🎨', amount:54.99, cycle:'monthly', category:'software'      },
+  { name:'Notion',            emoji:'📝', amount:10,    cycle:'monthly', category:'software'      },
 ];
 
 const SUB_EMOJIS = ['💳','🎬','🎵','📱','💪','🎮','📺','🤖','☁️','🎨','📦','🔑','🏠','✈️','📚','🎓'];

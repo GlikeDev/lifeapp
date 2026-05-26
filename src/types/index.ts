@@ -120,7 +120,7 @@ export interface DailyNutrition {
 // ─── Subscriptions ───────────────────────────────────────────────────────────
 
 export type SubscriptionCycle = 'weekly' | 'monthly' | 'yearly';
-export type SubscriptionCategory = 'streaming' | 'music' | 'fitness' | 'software' | 'finance' | 'other';
+export type SubscriptionCategory = 'streaming' | 'entertainment' | 'cloud' | 'ai' | 'hosting' | 'music' | 'fitness' | 'software' | 'finance' | 'other';
 
 export interface Subscription {
   id: string;

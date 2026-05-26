@@ -291,18 +291,13 @@ export function MoreMenuScreen() {
           {/* ═══ ФИНАНСЫ ════════════════════════════════════════════ */}
           <Section title="ФИНАНСЫ">
             <View style={s.finRow}>
-              <TouchableOpacity style={s.finCard} onPress={() => nav.navigate('Subscriptions')} activeOpacity={0.82}>
-                <LinearGradient colors={['#1A2B3C','#0F1B26']} style={s.finGrad} start={{x:0,y:0}} end={{x:1,y:1}}>
-                  <Text style={s.finEmoji}>💳</Text>
-                  <Text style={s.finTitle}>Подписки</Text>
-                  <Text style={s.finSub}>Контроль трат</Text>
-                </LinearGradient>
-              </TouchableOpacity>
               <TouchableOpacity style={s.finCard} onPress={() => nav.navigate('Debts')} activeOpacity={0.82}>
-                <LinearGradient colors={['#1F2A1A','#141E0F']} style={s.finGrad} start={{x:0,y:0}} end={{x:1,y:1}}>
-                  <Text style={s.finEmoji}>🤝</Text>
-                  <Text style={s.finTitle}>Долги</Text>
-                  <Text style={s.finSub}>Кто кому должен</Text>
+                <LinearGradient colors={['#1F2A1A','#141E0F']} style={[s.finGrad, { flexDirection:'row', alignItems:'center', gap: Spacing.md, minHeight: 72 }]} start={{x:0,y:0}} end={{x:1,y:1}}>
+                  <Text style={[s.finEmoji, { marginBottom: 0, fontSize: 32 }]}>🤝</Text>
+                  <View>
+                    <Text style={s.finTitle}>Долги</Text>
+                    <Text style={s.finSub}>Кто кому должен</Text>
+                  </View>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
