@@ -53,6 +53,7 @@ import { supabase } from '../../lib/supabase';
 import type { Transaction, Goal, FridgeItem, Subscription } from '../../types';
 import { useTranslation } from '../../i18n';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 // ─── Currencies ───────────────────────────────────────────────────────────────
@@ -829,7 +830,7 @@ export function DashboardScreen() {
               <Modal visible={showWeekHistory} transparent animationType="slide" onRequestClose={() => setShowWeekHistory(false)}>
                 <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                   <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowWeekHistory(false)}/>
-                  <View style={styles.whSheet}>
+                  <GestureHandlerRootView style={styles.whSheet}>
                     <View style={styles.addModalHandle}/>
 
                     {/* Header */}
@@ -900,7 +901,7 @@ export function DashboardScreen() {
                       })}
                       <View style={{ height: 24 }}/>
                     </ScrollView>
-                  </View>
+                  </GestureHandlerRootView>
                 </View>
               </Modal>
             );
