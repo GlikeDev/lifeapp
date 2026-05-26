@@ -1314,7 +1314,7 @@ const styles = StyleSheet.create({
   barTrack: { height: 5, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: Radius.full, overflow: 'hidden', marginBottom: Spacing.md },
   barFill:  { height: '100%', borderRadius: Radius.full },
 
-  chartCard:  { marginHorizontal: Spacing.xl, marginBottom: Spacing.lg, backgroundColor: Glass.surface, borderRadius: Radius.xl, borderWidth: 1, borderColor: Glass.border, paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.xs },
+  chartCard:  { marginBottom: Spacing.lg, backgroundColor: Glass.surface, borderRadius: Radius.xl, borderWidth: 1, borderColor: Glass.border, paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.xs },
   chartLabel: { fontSize: Typography.sizeXS, fontFamily: Typography.fontMedium, color: Colors.textMuted, letterSpacing: 1.2, marginBottom: Spacing.xs },
 
   heroStats:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
