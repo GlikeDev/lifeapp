@@ -507,6 +507,7 @@ export function DashboardScreen() {
   const [currencyModal, setCurrencyModal] = useState(false);
   const [insightIdx, setInsightIdx] = useState(0);
   const [chartAnimKey, setChartAnimKey] = useState(0);
+  const [showWeekHistory, setShowWeekHistory] = useState(false);
 
   useFocusEffect(useCallback(() => {
     setChartAnimKey(k => k + 1);
@@ -756,10 +757,134 @@ export function DashboardScreen() {
           </TouchableOpacity>
 
           {/* ── Weekly spending chart ── */}
-          <View style={styles.chartCard}>
-            <Text style={styles.chartLabel}>РАСХОДЫ ЗА 7 ДНЕЙ</Text>
+          <TouchableOpacity
+            style={styles.chartCard}
+            onPress={() => setShowWeekHistory(true)}
+            activeOpacity={0.85}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xs }}>
+              <Text style={styles.chartLabel}>РАСХОДЫ ЗА 7 ДНЕЙ</Text>
+              <Text style={{ fontSize: 10, color: Colors.textMuted, fontFamily: Typography.fontMedium }}>история ›</Text>
+            </View>
             <SpendingBarChart data={weekData} animTrigger={chartAnimKey} />
-          </View>
+          </TouchableOpacity>
+
+          {/* ── Week history modal ── */}
+          {(() => {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const ago6  = new Date(today); ago6.setDate(today.getDate() - 6);
+            const weekTxs = [...transactions]
+              .filter(tx => { const d = new Date(tx.date); d.setHours(0,0,0,0); return d >= ago6 && d <= today; })
+              .sort((a, b) => new Date(b.date + 'T23:59:59').getTime() - new Date(a.date + 'T23:59:59').getTime());
+
+            const byDay: Record<string, typeof weekTxs> = {};
+            weekTxs.forEach(tx => {
+              if (!byDay[tx.date]) byDay[tx.date] = [];
+              byDay[tx.date].push(tx);
+            });
+            const days = Object.keys(byDay).sort((a, b) => b.localeCompare(a));
+
+            const totalWeekExp = weekTxs.filter(t => t.type !== 'income').reduce((s, t) => s + t.amount, 0);
+
+            const dayLabel = (iso: string) => {
+              const d = new Date(iso + 'T12:00:00');
+              const t = new Date(); t.setHours(0,0,0,0);
+              const y = new Date(t); y.setDate(t.getDate()-1);
+              if (iso === t.toISOString().slice(0,10)) return 'Сегодня';
+              if (iso === y.toISOString().slice(0,10)) return 'Вчера';
+              return d.toLocaleDateString('ru-RU', { weekday:'long', day:'numeric', month:'short' });
+            };
+
+            const TX_COLOR: Record<string, string> = {
+              food: Colors.categoryFood, cafe:'#F97316', restaurant:'#FB923C',
+              transport: Colors.categoryTransport, auto:'#94A3B8',
+              home: Colors.categoryHome, health: Colors.accentTeal, pharmacy:'#34D399',
+              entertainment:'#FF6B9D', shopping:'#F5554A', clothing:'#A78BFA',
+              education:'#60A5FA', sport:'#39D98A', beauty:'#FF6B9D',
+              travel:'#38BDF8', subscriptions: Colors.accentPurple, pets:'#FBBF24',
+              kids:'#FCA5A5', gifts:'#F472B6', alcohol:'#C084FC',
+              salary: Colors.success, freelance: Colors.accentPurple,
+              business:'#FAAD14', investment:'#39D98A', rental:'#60A5FA',
+              bonus:'#FF6B9D', transfer: Colors.accentTeal,
+              gift:'#F472B6', cashback: Colors.success, pension:'#94A3B8',
+              refund:'#34D399', other: Colors.textMuted,
+            };
+            const TX_EMOJI: Record<string, string> = {
+              food:'🥗', cafe:'☕', restaurant:'🍕', transport:'🚕', auto:'🚗',
+              home:'⚡', health:'💊', pharmacy:'💊', entertainment:'🎬',
+              shopping:'🛒', clothing:'👕', education:'🎓', sport:'💪',
+              beauty:'💍', travel:'✈️', subscriptions:'📱', pets:'🐾',
+              kids:'🧒', gifts:'🎁', alcohol:'🍷', salary:'💰',
+              freelance:'⚡', business:'💼', investment:'📈', rental:'🏠',
+              bonus:'⭐', transfer:'💳', gift:'🎁', cashback:'💸',
+              pension:'🏦', refund:'↩️', other:'📦',
+            };
+
+            return (
+              <Modal visible={showWeekHistory} transparent animationType="slide" onRequestClose={() => setShowWeekHistory(false)}>
+                <TouchableOpacity style={styles.addModalOverlay} activeOpacity={1} onPress={() => setShowWeekHistory(false)}>
+                  <TouchableOpacity activeOpacity={1} style={styles.whSheet}>
+                    <View style={styles.addModalHandle}/>
+
+                    {/* Header */}
+                    <View style={styles.whHeader}>
+                      <View>
+                        <Text style={styles.whTitle}>ИСТОРИЯ ЗА 7 ДНЕЙ</Text>
+                        <Text style={styles.whSub}>{weekTxs.length} транзакций</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.whAmount, { color: Colors.danger }]}>
+                          −{fmt(totalWeekExp)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+                      {days.length === 0 ? (
+                        <Text style={styles.whEmpty}>Нет транзакций за последние 7 дней</Text>
+                      ) : days.map(day => {
+                        const txs = byDay[day];
+                        const dayTotal = txs.filter(t => t.type !== 'income').reduce((s,t) => s + t.amount, 0);
+                        return (
+                          <View key={day}>
+                            {/* Day header */}
+                            <View style={styles.whDayRow}>
+                              <Text style={styles.whDayLabel}>{dayLabel(day)}</Text>
+                              {dayTotal > 0 && (
+                                <Text style={styles.whDayTotal}>−{fmt(dayTotal)}</Text>
+                              )}
+                            </View>
+                            {/* Transactions */}
+                            {txs.map(tx => {
+                              const isIncome = tx.type === 'income';
+                              const color = TX_COLOR[tx.category] ?? Colors.textMuted;
+                              const emoji = TX_EMOJI[tx.category] ?? '📦';
+                              const label = tx.note || tx.store || t(`cat.${tx.category}`) || tx.category;
+                              return (
+                                <View key={tx.id} style={styles.whTxRow}>
+                                  <View style={[styles.whTxDot, { backgroundColor: color + '22', borderColor: color + '55' }]}>
+                                    <Text style={{ fontSize: 13 }}>{emoji}</Text>
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={styles.whTxLabel} numberOfLines={1}>{label}</Text>
+                                    <Text style={styles.whTxCat}>{t(`cat.${tx.category}`)}</Text>
+                                  </View>
+                                  <Text style={[styles.whTxAmount, { color: isIncome ? Colors.success : Colors.textPrimary }]}>
+                                    {isIncome ? '+' : '−'}{fmt(tx.amount)}
+                                  </Text>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        );
+                      })}
+                      <View style={{ height: 24 }}/>
+                    </ScrollView>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </Modal>
+            );
+          })()}
 
           {/* ── Add transaction modal ── */}
           <Modal visible={showAddModal} animationType="slide" transparent onRequestClose={() => setShowAddModal(false)}>
@@ -1403,6 +1528,22 @@ const styles = StyleSheet.create({
   aiDots:  { flexDirection: 'row', gap: 6, marginTop: Spacing.sm },
   aiDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(0,212,200,0.25)' },
   aiDotActive: { backgroundColor: Colors.accentTeal, width: 16 },
+
+  // Week history modal
+  whSheet:     { backgroundColor: 'rgba(13,14,26,0.98)', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: Spacing.xl, maxHeight: '85%', flex: 1, marginTop: 'auto' as any },
+  whHeader:    { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Glass.border, marginBottom: Spacing.sm },
+  whTitle:     { fontSize: Typography.sizeXS, fontFamily: Typography.fontSemiBold, color: Colors.textMuted, letterSpacing: 1.2 },
+  whSub:       { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textSecondary, marginTop: 2 },
+  whAmount:    { fontSize: 18, fontFamily: Typography.fontBold, color: Colors.danger },
+  whEmpty:     { textAlign: 'center', color: Colors.textMuted, marginTop: 40, fontFamily: Typography.fontMedium },
+  whDayRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm, marginTop: Spacing.sm },
+  whDayLabel:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textSecondary, textTransform: 'capitalize' },
+  whDayTotal:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textMuted },
+  whTxRow:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
+  whTxDot:     { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  whTxLabel:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
+  whTxCat:     { fontSize: 11, fontFamily: Typography.fontMedium, color: Colors.textMuted, marginTop: 1 },
+  whTxAmount:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
 });
 
 // ─── Goal modal styles ────────────────────────────────────────────────────────
