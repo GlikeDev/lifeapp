@@ -326,6 +326,22 @@ export function ScanScreen() {
   // ── HUB ──────────────────────────────────────────────────────────────────────
   if (mode === 'hub') {
     return (
+      <View style={{ flex: 1, backgroundColor: Colors.bg }}>
+        {wallpaperSource ? (
+          <>
+            <Image
+              source={wallpaperSource}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: SH }}
+              resizeMode="cover"
+            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,5,18,0.62)' }]} pointerEvents="none" />
+          </>
+        ) : (
+          <>
+            <View style={s.blobTR} pointerEvents="none" />
+            <View style={s.blobCL} pointerEvents="none" />
+          </>
+        )}
       <SafeAreaView style={s.safe} edges={['top']}>
         <ScrollView contentContainerStyle={s.hubPad} showsVerticalScrollIndicator={false}>
 
@@ -401,6 +417,7 @@ export function ScanScreen() {
         </ScrollView>
         <CoachMark steps={SCAN_TIPS} visible={tipsVisible} onDone={tipsDone} />
       </SafeAreaView>
+      </View>
     );
   }
 
