@@ -190,9 +190,8 @@ export function ScanScreen() {
   const [txType, setTxType]         = useState<TxType>(initType);
   const [amount, setAmount]         = useState('');
   const [category, setCategory]     = useState('food');
-  const [store, setStore]           = useState('');
   const [note, setNote]             = useState('');
-  const [dateOffset, setDateOffset] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [saving, setSaving]         = useState(false);
   const [showNote, setShowNote]     = useState(false);
   const [catSheetOpen, setCatSheetOpen] = useState(false);
@@ -259,9 +258,7 @@ export function ScanScreen() {
   async function pickGallery() {
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
     if (!r.canceled) {
-      // Simulated OCR pre-fill
       setAmount('1450');
-      setStore('Магазин');
       setCategory('food');
       setTxType('expense');
       setMode('manual');
@@ -269,9 +266,7 @@ export function ScanScreen() {
   }
 
   function captureAndParse() {
-    // Simulate OCR result from camera
     setAmount('890');
-    setStore('Пятёрочка');
     setCategory('food');
     setTxType('expense');
     setMode('manual');
@@ -303,21 +298,20 @@ export function ScanScreen() {
     if (!user || isNaN(num) || num <= 0) { Alert.alert(t('scan.err.title'), t('scan.err.amount')); return; }
     setSaving(true);
     const storedAmt = txType === 'income' ? -num : num;
-    const d = new Date(); d.setDate(d.getDate() - dateOffset);
     try {
       const { data, error } = await supabase.from('transactions').insert({
         user_id: user.id,
         amount: storedAmt,
         category: category as any,
-        store: store || (txType === 'income' ? 'Доход' : 'Не указан'),
+        store: txType === 'income' ? 'Доход' : 'Не указан',
         note: note || null,
-        date: d.toISOString().slice(0, 10),
+        date: selectedDate.toISOString().slice(0, 10),
       }).select().single();
       if (error) throw error;
       addTransaction(data as Transaction);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setLastAmt(num); setLastCat(category); setLastType(txType);
-      setAmount(''); setStore(''); setNote(''); setDateOffset(0); setShowNote(false);
+      setAmount(''); setNote(''); setSelectedDate(new Date()); setShowNote(false);
       setMode('success');
     } catch (e: any) { Alert.alert(t('scan.err.title'), e.message); }
     finally { setSaving(false); }
@@ -518,18 +512,32 @@ export function ScanScreen() {
             {/* Expense / Income toggle */}
             <View style={s.typeRow}>
               <TouchableOpacity
-                style={[s.typeBtn, !isIncome && s.typeBtnExpense]}
+                style={[s.typeBtn, !isIncome && { borderColor: Colors.danger + '70' }]}
                 onPress={() => switchType('expense')}
                 activeOpacity={0.8}
               >
+                {!isIncome && (
+                  <LinearGradient
+                    colors={[Colors.danger + '22', Colors.danger + '08']}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  />
+                )}
                 <IcoDown c={!isIncome ? Colors.danger : Colors.textMuted} n={14} />
                 <Text style={[s.typeBtnTxt, !isIncome && { color: Colors.danger }]}>{t('scan.form.expense')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.typeBtn, isIncome && s.typeBtnIncome]}
+                style={[s.typeBtn, isIncome && { borderColor: Colors.success + '70' }]}
                 onPress={() => switchType('income')}
                 activeOpacity={0.8}
               >
+                {isIncome && (
+                  <LinearGradient
+                    colors={[Colors.success + '22', Colors.success + '08']}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  />
+                )}
                 <IcoUp c={isIncome ? Colors.success : Colors.textMuted} n={14} />
                 <Text style={[s.typeBtnTxt, isIncome && { color: Colors.success }]}>{t('scan.form.income')}</Text>
               </TouchableOpacity>
@@ -540,7 +548,14 @@ export function ScanScreen() {
               colors={isIncome
                 ? [Colors.success + '20', Colors.success + '06']
                 : [Colors.danger + '1A', Colors.accentTeal + '0A']}
-              style={[s.amtCard, { borderColor: (isIncome ? Colors.success : Colors.danger) + '30' }]}
+              style={[s.amtCard, {
+                borderColor: (isIncome ? Colors.success : Colors.danger) + '55',
+                shadowColor: isIncome ? Colors.success : Colors.danger,
+                shadowOpacity: 0.4,
+                shadowRadius: 18,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: 10,
+              }]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             >
               <Text style={[s.amtSign, { color: isIncome ? Colors.success : Colors.danger }]}>
@@ -607,32 +622,47 @@ export function ScanScreen() {
               </TouchableOpacity>
             </Modal>
 
-            {/* Store / Source */}
-            <Text style={s.secLabel}>{isIncome ? t('scan.form.source') : t('scan.form.store')}</Text>
-            <View style={s.inputBox}>
-              <TextInput
-                style={s.inputTxt}
-                value={store}
-                onChangeText={setStore}
-                placeholder={isIncome ? t('scan.form.sourcePh') : t('scan.form.storePh')}
-                placeholderTextColor={Colors.textMuted}
-              />
-            </View>
-
             {/* Date */}
-            <Text style={s.secLabel}>{t('scan.form.date')}</Text>
-            <View style={s.dateRow}>
-              {[t('scan.form.today'), t('scan.form.yesterday'), t('scan.form.twoDays')].map((lbl, i) => (
-                <TouchableOpacity
-                  key={lbl}
-                  style={[s.datePill, dateOffset === i && s.datePillOn]}
-                  onPress={() => setDateOffset(i)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[s.datePillTxt, dateOffset === i && s.datePillTxtOn]}>{lbl}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {(() => {
+              const todayD = new Date();
+              const yesterdayD = new Date(); yesterdayD.setDate(yesterdayD.getDate() - 1);
+              const isToday = selectedDate.toDateString() === todayD.toDateString();
+              const isYday  = selectedDate.toDateString() === yesterdayD.toDateString();
+              const shiftDay = (n: number) => {
+                const d = new Date(selectedDate); d.setDate(d.getDate() + n);
+                if (d <= todayD) setSelectedDate(d);
+              };
+              const dateLabel = selectedDate.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' });
+              return (
+                <View style={s.dateBlock}>
+                  <View style={s.dateNavRow}>
+                    <TouchableOpacity style={s.dateArrow} onPress={() => shiftDay(-1)} activeOpacity={0.7}>
+                      <IcoLeft c={Colors.textSecondary} n={18} />
+                    </TouchableOpacity>
+                    <Text style={s.dateCurrent}>{dateLabel}</Text>
+                    <TouchableOpacity style={s.dateArrow} onPress={() => shiftDay(1)} activeOpacity={isToday ? 0.3 : 0.7} disabled={isToday}>
+                      <IcoRight c={isToday ? Colors.textMuted + '44' : Colors.textSecondary} n={18} />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={s.dateQuickRow}>
+                    <TouchableOpacity
+                      style={[s.datePill, isToday && s.datePillOn]}
+                      onPress={() => setSelectedDate(new Date())}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[s.datePillTxt, isToday && s.datePillTxtOn]}>{t('scan.form.today')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.datePill, isYday && s.datePillOn]}
+                      onPress={() => setSelectedDate(yesterdayD)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[s.datePillTxt, isYday && s.datePillTxtOn]}>{t('scan.form.yesterday')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })()}
 
             {/* Note toggle */}
             <TouchableOpacity style={s.noteToggle} onPress={() => setShowNote(!showNote)} activeOpacity={0.75}>
@@ -913,8 +943,6 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.md, borderRadius: Radius.full,
     borderWidth: 1.5, borderColor: Glass.border, backgroundColor: Colors.surface,
   },
-  typeBtnExpense:{ borderColor: Colors.danger,  backgroundColor: Colors.danger  + '12' },
-  typeBtnIncome: { borderColor: Colors.success, backgroundColor: Colors.success + '12' },
   typeBtnTxt:    { fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold, color: Colors.textSecondary },
 
   amtCard: {
@@ -953,11 +981,15 @@ const s = StyleSheet.create({
   },
   inputTxt: { color: Colors.textPrimary, fontSize: Typography.sizeMD, paddingVertical: Spacing.md },
 
-  dateRow:      { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  datePill:     { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Glass.border },
+  dateBlock:    { marginBottom: Spacing.xl, gap: Spacing.sm },
+  dateNavRow:   { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: Glass.border, overflow: 'hidden' },
+  dateArrow:    { paddingHorizontal: Spacing.md, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  dateCurrent:  { flex: 1, textAlign: 'center', fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
+  dateQuickRow: { flexDirection: 'row', gap: Spacing.sm },
+  datePill:     { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Glass.border },
   datePillOn:   { backgroundColor: Colors.accentTeal + '20', borderColor: Colors.accentTeal },
   datePillTxt:  { fontSize: Typography.sizeSM, color: Colors.textSecondary },
-  datePillTxtOn:{ color: Colors.accentTeal, fontWeight: Typography.weightSemiBold },
+  datePillTxtOn:{ color: Colors.accentTeal, fontFamily: Typography.fontSemiBold },
 
   noteToggle:    { paddingVertical: Spacing.sm, marginBottom: Spacing.xs, alignSelf: 'flex-start' },
   noteChip:      { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.full, borderWidth: 1, borderColor: Glass.border, backgroundColor: Colors.surface },
