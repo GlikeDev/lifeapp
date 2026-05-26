@@ -190,11 +190,12 @@ const GOAL_TEMPLATES: GoalTemplate[] = [
 function getLast7Days(transactions: Transaction[]) {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
+    d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() - (6 - i));
-    const date = d.toISOString().slice(0, 10);
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const label = d.toLocaleDateString('ru-RU', { weekday: 'short' }).slice(0, 2);
     const amount = transactions
-      .filter(t => t.date === date)
+      .filter(t => t.date === date && t.amount > 0)
       .reduce((s, t) => s + t.amount, 0);
     return { date, label, amount };
   });
@@ -571,7 +572,9 @@ export function DashboardScreen() {
   async function loadData() {
     if (!user) return;
     const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const ago7 = new Date(now); ago7.setDate(now.getDate() - 6);
+    const from = (ago7 < monthStart ? ago7 : monthStart).toISOString().slice(0, 10);
     const to   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
     const [txRes, goalsRes, profileRes, fridgeRes, subRes] = await Promise.all([
