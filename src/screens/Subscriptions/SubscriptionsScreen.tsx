@@ -176,22 +176,15 @@ export function SubscriptionsScreen() {
     resetForm();
   }
 
-  async function handlePreset(preset: typeof PRESETS[0]) {
-    if (!user) return;
-    const nextDate = new Date();
-    if (preset.cycle === 'monthly') nextDate.setMonth(nextDate.getMonth() + 1);
-    else if (preset.cycle === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
-    else nextDate.setFullYear(nextDate.getFullYear() + 1);
-    const { data, error } = await supabase.from('subscriptions').insert({
-      user_id: user.id, ...preset, currency, is_active: true,
-      next_billing: localDateStr(nextDate),
-    }).select().single();
-    if (error) { Alert.alert(t('scan.err.title'), error.message); return; }
-    setSubs(prev => [...prev, data as Subscription].sort((a, b) =>
-      new Date(a.next_billing).getTime() - new Date(b.next_billing).getTime()
-    ));
-    await createSubExpense(user.id, preset.name, preset.amount, preset.cycle);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  function openPresetEditor(preset: typeof PRESETS[0]) {
+    setName(preset.name);
+    setEmoji(preset.emoji);
+    setAmount(String(preset.amount));
+    setCycle(preset.cycle);
+    setCategory(preset.category);
+    setDaysFromNow(preset.cycle === 'yearly' ? '365' : preset.cycle === 'weekly' ? '7' : '30');
+    setShowPresets(false);
+    setShowAdd(true);
   }
 
   async function handleDelete(id: string) {
@@ -284,7 +277,7 @@ export function SubscriptionsScreen() {
                 <TouchableOpacity
                   key={preset.name}
                   style={[s.presetRow, already && s.presetRowDone]}
-                  onPress={() => { if (!already) handlePreset(preset); }}
+                  onPress={() => { if (!already) openPresetEditor(preset); }}
                   activeOpacity={already ? 1 : 0.8}
                 >
                   <Text style={{ fontSize: 24, width: 36 }}>{preset.emoji}</Text>
@@ -338,14 +331,14 @@ export function SubscriptionsScreen() {
       </Animated.ScrollView>
 
       {/* Add subscription sheet */}
-      <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
+      <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => { setShowAdd(false); resetForm(); }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowAdd(false)}>
+          <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => { setShowAdd(false); resetForm(); }}>
             <BlurView intensity={92} tint="dark" style={StyleSheet.absoluteFill} />
           </TouchableOpacity>
           <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.handle} />
-            <Text style={s.sheetTitle}>{t('sub.new')}</Text>
+            <Text style={s.sheetTitle}>{name ? name : t('sub.new')}</Text>
             <ScrollView keyboardShouldPersistTaps="handled" indicatorStyle="white" showsVerticalScrollIndicator={false}>
 
               {/* Emoji picker */}
@@ -397,7 +390,7 @@ export function SubscriptionsScreen() {
               <TextInput style={s.input} value={daysFromNow} onChangeText={setDaysFromNow} keyboardType="number-pad" placeholder="30" placeholderTextColor={Colors.textMuted} />
 
               <View style={s.btns}>
-                <TouchableOpacity style={s.cancelBtn} onPress={() => setShowAdd(false)}>
+                <TouchableOpacity style={s.cancelBtn} onPress={() => { setShowAdd(false); resetForm(); }}>
                   <Text style={s.cancelTxt}>{t('sub.form.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={saving}>
@@ -424,7 +417,7 @@ export function SubscriptionsScreen() {
                 <TouchableOpacity
                   key={preset.name}
                   style={[s.presetRow, already && s.presetRowDone]}
-                  onPress={() => { if (!already) { handlePreset(preset); } }}
+                  onPress={() => { if (!already) openPresetEditor(preset); }}
                   activeOpacity={already ? 1 : 0.8}
                 >
                   <Text style={{ fontSize: 24, width: 36 }}>{preset.emoji}</Text>
@@ -435,7 +428,7 @@ export function SubscriptionsScreen() {
                   <Text style={s.presetAmt}>{currSymb}{preset.amount}</Text>
                   {already
                     ? <Text style={s.presetAdded}>✓</Text>
-                    : <TouchableOpacity style={s.presetAddBtn} onPress={() => handlePreset(preset)}>
+                    : <TouchableOpacity style={s.presetAddBtn} onPress={() => openPresetEditor(preset)}>
                         <GlyphIcon name="plus" color="#fff" size={14}/>
                       </TouchableOpacity>
                   }
