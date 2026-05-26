@@ -25,10 +25,12 @@ export interface User {
 // ─── Transactions ────────────────────────────────────────────────────────────
 
 export type TransactionCategory =
-  | 'food' | 'cafe' | 'transport' | 'home' | 'health' | 'entertainment' | 'shopping'
-  | 'education' | 'sport' | 'beauty' | 'travel' | 'pets'
-  | 'salary' | 'freelance' | 'transfer' | 'gift' | 'cashback'
-  | 'investment' | 'rental' | 'business' | 'bonus' | 'other';
+  | 'food' | 'cafe' | 'restaurant' | 'transport' | 'auto' | 'home'
+  | 'health' | 'pharmacy' | 'entertainment' | 'shopping' | 'clothing'
+  | 'education' | 'sport' | 'beauty' | 'travel' | 'subscriptions'
+  | 'pets' | 'kids' | 'gifts' | 'alcohol'
+  | 'salary' | 'freelance' | 'business' | 'investment' | 'rental' | 'bonus'
+  | 'transfer' | 'gift' | 'cashback' | 'pension' | 'refund' | 'other';
 
 export type TransactionType = 'expense' | 'income';
 
