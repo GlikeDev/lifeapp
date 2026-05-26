@@ -14,6 +14,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from '../../i18n';
 import type { Subscription, SubscriptionCycle, SubscriptionCategory } from '../../types';
+import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,21 +94,6 @@ const PRESETS: Omit<Subscription,'id'|'user_id'|'created_at'|'is_active'|'curren
 ];
 
 const SUB_EMOJIS = ['💳','🎬','🎵','📱','💪','🎮','📺','🤖','☁️','🎨','📦','🔑','🏠','✈️','📚','🎓'];
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-function IcoPlus({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M12 5v14M5 12h14" stroke={c} strokeWidth={2.2} strokeLinecap="round"/></Svg>;
-}
-function IcoTrash({ c = Colors.danger, n = 16 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
-}
-function IcoPause({ c = Colors.textMuted, n = 16 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M10 4H6v16h4V4zM18 4h-4v16h4V4z" stroke={c} strokeWidth={1.8} strokeLinejoin="round"/></Svg>;
-}
-function IcoPlay({ c = Colors.success, n = 16 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M5 3l14 9-14 9V3z" stroke={c} strokeWidth={1.8} strokeLinejoin="round"/></Svg>;
-}
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -229,7 +215,7 @@ export function SubscriptionsScreen() {
               <Text style={s.presetBtnTxt}>{t('sub.presets')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.addBtn} onPress={() => setShowAdd(true)}>
-              <IcoPlus c={Colors.accentTeal} n={14} />
+              <GlyphIcon name="plus" color={Colors.accentTeal} size={14}/>
               <Text style={s.addBtnTxt}>{t('sub.add')}</Text>
             </TouchableOpacity>
           </View>
@@ -285,7 +271,7 @@ export function SubscriptionsScreen() {
                   <Text style={s.presetAmt}>{currSymb}{preset.amount}</Text>
                   {already
                     ? <Text style={s.presetAdded}>✓</Text>
-                    : <View style={s.presetAddBtn}><IcoPlus c="#fff" n={14} /></View>
+                    : <View style={s.presetAddBtn}><GlyphIcon name="plus" color="#fff" size={14}/></View>
                   }
                 </TouchableOpacity>
               );
@@ -426,7 +412,7 @@ export function SubscriptionsScreen() {
                   {already
                     ? <Text style={s.presetAdded}>✓</Text>
                     : <TouchableOpacity style={s.presetAddBtn} onPress={() => handlePreset(preset)}>
-                        <IcoPlus c="#fff" n={14} />
+                        <GlyphIcon name="plus" color="#fff" size={14}/>
                       </TouchableOpacity>
                   }
                 </TouchableOpacity>
@@ -468,10 +454,10 @@ function SubRow({ sub, currSymb, onDelete, onToggle, highlight }: {
         <Text style={sr.monthly}>{currSymb}{monthly.toFixed(0)}{t('sub.perMonth')}</Text>
       </View>
       <TouchableOpacity style={sr.iconBtn} onPress={() => onToggle(sub)}>
-        {sub.is_active ? <IcoPause c={Colors.textMuted} n={14} /> : <IcoPlay c={Colors.success} n={14} />}
+        {sub.is_active ? <GlyphIcon name="pause" color={Colors.textMuted} size={14}/> : <GlyphIcon name="play" color={Colors.success} size={14}/>}
       </TouchableOpacity>
       <TouchableOpacity style={sr.iconBtn} onPress={() => onDelete(sub.id)}>
-        <IcoTrash c={Colors.danger} n={14} />
+        <GlyphIcon name="trash" color={Colors.danger} size={14}/>
       </TouchableOpacity>
     </View>
   );

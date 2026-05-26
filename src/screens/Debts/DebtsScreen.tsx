@@ -14,40 +14,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from '../../i18n';
 import type { Debt, DebtDirection } from '../../types';
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-function IcoPlus({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 5v14M5 12h14" stroke={c} strokeWidth={2.2} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-function IcoCheck({ c = Colors.success, n = 16 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M5 13l4 4L19 7" stroke={c} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
-function IcoArrowDown({ c = Colors.danger, n = 20 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 5v14M5 14l7 7 7-7" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
-function IcoArrowUp({ c = Colors.success, n = 20 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 19V5M5 10l7-7 7 7" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
+import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -183,7 +150,7 @@ export function DebtsScreen() {
         <View style={s.header}>
           <Text style={s.title}>{t('debt.title')}</Text>
           <TouchableOpacity style={s.addBtn} onPress={openAdd}>
-            <IcoPlus c={Colors.accentTeal} n={14} />
+            <GlyphIcon name="plus" color={Colors.accentTeal} size={14}/>
             <Text style={s.addBtnTxt}>{t('debt.add')}</Text>
           </TouchableOpacity>
         </View>
@@ -197,7 +164,7 @@ export function DebtsScreen() {
         >
           <View style={s.heroTop}>
             <View style={[s.heroIcon, { backgroundColor: netPositive ? Colors.success + '20' : Colors.danger + '20' }]}>
-              {netPositive ? <IcoArrowUp c={Colors.success} n={22} /> : <IcoArrowDown c={Colors.danger} n={22} />}
+              {netPositive ? <GlyphIcon name="arrow-up" color={Colors.success} size={22}/> : <GlyphIcon name="arrow-down" color={Colors.danger} size={22}/>}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.heroLabel}>{t('debt.hero.net')}</Text>
@@ -283,14 +250,14 @@ export function DebtsScreen() {
                 style={[s.dirBtn, direction === 'owed' && s.dirBtnActiveGreen]}
                 onPress={() => setDirection('owed')}
               >
-                <IcoArrowUp c={direction === 'owed' ? Colors.success : Colors.textMuted} n={14} />
+                <GlyphIcon name="arrow-up" color={direction === 'owed' ? Colors.success : Colors.textMuted} size={14}/>
                 <Text style={[s.dirBtnTxt, direction === 'owed' && { color: Colors.success }]}>{t('debt.hero.owed')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.dirBtn, direction === 'owe' && s.dirBtnActiveRed]}
                 onPress={() => setDirection('owe')}
               >
-                <IcoArrowDown c={direction === 'owe' ? Colors.danger : Colors.textMuted} n={14} />
+                <GlyphIcon name="arrow-down" color={direction === 'owe' ? Colors.danger : Colors.textMuted} size={14}/>
                 <Text style={[s.dirBtnTxt, direction === 'owe' && { color: Colors.danger }]}>{t('debt.hero.owe')}</Text>
               </TouchableOpacity>
             </View>
@@ -372,7 +339,7 @@ function DebtRow({ debt, currSymb, onSettle }: {
           {isOwed ? '+' : '-'}{currSymb}{debt.amount.toFixed(2)}
         </Text>
         <TouchableOpacity style={[dr.settleBtn, { borderColor: color + '50', backgroundColor: color + '12' }]} onPress={() => onSettle(debt)}>
-          <IcoCheck c={color} n={12} />
+          <GlyphIcon name="check" color={color} size={12}/>
           <Text style={[dr.settleTxt, { color }]}>{t('debt.settle.btn')}</Text>
         </TouchableOpacity>
       </View>

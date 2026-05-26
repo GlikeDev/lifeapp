@@ -17,6 +17,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from '../../i18n';
 import { CoachMark, TipStep } from '../../components/CoachMark';
 import { useCoachMark } from '../../hooks/useCoachMark';
+import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 const { width: SW } = Dimensions.get('window');
 const VF_W = Math.round(SW * 0.76);
@@ -26,15 +27,6 @@ type Mode = 'hub' | 'scan' | 'product' | 'addManual';
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 
-function IcoSearch({ c = '#fff', n = 20 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Circle cx="11" cy="11" r="8" stroke={c} strokeWidth={1.8}/>
-      <Path d="M21 21l-4.35-4.35" stroke={c} strokeWidth={2} strokeLinecap="round"/>
-    </Svg>
-  );
-}
-
 function IcoBarcode({ c = '#fff', n = 24 }: { c?: string; n?: number }) {
   return (
     <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
@@ -43,40 +35,6 @@ function IcoBarcode({ c = '#fff', n = 24 }: { c?: string; n?: number }) {
       <Line x1="10" y1="8" x2="10" y2="16" stroke={c} strokeWidth={1.8} strokeLinecap="round"/>
       <Line x1="13" y1="8" x2="13" y2="16" stroke={c} strokeWidth={1.8} strokeLinecap="round"/>
       <Line x1="16" y1="8" x2="16" y2="16" stroke={c} strokeWidth={1.8} strokeLinecap="round"/>
-    </Svg>
-  );
-}
-
-function IcoPlus({ c = '#fff', n = 20 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 5v14M5 12h14" stroke={c} strokeWidth={2} strokeLinecap="round"/>
-    </Svg>
-  );
-}
-
-function IcoLeft({ c = '#fff', n = 22 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M15 18l-6-6 6-6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-}
-
-function IcoTrash({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-}
-
-function IcoFridge({ c = '#fff', n = 20 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Rect x="5" y="2" width="14" height="20" rx="2" stroke={c} strokeWidth={1.8}/>
-      <Path d="M5 10h14" stroke={c} strokeWidth={1.8} strokeLinecap="round"/>
-      <Path d="M10 6v2M10 14v3" stroke={c} strokeWidth={1.8} strokeLinecap="round"/>
     </Svg>
   );
 }
@@ -298,7 +256,7 @@ export function SmartShopScreen() {
             {/* Search bar */}
             <View style={s.searchRow}>
               <View style={s.searchBox}>
-                <IcoSearch c={Colors.textMuted} n={18} />
+                <GlyphIcon name="search" color={Colors.textMuted} size={18}/>
                 <TextInput
                   style={s.searchInput}
                   value={query}
@@ -347,7 +305,7 @@ export function SmartShopScreen() {
 
               <TouchableOpacity style={s.actionCard} onPress={() => setMode('addManual')} activeOpacity={0.82}>
                 <LinearGradient colors={['#00C9A7', '#008F7A']} style={s.actionGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                  <View style={s.actionIcon}><IcoPlus c="#fff" n={26} /></View>
+                  <View style={s.actionIcon}><GlyphIcon name="plus" color="#fff" size={26}/></View>
                   <Text style={s.actionTitle}>{t('shop.action.add')}</Text>
                   <Text style={s.actionSub}>{t('shop.action.addSub')}</Text>
                 </LinearGradient>
@@ -390,7 +348,7 @@ export function SmartShopScreen() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', paddingTop: 32 }}>
           <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, marginBottom: 12 }}>{t('shop.scan.hint')}</Text>
           <TouchableOpacity style={s.cancelBtn} onPress={() => setMode('hub')}>
-            <IcoLeft c="#fff" n={18} />
+            <GlyphIcon name="arrow-left" color="#fff" size={18}/>
             <Text style={s.cancelTxt}>{t('shop.scan.back')}</Text>
           </TouchableOpacity>
         </View>
@@ -409,7 +367,7 @@ export function SmartShopScreen() {
           {/* Header */}
           <View style={s.header}>
             <TouchableOpacity style={s.backBtn} onPress={() => { setMode('hub'); setResults([]); }}>
-              <IcoLeft c={Colors.accentTeal} n={22} />
+              <GlyphIcon name="arrow-left" color={Colors.accentTeal} size={22}/>
             </TouchableOpacity>
             <Text style={s.headerTitle} numberOfLines={1}>{t('shop.product.title')}</Text>
             <View style={{ width: 38 }} />
@@ -456,7 +414,7 @@ export function SmartShopScreen() {
                 </View>
                 {p.isUser && (
                   <TouchableOpacity style={s.trashBtn} onPress={() => setPrices(prices.filter((_, j) => j !== i))}>
-                    <IcoTrash c={Colors.danger} n={16} />
+                    <GlyphIcon name="trash" color={Colors.danger} size={16}/>
                   </TouchableOpacity>
                 )}
               </View>
@@ -464,14 +422,14 @@ export function SmartShopScreen() {
 
             {/* Add price button */}
             <TouchableOpacity style={s.addPriceBtn} onPress={() => setShowAddPrice(true)} activeOpacity={0.8}>
-              <IcoPlus c={Colors.accentTeal} n={16} />
+              <GlyphIcon name="plus" color={Colors.accentTeal} size={16}/>
               <Text style={s.addPriceTxt}>{t('shop.price.addBtn')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Actions */}
           <TouchableOpacity style={s.fridgeBtn} onPress={() => addToFridge(product)} activeOpacity={0.85}>
-            <IcoFridge c={Colors.bg} n={18} />
+            <GlyphIcon name="fridge" color={Colors.bg} size={18}/>
             <Text style={s.fridgeBtnTxt}>{t('shop.fridge.btn')}</Text>
           </TouchableOpacity>
 
@@ -539,7 +497,7 @@ export function SmartShopScreen() {
           <ScrollView contentContainerStyle={s.formPad} keyboardShouldPersistTaps="handled" indicatorStyle="white" showsVerticalScrollIndicator={false}>
             <View style={s.header}>
               <TouchableOpacity style={s.backBtn} onPress={() => setMode('hub')}>
-                <IcoLeft c={Colors.accentTeal} n={22} />
+                <GlyphIcon name="arrow-left" color={Colors.accentTeal} size={22}/>
               </TouchableOpacity>
               <Text style={s.headerTitle}>{t('shop.manual.title')}</Text>
               <View style={{ width: 38 }} />
@@ -585,14 +543,14 @@ export function SmartShopScreen() {
                 </View>
                 {manualRows.length > 1 && (
                   <TouchableOpacity onPress={() => setManualRows(manualRows.filter((_, j) => j !== i))} style={{ padding: 8 }}>
-                    <IcoTrash c={Colors.danger} n={18} />
+                    <GlyphIcon name="trash" color={Colors.danger} size={18}/>
                   </TouchableOpacity>
                 )}
               </View>
             ))}
 
             <TouchableOpacity style={s.addRowBtn} onPress={() => setManualRows([...manualRows, { store: '', price: 0, distance: '' }])}>
-              <IcoPlus c={Colors.accentTeal} n={16} />
+              <GlyphIcon name="plus" color={Colors.accentTeal} size={16}/>
               <Text style={s.addRowTxt}>{t('shop.manual.addStore')}</Text>
             </TouchableOpacity>
 

@@ -21,7 +21,7 @@ import type { Transaction } from '../../types';
 import { CoachMark, TipStep } from '../../components/CoachMark';
 import { useCoachMark } from '../../hooks/useCoachMark';
 import { useTranslation } from '../../i18n';
-import { GradientGlyphIcon } from '../../components/common/GlyphIcon';
+import { GradientGlyphIcon, GlyphIcon } from '../../components/common/GlyphIcon';
 import type { GradientGlyphName } from '../../components/common/GlyphIcon';
 
 // SCAN_TIPS built dynamically inside component using t()
@@ -35,57 +35,6 @@ type Mode = 'hub' | 'camera' | 'manual' | 'pdf' | 'success';
 type TxType = 'expense' | 'income';
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
-
-function IcoCamera({ c = '#fff', n = 24 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={c} strokeWidth={1.8} strokeLinejoin="round"/>
-      <Circle cx="12" cy="13" r="4" stroke={c} strokeWidth={1.8}/>
-    </Svg>
-  );
-}
-
-function IcoDoc({ c = '#fff', n = 24 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke={c} strokeWidth={1.8} strokeLinejoin="round"/>
-      <Path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke={c} strokeWidth={1.8} strokeLinecap="round"/>
-    </Svg>
-  );
-}
-
-function IcoEdit({ c = '#fff', n = 24 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
-      <Path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-}
-
-function IcoCheck({ c = '#fff', n = 24 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M20 6L9 17l-5-5" stroke={c} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-}
-
-function IcoLeft({ c = '#fff', n = 24 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M15 18l-6-6 6-6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-}
-
-function IcoRight({ c = '#fff', n = 24 }: { c?: string; n?: number }) {
-  return (
-    <Svg width={n} height={n} viewBox="0 0 24 24" fill="none">
-      <Path d="M9 18l6-6-6-6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-}
 
 function IcoBarcode({ c = '#fff', n = 24 }: { c?: string; n?: number }) {
   return (
@@ -366,7 +315,7 @@ export function ScanScreen() {
             <TouchableOpacity style={s.halfCard} onPress={openCamera} activeOpacity={0.82}>
               <LinearGradient colors={['#7B6CF6', '#5243D1']} style={s.halfGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <View style={s.cardIcon}>
-                  <IcoCamera c="#fff" n={26} />
+                  <GlyphIcon name="camera" color="#fff" size={26}/>
                 </View>
                 <Text style={s.cardTitle}>{t('scan.scanner')}</Text>
                 <Text style={s.cardSub}>{t('scan.scannerSub')}</Text>
@@ -376,7 +325,7 @@ export function ScanScreen() {
             <TouchableOpacity style={s.halfCard} onPress={() => setMode('pdf')} activeOpacity={0.82}>
               <LinearGradient colors={[Colors.accentTeal, '#007A72']} style={s.halfGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <View style={s.cardIcon}>
-                  <IcoDoc c="#fff" n={26} />
+                  <GlyphIcon name="document" color="#fff" size={26}/>
                 </View>
                 <Text style={s.cardTitle}>{t('scan.statement')}</Text>
                 <Text style={s.cardSub}>{t('scan.statementSub')}</Text>
@@ -389,13 +338,13 @@ export function ScanScreen() {
             <TouchableOpacity style={s.wideCard} onPress={() => setMode('manual')} activeOpacity={0.82}>
               <LinearGradient colors={[Colors.surface, Colors.surfaceElevated]} style={s.wideGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                 <View style={[s.cardIcon, { backgroundColor: Colors.accentTeal + '25' }]}>
-                  <IcoEdit c={Colors.accentTeal} n={22} />
+                  <GlyphIcon name="edit" color={Colors.accentTeal} size={22}/>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.cardTitle}>{t('scan.manual')}</Text>
                   <Text style={s.cardSub}>{t('scan.manualSub')}</Text>
                 </View>
-                <IcoRight c={Colors.textMuted} n={18} />
+                <GlyphIcon name="arrow-right" color={Colors.textMuted} size={18}/>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -415,7 +364,7 @@ export function ScanScreen() {
                   <Text style={s.cardTitle}>{t('scan.smart')}</Text>
                   <Text style={s.cardSub}>{t('scan.smartSub')}</Text>
                 </View>
-                <IcoRight c={Colors.textMuted} n={18} />
+                <GlyphIcon name="arrow-right" color={Colors.textMuted} size={18}/>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -477,19 +426,19 @@ export function ScanScreen() {
         {/* Controls */}
         <View style={[s.camControls, { paddingBottom: insets.bottom + 24 }]}>
           <TouchableOpacity style={s.camGhost} onPress={() => setMode('hub')}>
-            <IcoLeft c="#fff" n={22} />
+            <GlyphIcon name="arrow-left" color="#fff" size={22}/>
             <Text style={s.camGhostTxt}>{t('scan.camera.back')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={s.captureRing} onPress={captureAndParse} activeOpacity={0.8}>
             <LinearGradient colors={[Colors.accentTeal, '#00A89E']} style={s.captureInner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <IcoCamera c="#fff" n={24} />
+              <GlyphIcon name="camera" color="#fff" size={24}/>
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity style={s.camGhost} onPress={pickGallery}>
             <Text style={s.camGhostTxt}>{t('scan.camera.gallery')}</Text>
-            <IcoDoc c="#fff" n={18} />
+            <GlyphIcon name="document" color="#fff" size={18}/>
           </TouchableOpacity>
         </View>
       </View>
@@ -507,7 +456,7 @@ export function ScanScreen() {
             {/* Header */}
             <View style={s.formHeader}>
               <TouchableOpacity style={s.backBtn} onPress={() => setMode('hub')}>
-                <IcoLeft c={Colors.accentTeal} n={22} />
+                <GlyphIcon name="arrow-left" color={Colors.accentTeal} size={22}/>
               </TouchableOpacity>
               <Text style={s.formTitle}>{t('scan.form.title')}</Text>
               <View style={{ width: 38 }} />
@@ -641,11 +590,11 @@ export function ScanScreen() {
                 <View style={s.dateBlock}>
                   <View style={s.dateNavRow}>
                     <TouchableOpacity style={s.dateArrow} onPress={() => shiftDay(-1)} activeOpacity={0.7}>
-                      <IcoLeft c={Colors.textSecondary} n={18} />
+                      <GlyphIcon name="arrow-left" color={Colors.textSecondary} size={18}/>
                     </TouchableOpacity>
                     <Text style={s.dateCurrent}>{dateLabel}</Text>
                     <TouchableOpacity style={s.dateArrow} onPress={() => shiftDay(1)} activeOpacity={isToday ? 0.3 : 0.7} disabled={isToday}>
-                      <IcoRight c={isToday ? Colors.textMuted + '44' : Colors.textSecondary} n={18} />
+                      <GlyphIcon name="arrow-right" color={isToday ? Colors.textMuted + '44' : Colors.textSecondary} size={18}/>
                     </TouchableOpacity>
                   </View>
                   <View style={s.dateQuickRow}>
@@ -725,7 +674,7 @@ export function ScanScreen() {
 
           <View style={s.formHeader}>
             <TouchableOpacity style={s.backBtn} onPress={() => { setPdfName(null); setPdfItems([]); setMode('hub'); }}>
-              <IcoLeft c={Colors.accentTeal} n={22} />
+              <GlyphIcon name="arrow-left" color={Colors.accentTeal} size={22}/>
             </TouchableOpacity>
             <Text style={s.formTitle}>{t('scan.pdf.title')}</Text>
             <View style={{ width: 38 }} />
@@ -737,7 +686,7 @@ export function ScanScreen() {
 
               <TouchableOpacity onPress={pickPDF} activeOpacity={0.82}>
                 <LinearGradient colors={['#7B6CF6', '#5243D1']} style={s.pdfPickGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                  <IcoDoc c="#fff" n={36} />
+                  <GlyphIcon name="document" color="#fff" size={36}/>
                   <Text style={s.pdfPickTitle}>{t('scan.pdf.pick')}</Text>
                   <Text style={s.pdfPickSub}>{t('scan.pdf.pickSub')}</Text>
                 </LinearGradient>
@@ -755,11 +704,11 @@ export function ScanScreen() {
               {/* File card */}
               <View style={s.pdfFileCard}>
                 <View style={[s.cardIcon, { backgroundColor: Colors.accentTeal + '20', width: 40, height: 40, borderRadius: 10 }]}>
-                  <IcoDoc c={Colors.accentTeal} n={20} />
+                  <GlyphIcon name="document" color={Colors.accentTeal} size={20}/>
                 </View>
                 <Text style={s.pdfFileName} numberOfLines={1}>{pdfName}</Text>
                 {!pdfParsing && pdfItems.length > 0 && (
-                  <View style={s.pdfBadge}><IcoCheck c={Colors.success} n={14} /></View>
+                  <View style={s.pdfBadge}><GlyphIcon name="check" color={Colors.success} size={14}/></View>
                 )}
               </View>
 
@@ -801,7 +750,7 @@ export function ScanScreen() {
                         activeOpacity={0.75}
                       >
                         <View style={[s.checkbox, on && s.checkboxOn]}>
-                          {on && <IcoCheck c="#fff" n={11} />}
+                          {on && <GlyphIcon name="check" color="#fff" size={11}/>}
                         </View>
                         <Text style={s.pdfItemEmoji}>{cat?.icon ?? '📦'}</Text>
                         <View style={{ flex: 1 }}>
@@ -850,7 +799,7 @@ export function ScanScreen() {
                 style={s.checkCircle}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               >
-                <IcoCheck c="#fff" n={44} />
+                <GlyphIcon name="check" color="#fff" size={44}/>
               </LinearGradient>
             </View>
           </Animated.View>

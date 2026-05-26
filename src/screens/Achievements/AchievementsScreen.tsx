@@ -12,6 +12,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Achievement, AchievementCategory, AchievementTier } from '../../types';
 import { useTranslation } from '../../i18n';
+import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -38,10 +39,6 @@ function xpProgress(xp: number, lvl: number) {
 }
 
 // ─── SVG icons ────────────────────────────────────────────────────────────────
-
-function IcoShare({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
-}
 
 // ─── Arc Ring ─────────────────────────────────────────────────────────────────
 
@@ -139,7 +136,7 @@ function AchModal({ ach, isEarned, userXp, userLevel, onClose }: {
                 <TouchableOpacity style={am.shareBtn} onPress={async () => {
                   await Share.share({ message: t('ach.modal.shareMsg', { title: ach.title, xp: ach.xp_reward }) });
                 }}>
-                  <IcoShare c={Colors.bg} n={16} />
+                  <GlyphIcon name="share" color={Colors.bg} size={16}/>
                   <Text style={am.shareTxt}>{t('ach.modal.share')}</Text>
                 </TouchableOpacity>
               )}

@@ -15,6 +15,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { scheduleItemNotifications, cancelItemNotifications } from '../../lib/notifications';
 import type { FridgeItem } from '../../types';
 import { useTranslation } from '../../i18n';
+import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 // ─── Category system ──────────────────────────────────────────────────────────
 
@@ -103,15 +104,6 @@ function daysLabel(days: number): string {
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-function IcoPlus({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M12 5v14M5 12h14" stroke={c} strokeWidth={2.2} strokeLinecap="round"/></Svg>;
-}
-function IcoCheck({ c = Colors.success, n = 14 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M20 6L9 17l-5-5" stroke={c} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
-}
-function IcoTrash({ c = Colors.danger, n = 14 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
-}
 function IcoChef({ c = Colors.warning, n = 16 }: { c?: string; n?: number }) {
   return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M12 2C8.686 2 6 4.686 6 8c0 1.5.55 2.87 1.45 3.91L6 21h12l-1.45-9.09A5.98 5.98 0 0018 8c0-3.314-2.686-6-6-6z" stroke={c} strokeWidth={1.8} strokeLinejoin="round"/><Path d="M9 21h6" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
 }
@@ -157,7 +149,7 @@ function SpotlightCard({ item, onUsed }: {
         onPress={() => onUsed(item.id)}
         activeOpacity={0.75}
       >
-        <IcoCheck c={Colors.success} n={12} />
+        <GlyphIcon name="check" color={Colors.success} size={12}/>
         <Text style={[sp.btnTxt, { color: Colors.success }]}>Использую</Text>
       </TouchableOpacity>
     </LinearGradient>
@@ -209,10 +201,10 @@ function ZoneSection({ items, label, color, onUsed, onDelete }: {
               </View>
             </View>
             <TouchableOpacity style={[zs.actionBtn, { backgroundColor: Colors.success + '18' }]} onPress={() => onUsed(item.id)}>
-              <IcoCheck c={Colors.success} n={13} />
+              <GlyphIcon name="check" color={Colors.success} size={13}/>
             </TouchableOpacity>
             <TouchableOpacity style={[zs.actionBtn, { backgroundColor: Colors.danger + '15' }]} onPress={() => onDelete(item.id)}>
-              <IcoTrash c={Colors.danger} n={13} />
+              <GlyphIcon name="trash" color={Colors.danger} size={13}/>
             </TouchableOpacity>
           </View>
         );
@@ -387,7 +379,7 @@ export function FridgeScreen() {
               </TouchableOpacity>
             )}
             <TouchableOpacity style={s.addBtn} onPress={() => setShowAdd(true)} activeOpacity={0.75}>
-              <IcoPlus c={Colors.accentTeal} n={14} />
+              <GlyphIcon name="plus" color={Colors.accentTeal} size={14}/>
               <Text style={s.addBtnTxt}>{t('fridge.add')}</Text>
             </TouchableOpacity>
           </View>

@@ -13,7 +13,8 @@ export type GlyphName =
   | 'plus' | 'minus' | 'chevron' | 'settings' | 'bell' | 'search'
   | 'close' | 'check' | 'arrow-right' | 'arrow-left' | 'edit' | 'lock'
   | 'wallet' | 'goal' | 'receipt' | 'ai' | 'leaf' | 'calendar' | 'camera' | 'chart'
-  | 'star' | 'bolt' | 'fire' | 'sparkle' | 'cart' | 'groceries' | 'travel';
+  | 'star' | 'bolt' | 'fire' | 'sparkle' | 'cart' | 'groceries' | 'travel'
+  | 'trash' | 'arrow-up' | 'arrow-down' | 'play' | 'pause' | 'share' | 'currency' | 'image' | 'document';
 
 function renderIcon(name: GlyphName, s: number, c: string) {
   if (name === 'home') return (
@@ -205,6 +206,66 @@ function renderIcon(name: GlyphName, s: number, c: string) {
       <Circle cx="12" cy="12" r="3" stroke={c} strokeWidth={1.75}/>
     </Svg>);
 
+  if (name === 'trash') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M3.5 6H20.5" stroke={c} strokeWidth={1.75} strokeLinecap="round"/>
+      <Path d="M9.5 6V4.5A1 1 0 0 1 10.5 3.5H13.5A1 1 0 0 1 14.5 4.5V6" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M5.5 6L6.4 19.5A1.5 1.5 0 0 0 7.9 21H16.1A1.5 1.5 0 0 0 17.6 19.5L18.5 6" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M10 10V17M14 10V17" stroke={c} strokeWidth={1.75} strokeLinecap="round"/>
+    </Svg>);
+
+  if (name === 'arrow-up') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 19V5M6 11L12 5L18 11" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>);
+
+  if (name === 'arrow-down') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 5V19M6 13L12 19L18 13" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>);
+
+  if (name === 'play') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M7.5 5L19 12L7.5 19Z" fill={c} stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>);
+
+  if (name === 'pause') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Rect x="6.5" y="5" width="3.5" height="14" rx="1" fill={c} stroke={c} strokeWidth={1.75}/>
+      <Rect x="14" y="5" width="3.5" height="14" rx="1" fill={c} stroke={c} strokeWidth={1.75}/>
+    </Svg>);
+
+  if (name === 'share') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 3.5V14" stroke={c} strokeWidth={1.75} strokeLinecap="round"/>
+      <Path d="M8 7.5L12 3.5L16 7.5" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M5 11V19A1.5 1.5 0 0 0 6.5 20.5H17.5A1.5 1.5 0 0 0 19 19V11" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>);
+
+  if (name === 'currency') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M8.5 6H6.2A1.7 1.7 0 0 0 6.2 9.4H7.8A1.7 1.7 0 0 1 7.8 12.8H5.5" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M7 4.5V14.5" stroke={c} strokeWidth={1.75} strokeLinecap="round"/>
+      <Path d="M18.5 16.5A3.5 3.5 0 1 1 18.5 11" stroke={c} strokeWidth={1.75} strokeLinecap="round"/>
+      <Path d="M14 13H17M14 14.5H17" stroke={c} strokeWidth={1.75} strokeLinecap="round"/>
+      <Path d="M11 7L13 7L11 9" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M13 17L11 17L13 15" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>);
+
+  if (name === 'image') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke={c} strokeWidth={1.75}/>
+      <Circle cx="8.5" cy="10" r="1.5" stroke={c} strokeWidth={1.75}/>
+      <Path d="M3.5 17L9 12L13.5 16L17 13L20.5 17" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>);
+
+  if (name === 'document') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M6 3H14L18.5 7.5V19.5A1.5 1.5 0 0 1 17 21H6A1.5 1.5 0 0 1 4.5 19.5V4.5A1.5 1.5 0 0 1 6 3Z" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M14 3V7.5H18.5" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M8 12H15M8 15H15M8 18H12" stroke={c} strokeWidth={1.75} strokeLinecap="round"/>
+    </Svg>);
+
   return (
     <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="12" r="5" stroke={c} strokeWidth={1.75}/>
@@ -236,7 +297,7 @@ export type GradientGlyphName =
   | 'grad-coffee' | 'grad-pizza' | 'grad-taxi' | 'grad-car'
   | 'grad-dumbbell' | 'grad-coins' | 'grad-cart' | 'grad-bolt'
   | 'grad-sparkle' | 'grad-star' | 'grad-graduation' | 'grad-beach'
-  | 'grad-ring' | 'grad-confetti' | 'grad-plane' | 'grad-phone' | 'grad-salad';
+  | 'grad-ring' | 'grad-confetti' | 'grad-plane' | 'grad-phone' | 'grad-salad' | 'grad-currency';
 
 const G1 = '#00D4C8';
 const G2 = '#7B6CF6';
@@ -407,6 +468,17 @@ function renderGradIcon(name: GradientGlyphName, s: number) {
       <GG id={id}/>
       <Rect x="6" y="2.5" width="12" height="19" rx="2.5" stroke={gr} strokeWidth={2}/>
       <Path d="M10 5H14M10.5 19H13.5" stroke={gr} {...sw}/>
+    </Svg>);
+
+  if (name === 'grad-currency') return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <GG id={id}/>
+      <Path d="M8.5 6H6.2A1.7 1.7 0 0 0 6.2 9.4H7.8A1.7 1.7 0 0 1 7.8 12.8H5.5" stroke={gr} {...sw}/>
+      <Path d="M7 4.5V14.5" stroke={gr} {...sw}/>
+      <Path d="M18.5 16.5A3.5 3.5 0 1 1 18.5 11" stroke={gr} {...sw}/>
+      <Path d="M14 13H17M14 14.5H17" stroke={gr} {...sw}/>
+      <Path d="M11 7L13 7L11 9" stroke={gr} {...sw}/>
+      <Path d="M13 17L11 17L13 15" stroke={gr} {...sw}/>
     </Svg>);
 
   if (name === 'grad-salad') return (

@@ -17,6 +17,7 @@ import { useBudgetStore } from '../../store/useBudgetStore';
 import { useWallpaperStore, WALLPAPERS } from '../../store/useWallpaperStore';
 import { supabase } from '../../lib/supabase';
 import type { Achievement, AchievementTier, MoreStackParamList } from '../../types';
+import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
 
@@ -82,12 +83,12 @@ function Section({ title, action, onAction, children }: {
 // ─── Setting row ──────────────────────────────────────────────────────────────
 
 function SettingRow({ icon, label, right, onPress, danger=false }: {
-  icon: string; label: string; right?: React.ReactNode; onPress?: ()=>void; danger?: boolean;
+  icon: React.ReactNode; label: string; right?: React.ReactNode; onPress?: ()=>void; danger?: boolean;
 }) {
   return (
     <TouchableOpacity style={s.settingRow} onPress={onPress} activeOpacity={onPress ? 0.7 : 1} disabled={!onPress && !right}>
       <View style={[s.settingIcon, danger && { backgroundColor: Colors.danger+'18' }]}>
-        <Text style={{ fontSize: 15 }}>{icon}</Text>
+        {icon}
       </View>
       <Text style={[s.settingLabel, danger && { color: Colors.danger }]}>{label}</Text>
       <View style={s.settingRight}>{right}</View>
@@ -316,7 +317,7 @@ export function MoreMenuScreen() {
           <Section title="НАСТРОЙКИ">
             <View style={s.settingsCard}>
               <SettingRow
-                icon="🔔"
+                icon={<GlyphIcon name="bell" size={18} color={Colors.textSecondary}/>}
                 label="Уведомления"
                 right={
                   <Switch
@@ -329,13 +330,13 @@ export function MoreMenuScreen() {
               />
               <View style={s.divider}/>
               <SettingRow
-                icon="💱"
+                icon={<GlyphIcon name="currency" size={18} color={Colors.textSecondary}/>}
                 label="Валюта"
                 right={<Text style={s.settingVal}>{currency}</Text>}
               />
               <View style={s.divider}/>
               <SettingRow
-                icon="⭐"
+                icon={<GlyphIcon name="star" size={18} color={Colors.textSecondary}/>}
                 label="Подписка"
                 right={
                   <Text style={[s.settingVal, { color: user?.is_pro ? Colors.accentPurple : Colors.textMuted }]}>
@@ -345,7 +346,7 @@ export function MoreMenuScreen() {
               />
               <View style={s.divider}/>
               <SettingRow
-                icon="🖼️"
+                icon={<GlyphIcon name="image" size={18} color={Colors.textSecondary}/>}
                 label="Обои главного экрана"
                 onPress={() => setShowWallpaper(true)}
                 right={
@@ -356,7 +357,7 @@ export function MoreMenuScreen() {
               />
               <View style={s.divider}/>
               <SettingRow
-                icon="📤"
+                icon={<GlyphIcon name="share" size={18} color={Colors.textSecondary}/>}
                 label="Экспорт данных"
                 right={<Text style={s.settingVal}>CSV / PDF</Text>}
               />

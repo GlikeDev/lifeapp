@@ -15,6 +15,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency, monthsLeft } from '../../utils/format';
 import type { Goal } from '../../types';
+import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -24,16 +25,6 @@ const PALETTES: [string, string][] = [
   ['#1A2B3C','#0F1B26'], ['#3A281F','#261A0E'],
   ['#2F1B3A','#1E1026'],
 ];
-
-function IcoPlus({ c = '#fff', n = 18 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M12 5v14M5 12h14" stroke={c} strokeWidth={2.2} strokeLinecap="round"/></Svg>;
-}
-function IcoTrash({ c = Colors.danger, n = 16 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
-}
-function IcoLeft({ c = Colors.accentTeal, n = 22 }: { c?: string; n?: number }) {
-  return <Svg width={n} height={n} viewBox="0 0 24 24" fill="none"><Path d="M15 18l-6-6 6-6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
-}
 
 function ArcRing({ progress, size, color, strokeWidth = 4, children }: {
   progress: number; size: number; color: string; strokeWidth?: number; children?: React.ReactNode;
@@ -183,7 +174,7 @@ export function GoalsScreen() {
           <Text style={s.title}>Мои цели</Text>
           {goals.length < 5 && (
             <TouchableOpacity style={s.addBtn} onPress={() => setShowAdd(true)}>
-              <IcoPlus c={Colors.success} n={14} />
+              <GlyphIcon name="plus" color={Colors.success} size={14}/>
               <Text style={s.addBtnTxt}>Добавить</Text>
             </TouchableOpacity>
           )}
@@ -226,7 +217,7 @@ export function GoalsScreen() {
                 <View style={s.goalActions}>
                   <View style={s.pctBadge}><Text style={s.pctTxt}>{pct}%</Text></View>
                   <TouchableOpacity style={s.trashBtn} onPress={() => handleDelete(goal.id)}>
-                    <IcoTrash c={Colors.danger} n={14} />
+                    <GlyphIcon name="trash" color={Colors.danger} size={14}/>
                   </TouchableOpacity>
                 </View>
               </View>
