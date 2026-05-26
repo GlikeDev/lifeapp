@@ -352,9 +352,14 @@ function BudgetDonut({ entries, total, currency, highlighted, onHighlight }: {
                         outputRange: ['0%', `${Math.round(seg.pct * 100)}%`],
                         extrapolate: 'clamp',
                       }),
-                      backgroundColor: seg.cfg.color,
                       opacity: isHL ? 1 : 0.15,
-                    }]} />
+                    }]}>
+                      <LinearGradient
+                        colors={[seg.cfg.color + '55', seg.cfg.color]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                    </Animated.View>
                   )}
                 </View>
 
@@ -388,7 +393,7 @@ const dn = StyleSheet.create({
   dot:        { width: 9, height: 9, borderRadius: 4.5, flexShrink: 0 },
   legendName: { fontSize: 12, fontFamily: 'Onest-SemiBold', width: 90 },
   barTrack:   { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' },
-  barFill:    { height: '100%', borderRadius: 2 },
+  barFill:    { height: '100%', borderRadius: 2, overflow: 'hidden' },
   legendAmt:  { fontSize: 12, fontFamily: 'Onest-SemiBold', minWidth: 48, textAlign: 'right' },
   legendPct:  { fontSize: 11, fontFamily: 'Onest-Medium', color: Colors.textMuted, minWidth: 28, textAlign: 'right' },
 });
