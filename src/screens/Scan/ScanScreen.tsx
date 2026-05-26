@@ -115,6 +115,24 @@ const MOCK_PDF = [
   { id: '6', amount: 1500,  label: 'Нетфликс',      type: 'expense' as TxType, cat: 'entertainment' },
 ];
 
+// ─── Calendar helpers ─────────────────────────────────────────────────────────
+
+function buildCalGrid(year: number, month: number): (Date | null)[] {
+  const first  = new Date(year, month, 1);
+  const last   = new Date(year, month + 1, 0);
+  const offset = (first.getDay() + 6) % 7; // Monday-first
+  const cells: (Date | null)[] = Array(offset).fill(null);
+  for (let d = 1; d <= last.getDate(); d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function calChunk<T>(arr: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function ScanScreen() {
@@ -148,6 +166,9 @@ export function ScanScreen() {
   const [saving, setSaving]         = useState(false);
   const [showNote, setShowNote]     = useState(false);
   const [catSheetOpen, setCatSheetOpen] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calYear, setCalYear]           = useState(() => new Date().getFullYear());
+  const [calMonth, setCalMonth]         = useState(() => new Date().getMonth());
 
   // PDF
   const [pdfName, setPdfName]       = useState<string | null>(null);
@@ -575,6 +596,97 @@ export function ScanScreen() {
               </TouchableOpacity>
             </Modal>
 
+            {/* Calendar modal */}
+            <Modal visible={showCalendar} transparent animationType="slide" onRequestClose={() => setShowCalendar(false)}>
+              <TouchableOpacity style={s.catOverlay} activeOpacity={1} onPress={() => setShowCalendar(false)}>
+                <TouchableOpacity activeOpacity={1} style={s.calSheet}>
+                  <View style={s.catSheetHandle}/>
+                  {/* Month header */}
+                  {(() => {
+                    const todayNow   = new Date();
+                    const isMaxMonth = calYear === todayNow.getFullYear() && calMonth === todayNow.getMonth();
+                    const monthLabel = new Date(calYear, calMonth, 1)
+                      .toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+                    const prevCal = () => {
+                      if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+                      else setCalMonth(m => m - 1);
+                    };
+                    const nextCal = () => {
+                      if (isMaxMonth) return;
+                      if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+                      else setCalMonth(m => m + 1);
+                    };
+                    const cells = buildCalGrid(calYear, calMonth);
+                    const rows  = calChunk(cells, 7);
+                    const todayMs = new Date(todayNow.getFullYear(), todayNow.getMonth(), todayNow.getDate()).getTime();
+                    const selMs   = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime();
+                    return (
+                      <>
+                        <View style={s.calHeader}>
+                          <TouchableOpacity style={s.calNavBtn} onPress={prevCal} activeOpacity={0.7}>
+                            <GlyphIcon name="arrow-left" color={Colors.textSecondary} size={18}/>
+                          </TouchableOpacity>
+                          <Text style={s.calMonthTxt}>{monthLabel}</Text>
+                          <TouchableOpacity style={s.calNavBtn} onPress={nextCal} activeOpacity={isMaxMonth ? 0.3 : 0.7} disabled={isMaxMonth}>
+                            <GlyphIcon name="arrow-right" color={isMaxMonth ? Colors.textMuted + '44' : Colors.textSecondary} size={18}/>
+                          </TouchableOpacity>
+                        </View>
+                        {/* Weekday headers */}
+                        <View style={s.calWeekRow}>
+                          {['пн','вт','ср','чт','пт','сб','вс'].map((d, i) => (
+                            <Text key={d} style={[s.calWeekDay, i >= 5 && s.calWeekendHdr]}>{d}</Text>
+                          ))}
+                        </View>
+                        {/* Day rows */}
+                        {rows.map((row, ri) => (
+                          <View key={ri} style={s.calRow}>
+                            {row.map((day, ci) => {
+                              if (!day) return <View key={ci} style={s.calCell}/>;
+                              const dayMs   = day.getTime();
+                              const isFut   = dayMs > todayMs;
+                              const isToday = dayMs === todayMs;
+                              const isSel   = dayMs === selMs;
+                              const isWknd  = ci >= 5;
+                              return (
+                                <TouchableOpacity
+                                  key={ci}
+                                  style={s.calCell}
+                                  disabled={isFut}
+                                  activeOpacity={0.7}
+                                  onPress={() => {
+                                    setSelectedDate(day);
+                                    setShowCalendar(false);
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                  }}
+                                >
+                                  <View style={[
+                                    s.calDayCircle,
+                                    isSel && s.calDaySelected,
+                                    isToday && !isSel && s.calDayToday,
+                                  ]}>
+                                    <Text style={[
+                                      s.calDayTxt,
+                                      isSel   && s.calDayTxtSel,
+                                      isToday && !isSel && s.calDayTxtToday,
+                                      isFut   && s.calDayTxtFuture,
+                                      isWknd  && !isSel && !isToday && !isFut && s.calDayTxtWknd,
+                                    ]}>
+                                      {day.getDate()}
+                                    </Text>
+                                  </View>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        ))}
+                        <Text style={s.calFooterTxt}>Календарь</Text>
+                      </>
+                    );
+                  })()}
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </Modal>
+
             {/* Date */}
             {(() => {
               const todayD = new Date();
@@ -592,7 +704,18 @@ export function ScanScreen() {
                     <TouchableOpacity style={s.dateArrow} onPress={() => shiftDay(-1)} activeOpacity={0.7}>
                       <GlyphIcon name="arrow-left" color={Colors.textSecondary} size={18}/>
                     </TouchableOpacity>
-                    <Text style={s.dateCurrent}>{dateLabel}</Text>
+                    <TouchableOpacity
+                      style={s.dateLabelBtn}
+                      onPress={() => {
+                        setCalYear(selectedDate.getFullYear());
+                        setCalMonth(selectedDate.getMonth());
+                        setShowCalendar(true);
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <GlyphIcon name="calendar" color={Colors.textMuted} size={13}/>
+                      <Text style={s.dateCurrent}>{dateLabel}</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={s.dateArrow} onPress={() => shiftDay(1)} activeOpacity={isToday ? 0.3 : 0.7} disabled={isToday}>
                       <GlyphIcon name="arrow-right" color={isToday ? Colors.textMuted + '44' : Colors.textSecondary} size={18}/>
                     </TouchableOpacity>
@@ -937,12 +1060,33 @@ const s = StyleSheet.create({
   dateBlock:    { marginBottom: Spacing.xl, gap: Spacing.sm },
   dateNavRow:   { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: Glass.border, overflow: 'hidden' },
   dateArrow:    { paddingHorizontal: Spacing.md, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
-  dateCurrent:  { flex: 1, textAlign: 'center', fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
+  dateLabelBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14 },
+  dateCurrent:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
   dateQuickRow: { flexDirection: 'row', gap: Spacing.sm },
   datePill:     { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.full, borderWidth: 1, borderColor: Glass.border },
   datePillOn:   { backgroundColor: Colors.accentTeal + '20', borderColor: Colors.accentTeal },
   datePillTxt:  { fontSize: Typography.sizeSM, color: Colors.textSecondary },
   datePillTxtOn:{ color: Colors.accentTeal, fontFamily: Typography.fontSemiBold },
+
+  // Calendar
+  calSheet:      { backgroundColor: 'rgba(15,18,32,0.98)', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingBottom: 32, paddingTop: 12, marginTop: 'auto' as any },
+  calHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, marginTop: 8 },
+  calNavBtn:     { padding: 8 },
+  calMonthTxt:   { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary, textTransform: 'capitalize' },
+  calWeekRow:    { flexDirection: 'row', marginBottom: 6 },
+  calWeekDay:    { flex: 1, textAlign: 'center', fontSize: 12, color: Colors.textMuted, fontFamily: Typography.fontMedium },
+  calWeekendHdr: { color: Colors.danger + '99' },
+  calRow:        { flexDirection: 'row', marginBottom: 2 },
+  calCell:       { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 3 },
+  calDayCircle:  { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  calDaySelected:{ backgroundColor: Colors.accentTeal },
+  calDayToday:   { borderWidth: 1.5, borderColor: Colors.accentTeal },
+  calDayTxt:     { fontSize: 16, color: Colors.textPrimary, fontFamily: Typography.fontMedium },
+  calDayTxtSel:  { color: Colors.bg, fontFamily: Typography.fontSemiBold },
+  calDayTxtToday:{ color: Colors.accentTeal, fontFamily: Typography.fontSemiBold },
+  calDayTxtFuture:{ color: Colors.textMuted + '44' },
+  calDayTxtWknd: { color: Colors.textSecondary },
+  calFooterTxt:  { textAlign: 'center', fontSize: 13, color: Colors.textMuted, marginTop: 16, fontFamily: Typography.fontMedium },
 
   noteToggle:    { paddingVertical: Spacing.sm, marginBottom: Spacing.xs, alignSelf: 'flex-start' },
   noteChip:      { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.full, borderWidth: 1, borderColor: Glass.border, backgroundColor: Colors.surface },
