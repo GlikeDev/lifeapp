@@ -52,6 +52,8 @@ import { formatCurrency, monthsLeft } from '../../utils/format';
 import { supabase } from '../../lib/supabase';
 import type { Transaction, Goal, FridgeItem, Subscription } from '../../types';
 import { useTranslation } from '../../i18n';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { GlyphIcon } from '../../components/common/GlyphIcon';
 
 // ─── Currencies ───────────────────────────────────────────────────────────────
 
@@ -611,6 +613,11 @@ export function DashboardScreen() {
     setRefreshing(false);
   }
 
+  async function handleDeleteTx(id: string) {
+    await supabase.from('transactions').delete().eq('id', id);
+    setTransactions(transactions.filter(tx => tx.id !== id));
+  }
+
   async function handleCurrencySelect(code: string) {
     if (!user) return;
     setUser({ ...user, currency: code });
@@ -860,18 +867,32 @@ export function DashboardScreen() {
                               const emoji = TX_EMOJI[tx.category] ?? '📦';
                               const label = tx.note || tx.store || t(`cat.${tx.category}`) || tx.category;
                               return (
-                                <View key={tx.id} style={styles.whTxRow}>
-                                  <View style={[styles.whTxDot, { backgroundColor: color + '22', borderColor: color + '55' }]}>
-                                    <Text style={{ fontSize: 13 }}>{emoji}</Text>
+                                <Swipeable
+                                  key={tx.id}
+                                  friction={2}
+                                  rightThreshold={40}
+                                  renderRightActions={() => (
+                                    <TouchableOpacity
+                                      style={styles.whDeleteBtn}
+                                      onPress={() => handleDeleteTx(tx.id)}
+                                    >
+                                      <GlyphIcon name="trash" color="#fff" size={18}/>
+                                    </TouchableOpacity>
+                                  )}
+                                >
+                                  <View style={styles.whTxRow}>
+                                    <View style={[styles.whTxDot, { backgroundColor: color + '22', borderColor: color + '55' }]}>
+                                      <Text style={{ fontSize: 13 }}>{emoji}</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                      <Text style={styles.whTxLabel} numberOfLines={1}>{label}</Text>
+                                      <Text style={styles.whTxCat}>{t(`cat.${tx.category}`)}</Text>
+                                    </View>
+                                    <Text style={[styles.whTxAmount, { color: isIncome ? Colors.success : Colors.textPrimary }]}>
+                                      {isIncome ? '+' : '−'}{fmt(Math.abs(tx.amount))}
+                                    </Text>
                                   </View>
-                                  <View style={{ flex: 1 }}>
-                                    <Text style={styles.whTxLabel} numberOfLines={1}>{label}</Text>
-                                    <Text style={styles.whTxCat}>{t(`cat.${tx.category}`)}</Text>
-                                  </View>
-                                  <Text style={[styles.whTxAmount, { color: isIncome ? Colors.success : Colors.textPrimary }]}>
-                                    {isIncome ? '+' : '−'}{fmt(Math.abs(tx.amount))}
-                                  </Text>
-                                </View>
+                                </Swipeable>
                               );
                             })}
                           </View>
@@ -1543,6 +1564,7 @@ const styles = StyleSheet.create({
   whTxLabel:   { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
   whTxCat:     { fontSize: 11, fontFamily: Typography.fontMedium, color: Colors.textMuted, marginTop: 1 },
   whTxAmount:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
+  whDeleteBtn: { width: 64, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.danger, borderRadius: 10, marginVertical: 2, marginLeft: 6 },
 });
 
 // ─── Goal modal styles ────────────────────────────────────────────────────────
