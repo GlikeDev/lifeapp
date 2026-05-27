@@ -9,6 +9,7 @@ import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -249,6 +250,7 @@ const sc = StyleSheet.create({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export function FridgeScreen() {
+  const navigation = useNavigation();
   const { user } = useAuthStore();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -366,7 +368,12 @@ export function FridgeScreen() {
         {/* Header */}
         <View style={s.header}>
           <View>
-            <Text style={s.title}>{t('fridge.title')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+              <TouchableOpacity onPress={() => (navigation as any).navigate('MoreMenu')} style={s.backBtn} activeOpacity={0.7}>
+                <Text style={s.backBtnTxt}>‹</Text>
+              </TouchableOpacity>
+              <Text style={s.title}>{t('fridge.title')}</Text>
+            </View>
             {savedCount > 0 && (
               <Text style={s.savedBadge}>✅ Сэкономлено сегодня: {savedCount} {savedLabel}</Text>
             )}
@@ -554,6 +561,8 @@ const s = StyleSheet.create({
 
   header:      { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: Spacing.lg },
   title:       { fontSize: 28, fontFamily: Typography.fontBold, color: Colors.textPrimary },
+  backBtn:     { paddingRight: 4, paddingVertical: 2 },
+  backBtnTxt:  { fontSize: 32, color: Colors.textSecondary, lineHeight: 34 },
   savedBadge:  { fontSize: Typography.sizeXS, fontFamily: Typography.fontSemiBold, color: Colors.success, marginTop: 4 },
 
   addBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.accentTeal + '18', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.accentTeal + '44' },

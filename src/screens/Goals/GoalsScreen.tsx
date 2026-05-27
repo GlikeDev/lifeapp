@@ -9,6 +9,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { useBudgetStore } from '../../store/useBudgetStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -119,6 +120,7 @@ const w = StyleSheet.create({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function GoalsScreen() {
+  const navigation = useNavigation();
   const { user } = useAuthStore();
   const { goals, addGoal, setGoals } = useBudgetStore();
   const insets = useSafeAreaInsets();
@@ -171,7 +173,12 @@ export function GoalsScreen() {
 
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.title}>Мои цели</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+            <TouchableOpacity onPress={() => (navigation as any).navigate('MoreMenu')} style={s.backBtn} activeOpacity={0.7}>
+              <Text style={s.backBtnTxt}>‹</Text>
+            </TouchableOpacity>
+            <Text style={s.title}>Мои цели</Text>
+          </View>
           {goals.length < 5 && (
             <TouchableOpacity style={s.addBtn} onPress={() => setShowAdd(true)}>
               <GlyphIcon name="plus" color={Colors.success} size={14}/>
@@ -280,6 +287,8 @@ const s = StyleSheet.create({
 
   header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xl },
   title:     { fontSize: 28, fontWeight: Typography.weightBold, color: Colors.textPrimary },
+  backBtn:   { paddingRight: 4, paddingVertical: 2 },
+  backBtnTxt:{ fontSize: 32, color: Colors.textSecondary, lineHeight: 34 },
   addBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.success + '18', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.success + '44' },
   addBtnTxt: { color: Colors.success, fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
 

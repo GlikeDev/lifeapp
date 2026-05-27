@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { CoachMark, TipStep } from '../../components/CoachMark';
 import { useCoachMark } from '../../hooks/useCoachMark';
 
@@ -46,6 +46,7 @@ import { Card, ProgressBar } from '../../components/common';
 import { FlowingBar } from '../../components/common/FlowingBar';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { useBudgetStore } from '../../store/useBudgetStore';
+import { useWidgetStore, WIDGET_META } from '../../store/useWidgetStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useWallpaperStore, WALLPAPERS } from '../../store/useWallpaperStore';
 import { formatCurrency, monthsLeft } from '../../utils/format';
@@ -405,10 +406,10 @@ const ms = StyleSheet.create({
 // ─── Collapsible Section ──────────────────────────────────────────────────────
 
 function CollapsibleSection({
-  title, children, accentColor = Colors.accentTeal, badge, open, onToggle,
+  title, children, accentColor = Colors.accentTeal, badge, open, onToggle, transparent = false,
 }: {
   title: string; children: React.ReactNode; accentColor?: string;
-  badge?: string; open: boolean; onToggle: () => void;
+  badge?: string; open: boolean; onToggle: () => void; transparent?: boolean;
 }) {
   const rot = useRef(new Animated.Value(open ? 1 : 0)).current;
 
@@ -424,10 +425,10 @@ function CollapsibleSection({
       borderColor:  accentColor + (isAndroid ? '70' : '40'),
       borderWidth:  isAndroid ? 1.5 : 1,
       overflow:     'hidden',
-      elevation:    isAndroid ? 14 : 6,
+      elevation:    transparent ? 0 : (isAndroid ? 14 : 6),
     }]}>
-      <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: accentColor + (isAndroid ? '1A' : '0D') }]} pointerEvents="none" />
+      {!transparent && <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />}
+      {!transparent && <View style={[StyleSheet.absoluteFill, { backgroundColor: accentColor + (isAndroid ? '1A' : '0D') }]} pointerEvents="none" />}
       {/* Top shine line */}
       <View style={{ position: 'absolute', top: 0, left: Radius.xl, right: Radius.xl, height: isAndroid ? 1.5 : 1, backgroundColor: accentColor + (isAndroid ? '80' : '55') }} pointerEvents="none" />
       <TouchableOpacity style={cs.header} onPress={onToggle} activeOpacity={0.7}>
@@ -489,6 +490,204 @@ function toMonthly(amount: number, cycle: string) {
   return amount;
 }
 
+// ─── Analysis engine ──────────────────────────────────────────────────────────
+
+const CARD_W   = SCREEN_W - Spacing.xl * 2;
+const CARD_GAP = 10;
+
+const CAT_NAMES_RU: Record<string, string> = {
+  food: 'Продукты', cafe: 'Кафе', transport: 'Транспорт', home: 'Дом',
+  health: 'Здоровье', entertainment: 'Развлечения', shopping: 'Покупки',
+  education: 'Образование', sport: 'Спорт', beauty: 'Красота',
+  travel: 'Путешествия', pets: 'Питомцы', other: 'Другое',
+};
+
+interface AnalysisInsight {
+  id:         string;
+  icon:       string;
+  title:      string;
+  body:       string;
+  metric?:    string;
+  metricSub?: string;
+  color:      string;
+}
+
+function computeInsights(p: {
+  transactions:  Transaction[];
+  goals:         Goal[];
+  subscriptions: Subscription[];
+  fridgeItems:   FridgeItem[];
+  monthlyBudget: number;
+  totalSpent:    number;
+  byCategory:    Record<string, number>;
+  fmt:           (n: number) => string;
+}): AnalysisInsight[] {
+  const { transactions, goals, subscriptions, fridgeItems, monthlyBudget, totalSpent, byCategory, fmt } = p;
+  const result: AnalysisInsight[] = [];
+  const now       = new Date();
+  const day       = now.getDate();
+  const daysInMon = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysLeft  = Math.max(daysInMon - day, 1);
+  const spentPct  = monthlyBudget > 0 ? totalSpent / monthlyBudget : 0;
+  const expPct    = day / daysInMon;
+
+  // ── 1. Budget pace ───────────────────────────────────────────────────────
+  if (monthlyBudget > 0 && totalSpent > 0) {
+    const ratio      = spentPct / Math.max(expPct, 0.01);
+    const dailyLeft  = (monthlyBudget - totalSpent) / daysLeft;
+    if (ratio > 1.3) {
+      result.push({
+        id: 'budget-pace', icon: '⚡', title: 'Темп превышен',
+        body: `Потрачено ${Math.round(spentPct * 100)}% бюджета, а месяц прошёл лишь на ${Math.round(expPct * 100)}%. Лимит на оставшиеся дни — ${fmt(dailyLeft)}/день`,
+        metric: `+${Math.round((ratio - 1) * 100)}%`, metricSub: 'сверх темпа',
+        color: Colors.danger,
+      });
+    } else if (ratio < 0.75 && day > 5) {
+      result.push({
+        id: 'budget-pace', icon: '✦', title: 'Ритм отличный',
+        body: `Тратите на ${Math.round((1 - ratio) * expPct * 100)}% меньше нормы для этого дня. Резерв: ${fmt(dailyLeft)}/день до конца месяца`,
+        metric: `${Math.round((1 - spentPct) * 100)}%`, metricSub: 'бюджета свободно',
+        color: Colors.success,
+      });
+    } else {
+      result.push({
+        id: 'budget-pace', icon: '📊', title: 'Темп в норме',
+        body: `${daysLeft} дней до конца месяца. При текущем темпе вы уложитесь в бюджет — лимит ${fmt(dailyLeft)}/день`,
+        metric: fmt(dailyLeft), metricSub: 'в день',
+        color: Colors.accentTeal,
+      });
+    }
+  }
+
+  // ── 2. Top category ──────────────────────────────────────────────────────
+  const cats = Object.entries(byCategory).filter(([, v]) => v > 0).sort(([, a], [, b]) => b - a);
+  if (cats.length > 0) {
+    const [topKey, topAmt] = cats[0];
+    const catName = CAT_NAMES_RU[topKey] ?? topKey;
+    const pct     = monthlyBudget > 0 ? Math.round((topAmt / monthlyBudget) * 100) : 0;
+    result.push({
+      id: 'top-category', icon: '🔍', title: 'Главный расход',
+      body: `«${catName}» забирает ${pct}% месячного бюджета. Сократив на 20%, сэкономите ${fmt(Math.round(topAmt * 0.2))} в месяц`,
+      metric: fmt(topAmt), metricSub: catName,
+      color: Colors.warning,
+    });
+  }
+
+  // ── 3. Subscriptions ─────────────────────────────────────────────────────
+  const activeSubs = subscriptions.filter(s => s.is_active);
+  if (activeSubs.length > 0) {
+    const monthlySubTotal = activeSubs.reduce((acc, s) => acc + toMonthly(s.amount, s.cycle), 0);
+    const subPct          = monthlyBudget > 0 ? (monthlySubTotal / monthlyBudget) * 100 : 0;
+    const soonBilling     = activeSubs.filter(s => {
+      if (!s.next_billing) return false;
+      const d = Math.ceil((new Date(s.next_billing).getTime() - Date.now()) / 86400000);
+      return d >= 0 && d <= 7;
+    });
+    if (soonBilling.length > 0) {
+      const soonTotal = soonBilling.reduce((acc, s) => acc + s.amount, 0);
+      result.push({
+        id: 'sub-billing', icon: '💳', title: 'Скоро спишут',
+        body: `${soonBilling.length} подписок продлевается в ближайшие 7 дней — убедитесь, что на счету есть ${fmt(soonTotal)}`,
+        metric: fmt(soonTotal), metricSub: 'к списанию',
+        color: '#7B6CF6',
+      });
+    } else if (subPct > 15) {
+      result.push({
+        id: 'sub-cost', icon: '💳', title: 'Подписки дорогие',
+        body: `${Math.round(subPct)}% бюджета уходит на ${activeSubs.length} подписок. Проверьте: возможно, часть не используется`,
+        metric: fmt(monthlySubTotal), metricSub: '/мес',
+        color: '#7B6CF6',
+      });
+    }
+  }
+
+  // ── 4. Fridge waste ──────────────────────────────────────────────────────
+  const expired = fridgeItems.filter(i => fridgeDaysUntil(i.expires_at) < 0);
+  const soon    = fridgeItems.filter(i => { const d = fridgeDaysUntil(i.expires_at); return d >= 0 && d <= 2; });
+  if (expired.length > 0) {
+    result.push({
+      id: 'fridge-expired', icon: '🧊', title: 'Продукты просрочены',
+      body: `${expired.length} позиций уже испортилось — это деньги на ветер. Просроченные продукты разрушают бюджет`,
+      metric: `${expired.length}`, metricSub: 'просрочено',
+      color: Colors.danger,
+    });
+  } else if (soon.length > 0) {
+    result.push({
+      id: 'fridge-soon', icon: '🧊', title: 'Истекает завтра',
+      body: `${soon.length} продуктов нужно использовать в ближайшие 2 дня — иначе деньги выброшены впустую`,
+      metric: `${soon.length}`, metricSub: 'скоро истекут',
+      color: Colors.warning,
+    });
+  }
+
+  // ── 5. Goal what-if ──────────────────────────────────────────────────────
+  const topGoal = goals.find(g => g.monthly_contribution > 0 && g.target_amount > g.current_amount);
+  if (topGoal) {
+    const rem      = topGoal.target_amount - topGoal.current_amount;
+    const base     = Math.ceil(rem / topGoal.monthly_contribution);
+    const habits   = [
+      { name: 'кофе навынос', saving: 47 },
+      { name: 'доставку еды', saving: 80 },
+      { name: 'такси',        saving: 60 },
+    ];
+    let best = { name: '', saving: 0, diff: 0 };
+    habits.forEach(h => {
+      const diff = base - Math.ceil(rem / (topGoal.monthly_contribution + h.saving));
+      if (diff > best.diff) best = { ...h, diff };
+    });
+    const pct = Math.round(Math.min((topGoal.current_amount / topGoal.target_amount) * 100, 100));
+    result.push({
+      id: 'goal-what-if', icon: topGoal.emoji ?? '🎯', title: topGoal.title,
+      body: best.diff > 0
+        ? `Откажись от ${best.name} (+${fmt(best.saving)}/мес) — достигнешь цели на ${best.diff} мес. раньше. Базовый темп: ${base} мес.`
+        : `До цели ${base} мес. при взносе ${fmt(topGoal.monthly_contribution)}/мес`,
+      metric: `${pct}%`, metricSub: 'выполнено',
+      color: Colors.accentPurple,
+    });
+  }
+
+  // ── 6. Income & savings rate ─────────────────────────────────────────────
+  const income = transactions.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  if (income > 0 && topGoal) {
+    const rate = topGoal.monthly_contribution / income;
+    if (rate < 0.1) {
+      result.push({
+        id: 'savings-rate', icon: '💰', title: 'Норма сбережений',
+        body: `Вы откладываете ${Math.round(rate * 100)}% дохода. Правило 10%: минимум ${fmt(Math.round(income * 0.1))}/мес — это ключ к финансовой стабильности`,
+        metric: `${Math.round(rate * 100)}%`, metricSub: 'от дохода',
+        color: Colors.success,
+      });
+    }
+  }
+
+  // ── 7. Spending day pattern ──────────────────────────────────────────────
+  const week = getLast7Days(transactions);
+  const activeDays = week.filter(d => d.amount > 0);
+  if (activeDays.length >= 3) {
+    const peak = activeDays.reduce((m, d) => d.amount > m.amount ? d : m, activeDays[0]);
+    const avg  = activeDays.reduce((s, d) => s + d.amount, 0) / activeDays.length;
+    if (peak.amount > avg * 1.5) {
+      result.push({
+        id: 'week-pattern', icon: '📅', title: 'Паттерн трат',
+        body: `Самый дорогой день — ${peak.label} (${fmt(peak.amount)}), это в ${Math.round(peak.amount / avg)}x выше среднего. Планируйте покупки заранее`,
+        metric: fmt(peak.amount), metricSub: `в ${peak.label}`,
+        color: '#FF6B9D',
+      });
+    }
+  }
+
+  // ── Fallback ─────────────────────────────────────────────────────────────
+  if (result.length === 0) {
+    result.push({
+      id: 'empty', icon: '✦', title: 'Начни отслеживать',
+      body: 'Добавь транзакции, цели и подписки — анализ покажет, где теряются деньги и как их сохранить',
+      color: Colors.accentTeal,
+    });
+  }
+
+  return result;
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function DashboardScreen() {
@@ -504,9 +703,10 @@ export function DashboardScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [currencyModal, setCurrencyModal] = useState(false);
-  const [insightIdx, setInsightIdx] = useState(0);
   const [chartAnimKey, setChartAnimKey] = useState(0);
   const [showWeekHistory, setShowWeekHistory] = useState(false);
+  const { widgets, toggleWidget, moveWidget } = useWidgetStore();
+  const [showWidgetEditor, setShowWidgetEditor] = useState(false);
 
   useFocusEffect(useCallback(() => {
     setChartAnimKey(k => k + 1);
@@ -517,7 +717,8 @@ export function DashboardScreen() {
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
   const [fridgeOpen, setFridgeOpen] = useState(false);
-  const [whatIfOpen, setWhatIfOpen] = useState(false);
+  const [analysisCardIdx, setAnalysisCardIdx] = useState(0);
+  const analysisScrollRef = useRef<ScrollView>(null);
   const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const fadeAnim   = useRef(new Animated.Value(0)).current;
@@ -603,11 +804,6 @@ export function DashboardScreen() {
     ).start();
   }, [user?.id]);
 
-  useEffect(() => {
-    const timer = setInterval(() => setInsightIdx(i => (i + 1) % 3), 4000);
-    return () => clearInterval(timer);
-  }, []);
-
   async function onRefresh() {
     setRefreshing(true);
     await loadData();
@@ -658,20 +854,363 @@ export function DashboardScreen() {
   const firstName = user?.full_name?.split(' ')[0] ?? 'Привет';
   const currObj = CURRENCIES.find(c => c.code === currency) ?? CURRENCIES[0];
 
-  const aiMessages = [
-    spentPct > 0.85
-      ? t('dash.ai.over85')
-      : spentPct > 0.5
-      ? t('dash.ai.over50', { pct: Math.round(spentPct * 100) })
-      : totalSpent === 0
-      ? t('dash.ai.empty')
-      : t('dash.ai.great', { amount: fmt(Math.abs(remaining)) }),
-    t('dash.ai.tip2'),
-    t('dash.ai.tip3'),
-  ];
-
   const balanceInt = Math.floor(Math.max(monthlyBudget - totalSpent, 0));
   const balanceDec = String(Math.round((Math.max(monthlyBudget - totalSpent, 0) % 1) * 100)).padStart(2, '0');
+
+  const insights = useMemo(() => computeInsights({
+    transactions, goals, subscriptions, fridgeItems, monthlyBudget, totalSpent, byCategory, fmt,
+  }), [transactions, goals, subscriptions, fridgeItems, monthlyBudget, totalSpent]);
+
+  useEffect(() => {
+    setAnalysisCardIdx(0);
+    analysisScrollRef.current?.scrollTo({ x: 0, animated: false });
+    if (insights.length <= 1) return;
+    const timer = setInterval(() => {
+      setAnalysisCardIdx(prev => {
+        const next = (prev + 1) % insights.length;
+        analysisScrollRef.current?.scrollTo({ x: next * (CARD_W + CARD_GAP), animated: true });
+        return next;
+      });
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [insights.length]);
+
+  // ── Widget render functions ──────────────────────────────────────────────────
+
+  function renderQuickLinks() {
+    const QUICK_BTNS = [
+      { emoji: '−', label: 'Расход',     color: Colors.danger,       onPress: () => (navigation as any).navigate('Scan', { mode: 'manual', txType: 'expense' }) },
+      { emoji: '+', label: 'Доход',       color: Colors.success,      onPress: () => (navigation as any).navigate('Scan', { mode: 'manual', txType: 'income' }) },
+      { emoji: '🎯', label: 'Цели',       color: Colors.accentPurple, onPress: () => (navigation as any).navigate('More', { screen: 'Goals' }) },
+      { emoji: '💳', label: 'Подписки',   color: '#7B6CF6',           onPress: () => (navigation as any).navigate('More', { screen: 'Subscriptions' }) },
+      { emoji: '🧊', label: 'Холодил.',   color: Colors.accentTeal,   onPress: () => (navigation as any).navigate('More', { screen: 'Fridge' }) },
+      { emoji: '💸', label: 'Долги',      color: Colors.warning,      onPress: () => (navigation as any).navigate('More', { screen: 'Debts' }) },
+    ];
+    return (
+      <View style={styles.qlCard}>
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+          {QUICK_BTNS.slice(0, 3).map(btn => (
+            <TouchableOpacity key={btn.label} style={[styles.qlBtn, { borderColor: btn.color + '35', backgroundColor: btn.color + '12' }]} onPress={btn.onPress} activeOpacity={0.75}>
+              <Text style={[styles.qlBtnEmoji, { color: btn.color }]}>{btn.emoji}</Text>
+              <Text style={[styles.qlBtnLabel, { color: btn.color }]}>{btn.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {QUICK_BTNS.slice(3, 6).map(btn => (
+            <TouchableOpacity key={btn.label} style={[styles.qlBtn, { borderColor: btn.color + '35', backgroundColor: btn.color + '12' }]} onPress={btn.onPress} activeOpacity={0.75}>
+              <Text style={[styles.qlBtnEmoji, { color: btn.color }]}>{btn.emoji}</Text>
+              <Text style={[styles.qlBtnLabel, { color: btn.color }]}>{btn.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  function renderCategories() {
+    const catTotal = Object.entries(CAT).reduce((s, [k]) => s + (byCategory[k] ?? 0), 0);
+    const activeCats = Object.entries(CAT)
+      .map(([k, cfg]) => ({ key: k, cfg, amount: byCategory[k] ?? 0 }))
+      .filter(c => c.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
+    return (
+      <CollapsibleSection
+        title={t('dash.categories')}
+        accentColor={Colors.accentTeal}
+        badge={catTotal > 0 ? `${currObj.symbol}${Math.round(catTotal).toLocaleString('ru-RU')}` : undefined}
+        open={catsOpen}
+        onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setCatsOpen(v => !v); }}
+        transparent
+      >
+        {activeCats.length === 0 ? (
+          <Text style={styles.catEmpty}>{t('dash.cat.empty')}</Text>
+        ) : (
+          <View style={{ gap: 8 }}>
+            {activeCats.map(({ key, cfg, amount }) => {
+              const pct = catTotal > 0 ? amount / catTotal : 0;
+              return (
+                <View key={key} style={styles.catRow}>
+                  <View style={[styles.catDot, { backgroundColor: cfg.color }]} />
+                  <Text style={styles.catRowLabel} numberOfLines={1}>{t(cfg.key)}</Text>
+                  <View style={styles.catRowBar}>
+                    <LinearGradient
+                      colors={[cfg.color + '77', cfg.color]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.catRowBarFill, { width: `${Math.round(pct * 100)}%` as any }]}
+                    />
+                  </View>
+                  <Text style={[styles.catRowAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(amount)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </CollapsibleSection>
+    );
+  }
+
+  function renderGoals() {
+    return (
+      <CollapsibleSection
+        title={t('dash.goals')}
+        accentColor={Colors.accentPurple}
+        badge={goals.length > 0 ? `${goals.length}` : undefined}
+        open={goalsOpen}
+        onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setGoalsOpen(v => !v); }}
+      >
+        {goals.length === 0 ? (
+          <TouchableOpacity style={styles.goalsEmpty} onPress={() => openGoalModal()} activeOpacity={0.8}>
+            <Text style={styles.emptyIcon}>🎯</Text>
+            <Text style={styles.emptyTitle}>{t('dash.goals.emptyTitle')}</Text>
+            <Text style={styles.emptyText}>{t('dash.goals.emptyDesc')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+          {goals.map((goal, idx) => {
+            const progress = goal.target_amount > 0 ? goal.current_amount / goal.target_amount : 0;
+            const pct = Math.round(Math.min(progress * 100, 100));
+            const months = monthsLeft(goal.current_amount, goal.target_amount, goal.monthly_contribution);
+            const palette = GOAL_PALETTES[idx % GOAL_PALETTES.length];
+            const barColor = GOAL_BAR_COLORS[idx % GOAL_BAR_COLORS.length];
+            return (
+              <LinearGradient key={goal.id} colors={palette} style={styles.goalCard} start={{x:0,y:0}} end={{x:1,y:1}}>
+                <View style={styles.goalCardTop}>
+                  <View style={[styles.goalEmojiWrap, { backgroundColor: barColor + '22', borderColor: barColor + '38' }]}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                      pointerEvents="none"
+                    />
+                    <Text style={{ fontSize: 22 }}>{goal.emoji}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
+                    <Text style={[styles.goalCardAmts, { color: barColor }]}>
+                      {fmt(goal.current_amount)}
+                      <Text style={styles.goalCardAmtMuted}> / {fmt(goal.target_amount)}</Text>
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    <View style={[styles.goalPctBadge, { backgroundColor: barColor + '1A', borderColor: barColor + '40' }]}>
+                      <Text style={[styles.goalPctTxt, { color: barColor }]}>{pct}%</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => handleDeleteGoal(goal.id)} style={styles.goalTrashBtn}>
+                      <Text style={styles.goalTrashTxt}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={styles.goalBarTrack}>
+                  <LinearGradient
+                    colors={[barColor + '77', barColor]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={[styles.goalBarFill, { width: `${pct}%` as any }]}
+                  />
+                </View>
+                {months > 0 && (
+                  <Text style={styles.goalCardSub}>
+                    +{fmt(goal.monthly_contribution)}{t('dash.goals.perMonth')} {months} {t('dash.goals.months')}
+                  </Text>
+                )}
+                {goal.current_amount >= goal.target_amount && (
+                  <Text style={[styles.goalCardSub, { color: Colors.success }]}>{t('dash.goals.done')}</Text>
+                )}
+              </LinearGradient>
+            );
+          })}
+          <TouchableOpacity style={styles.goalsAddBtn} onPress={openGoalModal} activeOpacity={0.7}>
+            <Text style={styles.goalsAddTxt}>+ Добавить цель</Text>
+          </TouchableOpacity>
+          </>
+        )}
+      </CollapsibleSection>
+    );
+  }
+
+  function renderSubscriptions() {
+    const activeSubs = subscriptions.filter(s => s.is_active);
+    const totalMonthly = activeSubs.reduce((acc, s) => acc + toMonthly(s.amount, s.cycle), 0);
+    const grouped = SUB_CAT_CFG.map(cfg => {
+      const matches = activeSubs.filter(s =>
+        s.category === cfg.key || cfg.aliases.includes(s.category as string)
+      );
+      return { cfg, monthly: matches.reduce((sum, s) => sum + toMonthly(s.amount, s.cycle), 0), count: matches.length };
+    }).filter(g => g.count > 0);
+    const maxMonthly = grouped.reduce((m, g) => Math.max(m, g.monthly), 1);
+    return (
+      <CollapsibleSection
+        title="ПОДПИСКИ"
+        accentColor={Colors.accentPurple}
+        badge={activeSubs.length > 0 ? `${currObj.symbol}${Math.round(totalMonthly)}/мес` : undefined}
+        open={subOpen}
+        onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSubOpen(v => !v); }}
+      >
+        {activeSubs.length === 0 ? (
+          <TouchableOpacity style={styles.goalsEmpty} onPress={() => (navigation as any).navigate('More', { screen: 'Subscriptions' })} activeOpacity={0.8}>
+            <Text style={styles.emptyIcon}>💳</Text>
+            <Text style={styles.emptyTitle}>Нет активных подписок</Text>
+            <Text style={styles.emptyText}>Добавьте подписки в разделе Профиль → Подписки</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ gap: 8 }}>
+            {grouped.map(({ cfg, monthly, count }) => {
+              const pct = monthly / maxMonthly;
+              const countLabel = count === 1 ? '1 сервис' : count < 5 ? `${count} сервиса` : `${count} сервисов`;
+              return (
+                <View key={cfg.key} style={styles.catRow}>
+                  <View style={[styles.subCatDot, { backgroundColor: cfg.color + '22', borderColor: cfg.color + '50' }]}>
+                    <Text style={{ fontSize: 13 }}>{cfg.emoji}</Text>
+                  </View>
+                  <Text style={styles.subCatLabel} numberOfLines={1}>{cfg.label}</Text>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <View style={styles.catRowBar}>
+                      <LinearGradient
+                        colors={[cfg.color + '77', cfg.color]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={[styles.catRowBarFill, { width: `${Math.round(pct * 100)}%` as any }]}
+                      />
+                    </View>
+                    <Text style={styles.subCatCount}>{countLabel}</Text>
+                  </View>
+                  <Text style={[styles.catRowAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(monthly)}/м</Text>
+                </View>
+              );
+            })}
+            <TouchableOpacity
+              style={styles.subManageBtn}
+              onPress={() => (navigation as any).navigate('More', { screen: 'Subscriptions' })}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.subManageTxt}>Управлять подписками →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </CollapsibleSection>
+    );
+  }
+
+  function renderFridge() {
+    const urgentItems = fridgeItems.filter(i => fridgeDaysUntil(i.expires_at) <= 3);
+    const expiredCount = fridgeItems.filter(i => fridgeDaysUntil(i.expires_at) < 0).length;
+    const soonCount = fridgeItems.filter(i => { const d = fridgeDaysUntil(i.expires_at); return d >= 0 && d <= 3; }).length;
+    const badgeParts: string[] = [];
+    if (expiredCount > 0) badgeParts.push(`${expiredCount} просрочено`);
+    else if (soonCount > 0) badgeParts.push(`${soonCount} скоро`);
+    else if (fridgeItems.length > 0) badgeParts.push(`${fridgeItems.length} продуктов`);
+    return (
+      <CollapsibleSection
+        title="ХОЛОДИЛЬНИК"
+        accentColor={expiredCount > 0 ? Colors.danger : soonCount > 0 ? Colors.warning : Colors.accentTeal}
+        badge={badgeParts[0]}
+        open={fridgeOpen}
+        onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setFridgeOpen(v => !v); }}
+      >
+        {fridgeItems.length === 0 ? (
+          <Text style={styles.catEmpty}>Холодильник пуст</Text>
+        ) : (
+          <View style={{ gap: 6 }}>
+            <View style={styles.fridgeStats}>
+              <View style={[styles.fridgeStat, { borderColor: Colors.accentTeal + '35' }]}>
+                <Text style={[styles.fridgeStatNum, { color: Colors.accentTeal }]}>{fridgeItems.length}</Text>
+                <Text style={styles.fridgeStatLabel}>всего</Text>
+              </View>
+              <View style={[styles.fridgeStat, { borderColor: Colors.warning + '35' }]}>
+                <Text style={[styles.fridgeStatNum, { color: Colors.warning }]}>{soonCount}</Text>
+                <Text style={styles.fridgeStatLabel}>скоро</Text>
+              </View>
+              <View style={[styles.fridgeStat, { borderColor: Colors.danger + '35' }]}>
+                <Text style={[styles.fridgeStatNum, { color: Colors.danger }]}>{expiredCount}</Text>
+                <Text style={styles.fridgeStatLabel}>просрочено</Text>
+              </View>
+            </View>
+            {urgentItems.slice(0, 5).map(item => {
+              const days = fridgeDaysUntil(item.expires_at);
+              const col = fridgeZoneColor(days);
+              const label = days < 0 ? 'просрочено' : days === 0 ? 'сегодня' : days === 1 ? '1 день' : `${days} дня`;
+              return (
+                <View key={item.id} style={[styles.fridgeRow, { borderColor: col + '25' }]}>
+                  <Text style={styles.fridgeRowName} numberOfLines={1}>{item.name}</Text>
+                  <Text style={styles.fridgeRowQty}>{item.quantity} {item.unit}</Text>
+                  <View style={[styles.fridgeRowBadge, { backgroundColor: col + '18', borderColor: col + '40' }]}>
+                    <Text style={[styles.fridgeRowBadgeTxt, { color: col }]}>{label}</Text>
+                  </View>
+                </View>
+              );
+            })}
+            {urgentItems.length > 5 && (
+              <Text style={styles.catEmpty}>+{urgentItems.length - 5} ещё</Text>
+            )}
+          </View>
+        )}
+      </CollapsibleSection>
+    );
+  }
+
+  function renderAnalysis() {
+    return (
+      <View style={{ marginBottom: Spacing.lg }}>
+        <ScrollView
+          ref={analysisScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={CARD_W + CARD_GAP}
+          decelerationRate="fast"
+          scrollEnabled={insights.length > 1}
+          onMomentumScrollEnd={e => setAnalysisCardIdx(Math.round(e.nativeEvent.contentOffset.x / (CARD_W + CARD_GAP)))}
+          scrollEventThrottle={100}
+          contentContainerStyle={{ gap: CARD_GAP }}
+        >
+          {insights.map(ins => (
+            <View key={ins.id} style={[an.card, { width: CARD_W, borderColor: ins.color + '35' }]}>
+              <LinearGradient
+                colors={[ins.color + '18', ins.color + '06', 'transparent']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[an.topBar, { backgroundColor: ins.color + '80' }]} />
+
+              {/* Header row: label left, metric right */}
+              <View style={an.cardHead}>
+                <View style={[an.cardIconWrap, { backgroundColor: ins.color + '18' }]}>
+                  <Text style={an.cardIconTxt}>{ins.icon}</Text>
+                </View>
+                <Text style={[an.cardTitle, { color: ins.color }]} numberOfLines={1}>{ins.title}</Text>
+                {ins.metric && (
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[an.cardMetric, { color: ins.color }]}>{ins.metric}</Text>
+                    {ins.metricSub && <Text style={an.cardMetricSub}>{ins.metricSub}</Text>}
+                  </View>
+                )}
+              </View>
+
+              <Text style={an.cardBody}>{ins.body}</Text>
+
+              {/* Dots inside card, bottom right */}
+              {insights.length > 1 && (
+                <View style={an.dots}>
+                  {insights.map((_, i) => (
+                    <View key={i} style={[an.dot, i === analysisCardIdx && an.dotActive]} />
+                  ))}
+                </View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }
+
+  const widgetRenderers: Partial<Record<string, () => React.ReactNode | null>> = {
+    quicklinks:    renderQuickLinks,
+    categories:    renderCategories,
+    goals:         renderGoals,
+    subscriptions: renderSubscriptions,
+    fridge:        renderFridge,
+    analysis:      renderAnalysis,
+  };
 
   return (
     <View style={styles.safe}>
@@ -706,6 +1245,9 @@ export function DashboardScreen() {
           <View style={styles.header}>
             <Text style={styles.monthLabel}>{monthName.toUpperCase()}</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity style={styles.widgetEditorBtn} onPress={() => setShowWidgetEditor(true)} activeOpacity={0.7}>
+                <Text style={styles.widgetEditorBtnTxt}>⊞</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.langBtn} onPress={() => setLang(lang === 'ru' ? 'en' : 'ru')} activeOpacity={0.7}>
                 <Text style={styles.langBtnText}>{t('dash.lang.btn')}</Text>
               </TouchableOpacity>
@@ -940,323 +1482,11 @@ export function DashboardScreen() {
             </TouchableOpacity>
           </Modal>
 
-          {/* ── Categories ── */}
-          {(() => {
-            const catTotal = Object.entries(CAT).reduce((s, [k]) => s + (byCategory[k] ?? 0), 0);
-            const activeCats = Object.entries(CAT)
-              .map(([k, cfg]) => ({ key: k, cfg, amount: byCategory[k] ?? 0 }))
-              .filter(c => c.amount > 0)
-              .sort((a, b) => b.amount - a.amount);
-            return (
-              <CollapsibleSection
-                title={t('dash.categories')}
-                accentColor={Colors.accentTeal}
-                badge={catTotal > 0 ? `${currObj.symbol}${Math.round(catTotal).toLocaleString('ru-RU')}` : undefined}
-                open={catsOpen}
-                onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setCatsOpen(v => !v); }}
-              >
-                {activeCats.length === 0 ? (
-                  <Text style={styles.catEmpty}>{t('dash.cat.empty')}</Text>
-                ) : (
-                  <View style={{ gap: 8 }}>
-                    {activeCats.map(({ key, cfg, amount }) => {
-                      const pct = catTotal > 0 ? amount / catTotal : 0;
-                      return (
-                        <View key={key} style={styles.catRow}>
-                          <View style={[styles.catDot, { backgroundColor: cfg.color }]} />
-                          <Text style={styles.catRowLabel} numberOfLines={1}>{t(cfg.key)}</Text>
-                          <View style={styles.catRowBar}>
-                            <LinearGradient
-                              colors={[cfg.color + '77', cfg.color]}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 0 }}
-                              style={[styles.catRowBarFill, { width: `${Math.round(pct * 100)}%` as any }]}
-                            />
-                          </View>
-                          <Text style={[styles.catRowAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(amount)}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-              </CollapsibleSection>
-            );
-          })()}
-
-          {/* ── Goals Section ── */}
-          <CollapsibleSection
-            title={t('dash.goals')}
-            accentColor={Colors.accentPurple}
-            badge={goals.length > 0 ? `${goals.length}` : undefined}
-            open={goalsOpen}
-            onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setGoalsOpen(v => !v); }}
-          >
-            {goals.length === 0 ? (
-              <TouchableOpacity style={styles.goalsEmpty} onPress={() => openGoalModal()} activeOpacity={0.8}>
-                <Text style={styles.emptyIcon}>🎯</Text>
-                <Text style={styles.emptyTitle}>{t('dash.goals.emptyTitle')}</Text>
-                <Text style={styles.emptyText}>{t('dash.goals.emptyDesc')}</Text>
-              </TouchableOpacity>
-            ) : (
-              <>
-              {goals.map((goal, idx) => {
-                const progress = goal.target_amount > 0 ? goal.current_amount / goal.target_amount : 0;
-                const pct = Math.round(Math.min(progress * 100, 100));
-                const months = monthsLeft(goal.current_amount, goal.target_amount, goal.monthly_contribution);
-                const palette = GOAL_PALETTES[idx % GOAL_PALETTES.length];
-                const barColor = GOAL_BAR_COLORS[idx % GOAL_BAR_COLORS.length];
-                return (
-                  <LinearGradient key={goal.id} colors={palette} style={styles.goalCard} start={{x:0,y:0}} end={{x:1,y:1}}>
-                    <View style={styles.goalCardTop}>
-                      <View style={[styles.goalEmojiWrap, { backgroundColor: barColor + '22', borderColor: barColor + '38' }]}>
-                        <LinearGradient
-                          colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0)']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={StyleSheet.absoluteFill}
-                          pointerEvents="none"
-                        />
-                        <Text style={{ fontSize: 22 }}>{goal.emoji}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
-                        <Text style={[styles.goalCardAmts, { color: barColor }]}>
-                          {fmt(goal.current_amount)}
-                          <Text style={styles.goalCardAmtMuted}> / {fmt(goal.target_amount)}</Text>
-                        </Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                        <View style={[styles.goalPctBadge, { backgroundColor: barColor + '1A', borderColor: barColor + '40' }]}>
-                          <Text style={[styles.goalPctTxt, { color: barColor }]}>{pct}%</Text>
-                        </View>
-                        <TouchableOpacity onPress={() => handleDeleteGoal(goal.id)} style={styles.goalTrashBtn}>
-                          <Text style={styles.goalTrashTxt}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                    <View style={styles.goalBarTrack}>
-                      <LinearGradient
-                        colors={[barColor + '77', barColor]}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                        style={[styles.goalBarFill, { width: `${pct}%` as any }]}
-                      />
-                    </View>
-                    {months > 0 && (
-                      <Text style={styles.goalCardSub}>
-                        +{fmt(goal.monthly_contribution)}{t('dash.goals.perMonth')} {months} {t('dash.goals.months')}
-                      </Text>
-                    )}
-                    {goal.current_amount >= goal.target_amount && (
-                      <Text style={[styles.goalCardSub, { color: Colors.success }]}>{t('dash.goals.done')}</Text>
-                    )}
-                  </LinearGradient>
-                );
-              })}
-              <TouchableOpacity style={styles.goalsAddBtn} onPress={openGoalModal} activeOpacity={0.7}>
-                <Text style={styles.goalsAddTxt}>+ Добавить цель</Text>
-              </TouchableOpacity>
-              </>
-            )}
-          </CollapsibleSection>
-
-          {/* ── Subscriptions Section ── */}
-          {(() => {
-            const activeSubs = subscriptions.filter(s => s.is_active);
-            const totalMonthly = activeSubs.reduce((acc, s) => acc + toMonthly(s.amount, s.cycle), 0);
-
-            // Group by category config
-            const grouped = SUB_CAT_CFG.map(cfg => {
-              const matches = activeSubs.filter(s =>
-                s.category === cfg.key || cfg.aliases.includes(s.category as string)
-              );
-              return { cfg, monthly: matches.reduce((sum, s) => sum + toMonthly(s.amount, s.cycle), 0), count: matches.length };
-            }).filter(g => g.count > 0);
-
-            const maxMonthly = grouped.reduce((m, g) => Math.max(m, g.monthly), 1);
-
-            return (
-              <CollapsibleSection
-                title="ПОДПИСКИ"
-                accentColor={Colors.accentPurple}
-                badge={activeSubs.length > 0 ? `${currObj.symbol}${Math.round(totalMonthly)}/мес` : undefined}
-                open={subOpen}
-                onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSubOpen(v => !v); }}
-              >
-                {activeSubs.length === 0 ? (
-                  <TouchableOpacity style={styles.goalsEmpty} onPress={() => (navigation as any).navigate('More', { screen: 'Subscriptions' })} activeOpacity={0.8}>
-                    <Text style={styles.emptyIcon}>💳</Text>
-                    <Text style={styles.emptyTitle}>Нет активных подписок</Text>
-                    <Text style={styles.emptyText}>Добавьте подписки в разделе Профиль → Подписки</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={{ gap: 8 }}>
-                    {grouped.map(({ cfg, monthly, count }) => {
-                      const pct = monthly / maxMonthly;
-                      const countLabel = count === 1 ? '1 сервис' : count < 5 ? `${count} сервиса` : `${count} сервисов`;
-                      return (
-                        <View key={cfg.key} style={styles.catRow}>
-                          <View style={[styles.subCatDot, { backgroundColor: cfg.color + '22', borderColor: cfg.color + '50' }]}>
-                            <Text style={{ fontSize: 13 }}>{cfg.emoji}</Text>
-                          </View>
-                          <Text style={styles.subCatLabel} numberOfLines={1}>{cfg.label}</Text>
-                          <View style={{ flex: 1, gap: 3 }}>
-                            <View style={styles.catRowBar}>
-                              <LinearGradient
-                                colors={[cfg.color + '77', cfg.color]}
-                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                                style={[styles.catRowBarFill, { width: `${Math.round(pct * 100)}%` as any }]}
-                              />
-                            </View>
-                            <Text style={styles.subCatCount}>{countLabel}</Text>
-                          </View>
-                          <Text style={[styles.catRowAmount, { color: cfg.color }]}>{currObj.symbol}{Math.round(monthly)}/м</Text>
-                        </View>
-                      );
-                    })}
-                    <TouchableOpacity
-                      style={styles.subManageBtn}
-                      onPress={() => (navigation as any).navigate('More', { screen: 'Subscriptions' })}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={styles.subManageTxt}>Управлять подписками →</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </CollapsibleSection>
-            );
-          })()}
-
-          {/* ── Fridge Section ── */}
-          {(() => {
-            const urgentItems = fridgeItems.filter(i => fridgeDaysUntil(i.expires_at) <= 3);
-            const expiredCount = fridgeItems.filter(i => fridgeDaysUntil(i.expires_at) < 0).length;
-            const soonCount = fridgeItems.filter(i => { const d = fridgeDaysUntil(i.expires_at); return d >= 0 && d <= 3; }).length;
-            const badgeParts: string[] = [];
-            if (expiredCount > 0) badgeParts.push(`${expiredCount} просрочено`);
-            else if (soonCount > 0) badgeParts.push(`${soonCount} скоро`);
-            else if (fridgeItems.length > 0) badgeParts.push(`${fridgeItems.length} продуктов`);
-            return (
-              <CollapsibleSection
-                title="ХОЛОДИЛЬНИК"
-                accentColor={expiredCount > 0 ? Colors.danger : soonCount > 0 ? Colors.warning : Colors.accentTeal}
-                badge={badgeParts[0]}
-                open={fridgeOpen}
-                onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setFridgeOpen(v => !v); }}
-              >
-                {fridgeItems.length === 0 ? (
-                  <Text style={styles.catEmpty}>Холодильник пуст</Text>
-                ) : (
-                  <View style={{ gap: 6 }}>
-                    <View style={styles.fridgeStats}>
-                      <View style={[styles.fridgeStat, { borderColor: Colors.accentTeal + '35' }]}>
-                        <Text style={[styles.fridgeStatNum, { color: Colors.accentTeal }]}>{fridgeItems.length}</Text>
-                        <Text style={styles.fridgeStatLabel}>всего</Text>
-                      </View>
-                      <View style={[styles.fridgeStat, { borderColor: Colors.warning + '35' }]}>
-                        <Text style={[styles.fridgeStatNum, { color: Colors.warning }]}>{soonCount}</Text>
-                        <Text style={styles.fridgeStatLabel}>скоро</Text>
-                      </View>
-                      <View style={[styles.fridgeStat, { borderColor: Colors.danger + '35' }]}>
-                        <Text style={[styles.fridgeStatNum, { color: Colors.danger }]}>{expiredCount}</Text>
-                        <Text style={styles.fridgeStatLabel}>просрочено</Text>
-                      </View>
-                    </View>
-                    {urgentItems.slice(0, 5).map(item => {
-                      const days = fridgeDaysUntil(item.expires_at);
-                      const col = fridgeZoneColor(days);
-                      const label = days < 0 ? 'просрочено' : days === 0 ? 'сегодня' : days === 1 ? '1 день' : `${days} дня`;
-                      return (
-                        <View key={item.id} style={[styles.fridgeRow, { borderColor: col + '25' }]}>
-                          <Text style={styles.fridgeRowName} numberOfLines={1}>{item.name}</Text>
-                          <Text style={styles.fridgeRowQty}>{item.quantity} {item.unit}</Text>
-                          <View style={[styles.fridgeRowBadge, { backgroundColor: col + '18', borderColor: col + '40' }]}>
-                            <Text style={[styles.fridgeRowBadgeTxt, { color: col }]}>{label}</Text>
-                          </View>
-                        </View>
-                      );
-                    })}
-                    {urgentItems.length > 5 && (
-                      <Text style={styles.catEmpty}>+{urgentItems.length - 5} ещё</Text>
-                    )}
-                  </View>
-                )}
-              </CollapsibleSection>
-            );
-          })()}
-
-          {/* ── What-if Simulator ── */}
-          {(() => {
-            const wiGoal = goals.find(g => g.monthly_contribution > 0 && g.target_amount > g.current_amount);
-            if (!wiGoal) return null;
-            const remaining = wiGoal.target_amount - wiGoal.current_amount;
-            const base = Math.ceil(remaining / wiGoal.monthly_contribution);
-            const scenarios = [
-              { label: 'Кофе навынос', saving: 47, emoji: '☕' },
-              { label: 'Доставка еды', saving: 80, emoji: '🍕' },
-              { label: 'Такси',        saving: 60, emoji: '🚕' },
-            ];
-            return (
-              <CollapsibleSection
-                title="ЧТО ЕСЛИ"
-                accentColor={Colors.warning}
-                badge={wiGoal.emoji + ' ' + wiGoal.title}
-                open={whatIfOpen}
-                onToggle={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setWhatIfOpen(v => !v); }}
-              >
-                <Text style={styles.wiSub}>Откажись от привычки — цель станет ближе</Text>
-                <View style={{ gap: 8, marginBottom: Spacing.md }}>
-                  {scenarios.map(sc => {
-                    const newMos = Math.ceil(remaining / (wiGoal.monthly_contribution + sc.saving));
-                    const diff = base - newMos;
-                    return (
-                      <View key={sc.label} style={styles.wiRow}>
-                        <Text style={{ fontSize: 20 }}>{sc.emoji}</Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.wiLabel}>{sc.label}</Text>
-                          <Text style={styles.wiEffect}>
-                            {'На '}
-                            <Text style={{ color: Colors.success, fontWeight: Typography.weightBold }}>
-                              {diff > 0 ? `${diff} мес.` : 'чуть'} ближе
-                            </Text>
-                          </Text>
-                        </View>
-                        <View style={styles.wiSavingBadge}>
-                          <Text style={styles.wiSavingTxt}>+{sc.saving}/мес</Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-                <View style={styles.wiScenSection}>
-                  <Text style={styles.wiScenTitle}>Сколько откладывать в месяц:</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {[
-                      { label: 'Минимум',  val: remaining / Math.max(base + 3, 1) },
-                      { label: 'Реалист.', val: wiGoal.monthly_contribution },
-                      { label: 'Оптим.',   val: remaining / Math.max(base - 2, 1) },
-                    ].map(sc => (
-                      <View key={sc.label} style={styles.wiScenCard}>
-                        <Text style={styles.wiScenAmt}>{fmt(Math.round(sc.val))}</Text>
-                        <Text style={styles.wiScenLabel}>{sc.label}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </CollapsibleSection>
-            );
-          })()}
-
-          {/* ── AI Insight card ── */}
-          <TouchableOpacity style={styles.aiCard} onPress={() => setInsightIdx(i => (i + 1) % 3)} activeOpacity={0.9}>
-            <View style={styles.aiShine} pointerEvents="none" />
-            <Text style={styles.aiLabel}>{t('dash.ai.label')}</Text>
-            <Text style={styles.aiText}>{aiMessages[insightIdx]}</Text>
-            <View style={styles.aiDots}>
-              {[0, 1, 2].map(i => (
-                <View key={i} style={[styles.aiDot, i === insightIdx && styles.aiDotActive]} />
-              ))}
-            </View>
-          </TouchableOpacity>
+          {widgets.filter(w => w.visible).map(w => (
+            <React.Fragment key={w.id}>
+              {widgetRenderers[w.id]?.()}
+            </React.Fragment>
+          ))}
 
         </Animated.View>
       </ScrollView>
@@ -1406,6 +1636,36 @@ export function DashboardScreen() {
         searchPh={t('dash.currency.search')}
       />
 
+      {/* ── Widget Editor Modal ── */}
+      <Modal visible={showWidgetEditor} transparent animationType="slide" onRequestClose={() => setShowWidgetEditor(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowWidgetEditor(false)} />
+          <View style={we.sheet}>
+            <View style={we.handle} />
+            <Text style={we.title}>ВИДЖЕТЫ</Text>
+            <Text style={we.sub}>Порядок и видимость блоков на главном экране</Text>
+            {widgets.map((w, idx) => (
+              <View key={w.id} style={we.row}>
+                <Text style={we.rowEmoji}>{WIDGET_META[w.id].emoji}</Text>
+                <Text style={[we.rowLabel, !w.visible && we.rowLabelHidden]}>{WIDGET_META[w.id].label}</Text>
+                <View style={we.rowActions}>
+                  <TouchableOpacity onPress={() => moveWidget(w.id, 'up')} disabled={idx === 0} style={we.arrowBtn} activeOpacity={0.6}>
+                    <Text style={[we.arrowTxt, idx === 0 && we.arrowTxtDim]}>▲</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => moveWidget(w.id, 'down')} disabled={idx === widgets.length - 1} style={we.arrowBtn} activeOpacity={0.6}>
+                    <Text style={[we.arrowTxt, idx === widgets.length - 1 && we.arrowTxtDim]}>▼</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => toggleWidget(w.id)} style={[we.eyeBtn, w.visible && we.eyeBtnOn]} activeOpacity={0.75}>
+                    <Text style={[we.eyeTxt, w.visible && we.eyeTxtOn]}>{w.visible ? '●' : '○'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+            <View style={{ height: insets.bottom + 12 }} />
+          </View>
+        </View>
+      </Modal>
+
       <CoachMark steps={DASHBOARD_TIPS} visible={tipsVisible} onDone={tipsDone} />
     </SafeAreaView>
     </View>
@@ -1487,18 +1747,6 @@ const styles = StyleSheet.create({
   goalsAddBtn:          { marginTop: Spacing.sm, paddingVertical: Spacing.md, alignItems: 'center', borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.accentPurple + '40', backgroundColor: Colors.accentPurple + '0A' },
   goalsAddTxt:          { fontSize: Typography.sizeSM, color: Colors.accentPurple, fontWeight: Typography.weightSemiBold },
 
-  // What-if simulator
-  wiSub:        { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginBottom: Spacing.md },
-  wiRow:        { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  wiLabel:      { fontSize: Typography.sizeSM, color: Colors.textPrimary, fontWeight: Typography.weightSemiBold },
-  wiEffect:     { fontSize: Typography.sizeXS, color: Colors.textSecondary },
-  wiSavingBadge:{ backgroundColor: Colors.success+'18', borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3 },
-  wiSavingTxt:  { fontSize: Typography.sizeXS, color: Colors.success, fontWeight: Typography.weightBold },
-  wiScenSection:{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', paddingTop: Spacing.md },
-  wiScenTitle:  { fontSize: Typography.sizeXS, color: Colors.textMuted, marginBottom: Spacing.sm },
-  wiScenCard:   { flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center' },
-  wiScenAmt:    { fontSize: Typography.sizeSM, fontWeight: Typography.weightBold, color: Colors.textPrimary },
-  wiScenLabel:  { fontSize: Typography.sizeXS, color: Colors.textSecondary, marginTop: 2, textAlign: 'center' },
 
   // Fridge widget
   fridgeStats:        { flexDirection: 'row', gap: 8, marginBottom: 8 },
@@ -1536,20 +1784,15 @@ const styles = StyleSheet.create({
   subManageBtn: { marginTop: Spacing.md, alignItems: 'center', paddingVertical: Spacing.sm },
   subManageTxt: { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.accentPurple },
 
-  // AI card (goal emojis in gm stylesheet below)
-  aiCard: {
-    borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md,
-    backgroundColor: 'rgba(0,212,200,0.06)',
-    borderWidth: 1, borderColor: 'rgba(0,212,200,0.25)',
-    overflow: 'hidden',
-    shadowColor: '#00D4C8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 16,
-  },
-  aiShine: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(0,212,200,0.30)' },
-  aiLabel: { fontSize: Typography.sizeXS, fontFamily: Typography.fontSemiBold, color: Colors.accentTeal, letterSpacing: 1, marginBottom: Spacing.sm },
-  aiText:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textSecondary, lineHeight: 20 },
-  aiDots:  { flexDirection: 'row', gap: 6, marginTop: Spacing.sm },
-  aiDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(0,212,200,0.25)' },
-  aiDotActive: { backgroundColor: Colors.accentTeal, width: 16 },
+  // Widget editor button
+  widgetEditorBtn:    { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  widgetEditorBtnTxt: { fontSize: 14, color: Colors.textSecondary },
+
+  // Quick links widget
+  qlCard:     { marginBottom: Spacing.lg, borderRadius: Radius.xl, borderWidth: 1, borderColor: Glass.border, padding: Spacing.md },
+  qlBtn:      { flex: 1, paddingVertical: Spacing.md, borderRadius: Radius.lg, borderWidth: 1, alignItems: 'center', gap: 3 },
+  qlBtnEmoji: { fontSize: 16, fontFamily: Typography.fontBold },
+  qlBtnLabel: { fontSize: 11, fontFamily: Typography.fontSemiBold },
 
   // Week history modal
   whSheet:     { backgroundColor: 'rgba(13,14,26,0.98)', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: Spacing.xl, maxHeight: '85%', flex: 1, marginTop: 'auto' as any },
@@ -1567,6 +1810,100 @@ const styles = StyleSheet.create({
   whTxCat:     { fontSize: 11, fontFamily: Typography.fontMedium, color: Colors.textMuted, marginTop: 1 },
   whTxAmount:  { fontSize: Typography.sizeSM, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
   whDeleteBtn: { width: 64, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.danger, borderRadius: 10, marginVertical: 2, marginLeft: 6 },
+});
+
+// ─── Analysis widget styles ───────────────────────────────────────────────────
+
+const an = StyleSheet.create({
+  card: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    overflow: 'hidden',
+    minHeight: 108,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: Radius.xl,
+    right: Radius.xl,
+    height: 1.5,
+  },
+  cardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  cardIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardIconTxt: { fontSize: 18 },
+  cardTitle: {
+    flex: 1,
+    fontSize: Typography.sizeXS,
+    fontFamily: Typography.fontSemiBold,
+    letterSpacing: 0.8,
+  },
+  cardMetric: {
+    fontSize: Typography.sizeMD,
+    fontFamily: Typography.fontBold,
+    lineHeight: 20,
+  },
+  cardMetricSub: {
+    fontSize: 10,
+    fontFamily: Typography.fontMedium,
+    color: Colors.textMuted,
+    textAlign: 'right',
+  },
+  cardBody: {
+    fontSize: Typography.sizeSM,
+    fontFamily: Typography.fontMedium,
+    color: Colors.textSecondary,
+    lineHeight: 19,
+  },
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: Spacing.md,
+    paddingBottom: 2,
+  },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  dotActive: {
+    width: 18,
+    backgroundColor: Colors.accentPurple,
+  },
+});
+
+// ─── Widget editor styles ─────────────────────────────────────────────────────
+
+const we = StyleSheet.create({
+  sheet:          { backgroundColor: '#0D0E1C', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  handle:         { width: 40, height: 4, borderRadius: 2, backgroundColor: Glass.border, alignSelf: 'center', marginBottom: Spacing.lg },
+  title:          { fontSize: Typography.sizeXS, fontFamily: Typography.fontSemiBold, color: Colors.textMuted, letterSpacing: 1.2, marginBottom: 4 },
+  sub:            { fontSize: Typography.sizeSM, fontFamily: Typography.fontMedium, color: Colors.textSecondary, marginBottom: Spacing.sm },
+  row:            { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', gap: Spacing.sm },
+  rowEmoji:       { fontSize: 20, width: 28, textAlign: 'center' },
+  rowLabel:       { flex: 1, fontSize: Typography.sizeMD, fontFamily: Typography.fontSemiBold, color: Colors.textPrimary },
+  rowLabelHidden: { color: Colors.textMuted },
+  rowActions:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  arrowBtn:       { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
+  arrowTxt:       { fontSize: 11, color: Colors.textSecondary },
+  arrowTxtDim:    { color: 'rgba(255,255,255,0.2)' },
+  eyeBtn:         { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  eyeBtnOn:       { backgroundColor: Colors.accentTeal + '20', borderColor: Colors.accentTeal + '50' },
+  eyeTxt:         { fontSize: 16, color: Colors.textMuted },
+  eyeTxtOn:       { color: Colors.accentTeal },
 });
 
 // ─── Goal modal styles ────────────────────────────────────────────────────────

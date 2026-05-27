@@ -157,7 +157,7 @@ export function CurvedTabBar({ state, navigation }: BottomTabBarProps) {
         const isFocused = state.index === index;
         const onPress = () => {
           const ev = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!isFocused && !ev.defaultPrevented) navigation.navigate(route.name);
+          if (!ev.defaultPrevented) navigation.navigate(route.name);
         };
         const iconName = ICON_NAMES[route.name] ?? 'home';
         const label    = TAB_LABELS[route.name] ?? route.name;

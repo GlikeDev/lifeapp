@@ -9,6 +9,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radius, Layout, Glass } from '../../constants/tokens';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -102,6 +103,7 @@ const SUB_EMOJIS = ['💳','🎬','🎵','📱','💪','🎮','📺','🤖','☁
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function SubscriptionsScreen() {
+  const navigation = useNavigation();
   const { user } = useAuthStore();
   const insets = useSafeAreaInsets();
   const { t, locale } = useTranslation();
@@ -226,7 +228,12 @@ export function SubscriptionsScreen() {
 
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.title}>{t('sub.title')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+            <TouchableOpacity onPress={() => (navigation as any).navigate('MoreMenu')} style={s.backBtn} activeOpacity={0.7}>
+              <Text style={s.backBtnTxt}>‹</Text>
+            </TouchableOpacity>
+            <Text style={s.title}>{t('sub.title')}</Text>
+          </View>
           <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
             <TouchableOpacity style={s.presetBtn} onPress={() => setShowPresets(true)}>
               <Text style={s.presetBtnTxt}>{t('sub.presets')}</Text>
@@ -502,6 +509,8 @@ const s = StyleSheet.create({
 
   header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg },
   title:      { fontSize: 28, fontWeight: Typography.weightBold, color: Colors.textPrimary },
+  backBtn:    { paddingRight: 4, paddingVertical: 2 },
+  backBtnTxt: { fontSize: 32, color: Colors.textSecondary, lineHeight: 34 },
   addBtn:     { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.accentTeal + '18', borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.accentTeal + '44' },
   addBtnTxt:  { color: Colors.accentTeal, fontSize: Typography.sizeSM, fontWeight: Typography.weightSemiBold },
   presetBtn:  { backgroundColor: Colors.surface, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderWidth: StyleSheet.hairlineWidth, borderColor: Glass.border },

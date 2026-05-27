@@ -301,16 +301,36 @@ export function MoreMenuScreen() {
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
+              <TouchableOpacity style={s.finCard} onPress={() => nav.navigate('Goals')} activeOpacity={0.82}>
+                <LinearGradient colors={['#201A30','#140F22']} style={[s.finGrad, { flexDirection:'row', alignItems:'center', gap: Spacing.md, minHeight: 72 }]} start={{x:0,y:0}} end={{x:1,y:1}}>
+                  <Text style={[s.finEmoji, { marginBottom: 0, fontSize: 32 }]}>🎯</Text>
+                  <View>
+                    <Text style={s.finTitle}>Цели</Text>
+                    <Text style={s.finSub}>Накопления и планы</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={[s.finCard, { marginTop: Spacing.md }]} onPress={() => nav.navigate('Fridge')} activeOpacity={0.82}>
-              <LinearGradient colors={['#1A2B2E','#0F1A1C']} style={[s.finGrad, { flexDirection:'row', alignItems:'center', gap: Spacing.md, minHeight: 72 }]} start={{x:0,y:0}} end={{x:1,y:1}}>
-                <Text style={[s.finEmoji, { marginBottom: 0, fontSize: 32 }]}>🧊</Text>
-                <View>
-                  <Text style={s.finTitle}>Холодильник</Text>
-                  <Text style={s.finSub}>Продукты и сроки годности</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
+            <View style={[s.finRow, { marginTop: Spacing.md }]}>
+              <TouchableOpacity style={s.finCard} onPress={() => nav.navigate('Fridge')} activeOpacity={0.82}>
+                <LinearGradient colors={['#1A2B2E','#0F1A1C']} style={[s.finGrad, { flexDirection:'row', alignItems:'center', gap: Spacing.md, minHeight: 72 }]} start={{x:0,y:0}} end={{x:1,y:1}}>
+                  <Text style={[s.finEmoji, { marginBottom: 0, fontSize: 32 }]}>🧊</Text>
+                  <View>
+                    <Text style={s.finTitle}>Холодильник</Text>
+                    <Text style={s.finSub}>Продукты и сроки</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.finCard} onPress={() => nav.navigate('Subscriptions')} activeOpacity={0.82}>
+                <LinearGradient colors={['#1A1A2E','#0F0F22']} style={[s.finGrad, { flexDirection:'row', alignItems:'center', gap: Spacing.md, minHeight: 72 }]} start={{x:0,y:0}} end={{x:1,y:1}}>
+                  <Text style={[s.finEmoji, { marginBottom: 0, fontSize: 32 }]}>💳</Text>
+                  <View>
+                    <Text style={s.finTitle}>Подписки</Text>
+                    <Text style={s.finSub}>Регулярные платежи</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </Section>
 
           {/* ═══ НАСТРОЙКИ ══════════════════════════════════════════ */}
